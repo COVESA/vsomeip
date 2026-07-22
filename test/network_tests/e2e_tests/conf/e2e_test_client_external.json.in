@@ -1,5 +1,6 @@
 {
     "unicast" : "@TEST_IP_MASTER@",
+    "diagnosis" : "0x01",
     "netmask" : "255.255.255.0",
     "logging" :
     {
@@ -13,8 +14,7 @@
     "applications" :
     [
         {
-            "name" : "client-sample",
-            "id" : "0x1255"
+            "name" : "client-sample"
         }
     ],
     "services" :

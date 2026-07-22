@@ -1,5 +1,6 @@
 {
     "unicast" : "@TEST_IP_SLAVE@",
+    "diagnosis" : "0x02",
     "logging" :
     {
         "level" : "trace",
@@ -12,8 +13,7 @@
     "applications" :
     [
         {
-            "name" : "subscribe_notify_test_service",
-            "id" : "0x8888"
+            "name" : "subscribe_notify_test_service"
         }
     ],
     "services" :

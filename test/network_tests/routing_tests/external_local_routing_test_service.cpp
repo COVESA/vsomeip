@@ -82,11 +82,12 @@ void external_local_routing_test_service::on_message(const std::shared_ptr<vsome
     // TR_SOMEIP_00055
     ASSERT_EQ(_request->get_message_type(), vsomeip::message_type_e::MT_REQUEST);
 
-    if (_request->get_client() == vsomeip_test::TEST_CLIENT_CLIENT_ID) {
+    const auto client_id = static_cast<vsomeip::client_t>(_request->get_client());
+    if (client_id >= 0x1200 && client_id < 0x1300) { // local client id range
         number_received_messages_local_++;
         // check the session id.
         ASSERT_EQ(_request->get_session(), static_cast<vsomeip::session_t>(number_received_messages_local_));
-    } else if (_request->get_client() == vsomeip_test::TEST_CLIENT_EXTERNAL_CLIENT_ID) {
+    } else if (client_id >= 0x1600 && client_id < 0x1700) { // external client id range
         number_received_messages_external_++;
         // check the session id.
         ASSERT_EQ(_request->get_session(), static_cast<vsomeip::session_t>(number_received_messages_external_));

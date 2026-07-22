@@ -3902,11 +3902,6 @@ void routing_manager_impl::remove_pending_requests_unlocked(pending_request_remo
 bool routing_manager_impl::is_valid_client_id(const client_t _client, const message_type_e _type) const {
     // The diagnostic address can be used to identify client ids used by this host.
     const diagnosis_t diag = configuration_->get_diagnosis_address();
-
-    // No point in checking the diagnostics address if the user hasn't defined one.
-    if (diag == VSOMEIP_DIAGNOSIS_ADDRESS) {
-        return true;
-    }
     const diagnosis_t address = (_client & configuration_->get_diagnosis_mask()) >> 8;
 
     // We only expect responses to requests sent by this host.

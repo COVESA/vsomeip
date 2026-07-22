@@ -52,7 +52,6 @@ public:
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
             other_services_received_response_[std::make_pair(i.service_id, i.method_id)] = 0;
-            other_services_received_request_[i.offering_client] = 0;
         }
 
         app_->start();
@@ -141,10 +140,11 @@ public:
                             [](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t>::value_type& v) {
                                 return v.second == client_id_test::messages_to_send;
                             });
-        const bool requests = std::all_of(other_services_received_request_.cbegin(), other_services_received_request_.cend(),
-                                          [](const std::map<vsomeip::client_t, std::uint32_t>::value_type& v) {
-                                              return v.second == client_id_test::messages_to_send;
-                                          });
+        const bool requests = other_services_received_request_.size() == client_id_test::expected_request_clients
+                && std::all_of(other_services_received_request_.cbegin(), other_services_received_request_.cend(),
+                               [](const std::map<vsomeip::client_t, std::uint32_t>::value_type& v) {
+                                   return v.second == client_id_test::messages_to_send;
+                               });
         return (responses && requests);
     }
 

@@ -14,8 +14,7 @@
    "applications" :
    [
       {
-         "name" : "local_routing_test_client",
-         "id" : "0x1255"
+         "name" : "local_routing_test_client"
       }
    ],
    "services" :

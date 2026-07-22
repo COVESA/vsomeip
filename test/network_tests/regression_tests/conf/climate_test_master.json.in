@@ -1,5 +1,6 @@
 {
     "unicast" : "@TEST_IP_MASTER@",
+    "diagnosis" : "0x01",
     "logging" :
     {
         "level" : "trace",
@@ -12,12 +13,10 @@
     "applications" :
     [
         {
-            "name" : "service-sample",
-            "id" : "0x1277"
+            "name" : "service-sample"
         },
         {
-            "name" : "client-sample",
-            "id" : "0x1344"
+            "name" : "client-sample"
         }
     ],
     "services" :

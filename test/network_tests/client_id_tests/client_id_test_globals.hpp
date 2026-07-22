@@ -26,4 +26,5 @@ static constexpr std::array<service_info, 7> service_infos = {{// placeholder to
                                                                {0x6000, 0x1, 0x6666, 0x6666}}};
 
 static constexpr int messages_to_send = 10;
+static constexpr int expected_request_clients = 5;
 }

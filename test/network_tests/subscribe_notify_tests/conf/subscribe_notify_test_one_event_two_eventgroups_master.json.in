@@ -1,5 +1,6 @@
 {
     "unicast" : "@TEST_IP_MASTER@",
+    "diagnosis" : "0x01",
     "logging" :
     {
         "level" : "trace",
@@ -12,8 +13,7 @@
     "applications" :
     [
         {
-            "name" : "subscribe_notify_test_client",
-            "id" : "0x9999"
+            "name" : "subscribe_notify_test_client"
         }
     ],
     "routing" : "routingmanagerd",

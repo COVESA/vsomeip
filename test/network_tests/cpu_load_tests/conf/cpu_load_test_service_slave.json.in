@@ -1,5 +1,6 @@
 {
    "unicast" : "@TEST_IP_SLAVE@",
+   "diagnosis" : "0x02",
    "logging" :
    {
       "level" : "trace",
@@ -12,8 +13,7 @@
    "applications" :
    [
       {
-         "name" : "cpu_load_test_service",
-         "id" : "0x1111"
+         "name" : "cpu_load_test_service"
       }
    ],
    "services" :
