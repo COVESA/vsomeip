@@ -438,8 +438,8 @@ void application_impl::start() {
     try {
         io_.run();
         if (!stopping_) {
-            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io00"
-                          << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io00" << ", application '" << name_
+                          << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                           << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -455,8 +455,8 @@ void application_impl::start() {
         VSOMEIP_TERMINATE("io_context exited due to exception");
     }
 
-    VSOMEIP_INFO_P << ": io_.run() end for app(" << name_ << ", " << hex4(client_) << ")"
-                   << "; Join Dispatcher threads for app(" << name_ << ", " << hex4(client_) << ")";
+    VSOMEIP_INFO_P << ": io_.run() end for app(" << name_ << ", " << hex4(client_) << ")" << "; Join Dispatcher threads for app(" << name_
+                   << ", " << hex4(client_) << ")";
 
     try {
         std::unique_lock its_lock_start_stop{handlers_mutex_};

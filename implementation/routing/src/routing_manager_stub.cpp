@@ -142,9 +142,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     protocol::id_e its_id = its_header.id_;
 
     if (_peer_data.id_ != its_client) {
-        VSOMEIP_ERROR << "vSomeIP Security: routing_manager_stub::on_message: "
-                      << "Routing Manager received a message from client " << hex4(its_client) << " with command " << its_id
-                      << " which doesn't match the bound client " << hex4(_peer_data.id_) << " ~> skip message!";
+        VSOMEIP_ERROR << "vSomeIP Security: routing_manager_stub::on_message: " << "Routing Manager received a message from client "
+                      << hex4(its_client) << " with command " << its_id << " which doesn't match the bound client " << hex4(_peer_data.id_)
+                      << " ~> skip message!";
         return;
     }
 
@@ -207,8 +207,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
                     host_->subscribe(its_client, &_peer_data.sec_client_, its_service, its_instance, its_eventgroup, its_major,
                                      its_notifier, its_filter);
                 } else {
-                    VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_client) << " :  routing_manager_stub::on_message: "
-                                  << " subscribes to service/instance/event " << hex4(its_service) << "/" << hex4(its_instance)
+                    VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_client)
+                                  << " :  routing_manager_stub::on_message: " << " subscribes to service/instance/event "
+                                  << hex4(its_service) << "/" << hex4(its_instance)
                                   << "/ANY_EVENT which violates the security policy ~> Skip subscribe!";
                 }
             } else {
@@ -218,9 +219,10 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
                     host_->subscribe(its_client, &_peer_data.sec_client_, its_service, its_instance, its_eventgroup, its_major,
                                      its_notifier, its_filter);
                 } else {
-                    VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_client) << " :  routing_manager_stub::on_message: "
-                                  << " subscribes to service/instance/event " << hex4(its_service) << "/" << hex4(its_instance) << "/"
-                                  << hex4(its_notifier) << " which violates the security policy ~> Skip subscribe!";
+                    VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_client)
+                                  << " :  routing_manager_stub::on_message: " << " subscribes to service/instance/event "
+                                  << hex4(its_service) << "/" << hex4(its_instance) << "/" << hex4(its_notifier)
+                                  << " which violates the security policy ~> Skip subscribe!";
                 }
             }
         } else {

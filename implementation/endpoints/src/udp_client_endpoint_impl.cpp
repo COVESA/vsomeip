@@ -274,8 +274,7 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         if (_bytes > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
             VSOMEIP_ERROR_P << "Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE (" << VSOMEIP_MAX_UDP_MESSAGE_SIZE
                             << ") bytes with " << _bytes << " bytes in " << local_ << ", " << socket_.get() << " from " << remote_
-                            << ". Message will be dropped"
-                            << " pdu: " << utility::dump(&(*_recv_buffer)[0], _bytes);
+                            << ". Message will be dropped" << " pdu: " << utility::dump(&(*_recv_buffer)[0], _bytes);
             receive(std::move(_recv_buffer));
             return;
         } else if (_bytes < VSOMEIP_FULL_HEADER_SIZE) {

@@ -553,18 +553,18 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
     if (_event == ANY_EVENT) {
         auto const sec_client = get_sec_client();
         if (!is_subscribe_to_any_event_allowed(&sec_client, _client, _service, _instance, _eventgroup, false)) {
-            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client) << " : routing_manager_proxy::subscribe: "
-                          << " isn't allowed to subscribe to service/instance/event " << hex4(_service) << "/" << hex4(_instance)
-                          << "/ANY_EVENT which violates the security policy ~> Skip subscribe!";
+            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client)
+                          << " : routing_manager_proxy::subscribe: " << " isn't allowed to subscribe to service/instance/event "
+                          << hex4(_service) << "/" << hex4(_instance) << "/ANY_EVENT which violates the security policy ~> Skip subscribe!";
             return;
         }
     } else {
         auto const sec_client = get_sec_client();
         if (VSOMEIP_SEC_OK
             != configuration_->get_security()->is_client_allowed_to_access_member(&sec_client, _service, _instance, _event)) {
-            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client) << " : routing_manager_proxy::subscribe: "
-                          << " isn't allowed to subscribe to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
-                          << hex4(_event);
+            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client)
+                          << " : routing_manager_proxy::subscribe: " << " isn't allowed to subscribe to service/instance/event "
+                          << hex4(_service) << "/" << hex4(_instance) << "/" << hex4(_event);
             return;
         }
     }
@@ -968,9 +968,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                                 != configuration_->get_security()->is_client_allowed_to_access_member(&_peer_data.sec_client_, its_service,
                                                                                                       its_instance, its_event)) {
                                 VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_client)
-                                              << " : routing_manager_client::on_message: "
-                                              << " subscribes to service/instance/event " << hex4(its_service) << "/" << hex4(its_instance)
-                                              << "/" << its_event << " which violates the security policy ~> Skip subscribe!";
+                                              << " : routing_manager_client::on_message: " << " subscribes to service/instance/event "
+                                              << hex4(its_service) << "/" << hex4(its_instance) << "/" << its_event
+                                              << " which violates the security policy ~> Skip subscribe!";
                                 return;
                             }
                         }
@@ -2300,9 +2300,8 @@ bool routing_manager_client::send(client_t _client, std::shared_ptr<message> _me
         if (client_side_logging_filter_.empty() || (1 == client_side_logging_filter_.count(std::make_tuple(its_service, ANY_INSTANCE)))
             || (1 == client_side_logging_filter_.count(std::make_tuple(its_service, its_instance)))) {
             VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
-                           << hex4(its_method) << ":" << hex4(its_session) << ":" << hex4(its_client) << "] "
-                           << "type=" << std::hex << static_cast<std::uint32_t>(its_message_type) << " thread=" << std::hex
-                           << std::this_thread::get_id();
+                           << hex4(its_method) << ":" << hex4(its_session) << ":" << hex4(its_client) << "] " << "type=" << std::hex
+                           << static_cast<std::uint32_t>(its_message_type) << " thread=" << std::hex << std::this_thread::get_id();
         }
     }
     std::shared_ptr<local_endpoint> its_target;
@@ -2865,9 +2864,9 @@ bool routing_manager_client::is_subscribe_to_any_event_allowed(const vsomeip_sec
                 == configuration_->get_security()->is_client_allowed_to_access_member(_sec_client, _service, _instance, event->get_event());
         if (!val) {
             VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client)
-                          << " : routing_manager_client::is_subscribe_to_any_event_allowed: "
-                          << "subscribes to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
-                          << hex4(event->get_event()) << " which violates the security policy!";
+                          << " : routing_manager_client::is_subscribe_to_any_event_allowed: " << "subscribes to service/instance/event "
+                          << hex4(_service) << "/" << hex4(_instance) << "/" << hex4(event->get_event())
+                          << " which violates the security policy!";
         }
         return val;
     };

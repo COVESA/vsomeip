@@ -302,8 +302,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
 
     if (!handle_local_offer_service(_client, _service, _instance, _major, _minor)) {
         VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "." << _minor
-                       << "] (" << std::boolalpha << true << ")"
-                       << " not offering, returned from handle_local_offer_service!";
+                       << "] (" << std::boolalpha << true << ")" << " not offering, returned from handle_local_offer_service!";
         return false;
     }
 
@@ -3446,13 +3445,10 @@ void routing_manager_impl::memory_log_timer_cbk(boost::system::error_code const&
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &cputs);
     clock_gettime(CLOCK_MONOTONIC, &monots);
 
-    VSOMEIP_INFO << "memory usage: "
-                 << "VmSize " << its_size * its_pagesize << " kB, "
-                 << "VmRSS " << its_rsssize * its_pagesize << " kB, "
-                 << "shared pages " << its_sharedpages * its_pagesize << " kB, "
-                 << "text " << its_text * its_pagesize << " kB, "
-                 << "data " << its_data * its_pagesize << " kB "
-                 << "| monotonic time: " << monots.tv_sec << "." << monots.tv_nsec << " cpu time: " << cputs.tv_sec << "." << cputs.tv_nsec;
+    VSOMEIP_INFO << "memory usage: " << "VmSize " << its_size * its_pagesize << " kB, " << "VmRSS " << its_rsssize * its_pagesize << " kB, "
+                 << "shared pages " << its_sharedpages * its_pagesize << " kB, " << "text " << its_text * its_pagesize << " kB, " << "data "
+                 << its_data * its_pagesize << " kB " << "| monotonic time: " << monots.tv_sec << "." << monots.tv_nsec
+                 << " cpu time: " << cputs.tv_sec << "." << cputs.tv_nsec;
 #endif
 
     {
@@ -4518,9 +4514,9 @@ bool routing_manager_impl::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
             if (VSOMEIP_SEC_OK
                 != configuration_->get_security()->is_client_allowed_to_access_member(_sec_client, _service, _instance, e->get_event())) {
                 VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client)
-                              << " : routing_manager_impl::is_subscribe_to_any_event_allowed: "
-                              << "subscribes to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
-                              << hex4(e->get_event()) << " which violates the security policy!";
+                              << " : routing_manager_impl::is_subscribe_to_any_event_allowed: " << "subscribes to service/instance/event "
+                              << hex4(_service) << "/" << hex4(_instance) << "/" << hex4(e->get_event())
+                              << " which violates the security policy!";
                 is_allowed = false;
                 break;
             }

@@ -277,8 +277,7 @@ private:
 
 static void print_help(char* binary_name) {
     std::cout << "Usage example:" << std::endl;
-    std::cout << binary_name << " --instance 5678 "
-              << "--message 123480e800000015134300030100000000000009efbbbf576f726c6400\n"
+    std::cout << binary_name << " --instance 5678 " << "--message 123480e800000015134300030100000000000009efbbbf576f726c6400\n"
               << "This will send a message to service with service id 1234 and instance 5678." << std::endl
               << std::endl;
     std::cout << "Available options:\n"

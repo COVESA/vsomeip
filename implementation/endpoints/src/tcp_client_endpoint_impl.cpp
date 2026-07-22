@@ -373,9 +373,8 @@ std::size_t tcp_client_endpoint_impl::write_completion_condition(const boost::sy
 
     if (_error) {
         VSOMEIP_ERROR_P << _error.message() << "(" << _error.value() << ") bytes transferred: " << _bytes_transferred
-                        << " bytes to sent: " << _bytes_to_send << " "
-                        << "remote:" << get_address_port_remote() << " (" << hex4(_client) << "): [" << hex4(_service) << "."
-                        << hex4(_method) << "." << hex4(_session) << "]";
+                        << " bytes to sent: " << _bytes_to_send << " " << "remote:" << get_address_port_remote() << " (" << hex4(_client)
+                        << "): [" << hex4(_service) << "." << hex4(_method) << "." << hex4(_session) << "]";
         return 0;
     }
 
@@ -551,8 +550,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                         _recv_buffer->shrink_to_fit();
                         if (use_magic_cookies_) {
                             VSOMEIP_ERROR << "Received a TCP message which exceeds maximum message size (" << current_message_size
-                                          << "). Magic Cookies are enabled: "
-                                          << "Resetting receiver. local: " << get_address_port_local()
+                                          << "). Magic Cookies are enabled: " << "Resetting receiver. local: " << get_address_port_local()
                                           << " remote: " << get_address_port_remote();
                         } else {
                             VSOMEIP_ERROR << "Received a TCP message which exceeds maximum message size (" << current_message_size
