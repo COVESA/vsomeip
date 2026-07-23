@@ -663,12 +663,13 @@ TEST_F(test_event_subscription_callback_boardnet, a_broken_connection_to_the_rou
             }
 
             set_ignore_connections(provider_ecu_.router_name_, true);
+            auto drop_watch = watch_connection_drop(server_name_, provider_ecu_.router_name_);
             if (!disconnect(server_name_, boost::asio::error::connection_reset, provider_ecu_.router_name_,
                             boost::asio::error::timed_out)) {
                 VSOMEIP_INFO << "[DISPATCHER_TAG] ERROR disconnect did not work";
                 std::abort();
             }
-            if (!wait_for_connection_drop(server_name_, provider_ecu_.router_name_)) {
+            if (!drop_watch.wait()) {
                 VSOMEIP_INFO << "[DISPATCHER_TAG] ERROR on wait_for_connection_drop";
                 std::abort();
             }

@@ -638,6 +638,11 @@ TEST_F(test_client_lifecycle, test_subscription_for_ghost_service) {
 TEST_F(test_client_lifecycle, test_partial_read_leads_to_connection_drop) {
     start_apps();
     ASSERT_TRUE(subscribe_to_event());
+
+    // Watch before injecting: the consumer reconnects within ~1ms of the drop, so a level-based
+    // check can miss it. The watch latches the drop regardless of reconnect timing.
+    auto drop_watch = watch_connection_drop(client_name_, server_name_);
+
     auto subscription_payload = construct_basic_raw_command(protocol::id_e::SUBSCRIBE_ID, // command
                                                             static_cast<uint16_t>(0), // version
                                                             static_cast<client_t>(0x3490), // client id
@@ -647,7 +652,7 @@ TEST_F(test_client_lifecycle, test_partial_read_leads_to_connection_drop) {
                                                             // to not finish the message
     );
     inject_command_tcp(client_name_, server_name_, subscription_payload);
-    EXPECT_TRUE(wait_for_connection_drop(client_name_, server_name_, std::chrono::seconds(6)));
+    EXPECT_TRUE(drop_watch.wait()) << "connection drop was not detected";
 }
 
 TEST_F(test_client_lifecycle, availability_callback_is_only_called_once_on_stop) {

@@ -200,9 +200,9 @@ bool base_fake_socket_fixture::setup_data_pipe(boost::asio::ip::udp::endpoint co
     return socket_manager_->wait_for_last_command(_client, _server, _waiting, _id, _timeout);
 }
 
-[[nodiscard]] bool base_fake_socket_fixture::wait_for_connection_drop(std::string const& _client, std::string const& _server,
-                                                                      std::chrono::milliseconds _timeout) {
-    return socket_manager_->wait_for_connection_drop(_client, _server, _timeout);
+[[nodiscard]] connection_drop_watch base_fake_socket_fixture::watch_connection_drop(std::string const& _client,
+                                                                                    std::string const& _server) {
+    return socket_manager_->watch_connection_drop(_client, _server);
 }
 
 void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail) {

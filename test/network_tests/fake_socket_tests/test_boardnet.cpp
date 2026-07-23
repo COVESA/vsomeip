@@ -1754,9 +1754,10 @@ TEST_F(test_someip_gate, orphan_response_after_client_id_reuse_is_dropped) {
     ASSERT_TRUE(response_gate->wait_for_blocked()) << "response was not held at the provider egress";
 
     // Client A leaves; wait until its routing connection is fully torn down so the routing
-    // manager releases the client id before B claims it.
+    // manager releases the client id before B claims it. Watch armed before the stop (the trigger).
+    auto drop_watch = watch_connection_drop("client_a", ecu_one_.router_name_);
     ecu_one_.stop_one("client_a");
-    ASSERT_TRUE(wait_for_connection_drop("client_a", ecu_one_.router_name_));
+    ASSERT_TRUE(drop_watch.wait());
 
     // Client B joins and takes over the very same client id — but never requests the service.
     auto* client_b = ecu_one_.start_one("client_b");

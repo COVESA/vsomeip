@@ -257,12 +257,12 @@ TEST_F(test_connection_restoration, outdated_routing_info_will_not_cause_a_wrong
     ASSERT_NE(new_app, nullptr);
     ASSERT_TRUE(new_app->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
-    // 5. trigger client tries to connect
+    // 5. trigger client tries to connect (watch armed before the trigger)
+    auto drop_watch = watch_connection_drop(client_name_, new_app_name);
     ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::client));
 
-    // 6. we expect that the established connection is dropped (note that the predicate includes the check that connection has been
-    // established)
-    EXPECT_TRUE(wait_for_connection_drop(client_name_, new_app_name));
+    // 6. we expect that the established connection is dropped
+    EXPECT_TRUE(drop_watch.wait());
 }
 
 TEST_F(test_connection_restoration, reproduction_allow_reconnects_on_first_try_between_router_and_client) {

@@ -82,7 +82,7 @@ void fake_tcp_socket_handle::cancel() {
             auto const lock = std::scoped_lock(mtx_);
             return socket_manager_.lock();
         }();
-        sm->check_connection(get_app_name(), remote->get_app_name(), socket_id_.role_);
+        sm->on_disconnect(get_app_name(), remote->get_app_name(), socket_id_.role_);
     }
 }
 

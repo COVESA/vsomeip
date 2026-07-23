@@ -231,10 +231,9 @@ struct base_fake_socket_fixture : ::testing::Test {
                                              protocol::id_e _id, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
-     * @see socket_manager::wait_for_connection_drop
+     * @see socket_manager::watch_connection_drop
      **/
-    [[nodiscard]] bool wait_for_connection_drop(std::string const& _client, std::string const& _server,
-                                                std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+    [[nodiscard]] connection_drop_watch watch_connection_drop(std::string const& _client, std::string const& _server);
 
     void fail_on_bind(std::string const& _app, bool _fail);
 
