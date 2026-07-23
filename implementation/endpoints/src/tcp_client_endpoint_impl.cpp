@@ -724,7 +724,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
                                         const message_buffer_ptr_t& _sent_msg) {
     (void)_bytes;
 
-    std::scoped_lock its_lock(mutex_);
+    std::unique_lock<std::recursive_mutex> its_lock(mutex_);
     sent_timer_.cancel();
 
     if (!_error) {
@@ -752,12 +752,6 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
             // endpoint was stopped
             close_socket(false, false);
         } else {
-            if (state_ == cei_state_e::CONNECTING) {
-                VSOMEIP_WARNING_P << "Already restarting" << get_remote_information();
-            } else {
-                notify_disconnect();
-                restart(true);
-            }
             service_t its_service(0);
             method_t its_method(0);
             client_t its_client(0);
@@ -768,9 +762,20 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
                 its_client = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
                 its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
             }
+            // Capture queue statistics for the log below before releasing mutex_.
+            const std::size_t its_queue_size = queue_.size();
+            const std::size_t its_queue_data_size = queue_size_;
+            if (state_ == cei_state_e::CONNECTING) {
+                VSOMEIP_WARNING_P << "Already restarting" << get_remote_information();
+            } else {
+                // Release mutex_ before notify_disconnect() to avoid lock-order-inversion
+                its_lock.unlock();
+                notify_disconnect();
+                restart(true);
+            }
             VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information() << " "
-                              << queue_.size() << " " << queue_size_ << " (" << hex4(its_client) << "): [" << hex4(its_service) << "."
-                              << hex4(its_method) << "." << hex4(its_session) << "]";
+                              << its_queue_size << " " << its_queue_data_size << " (" << hex4(its_client) << "): [" << hex4(its_service)
+                              << "." << hex4(its_method) << "." << hex4(its_session) << "]";
         }
     }
 }
