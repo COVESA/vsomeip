@@ -17,6 +17,7 @@ target_link_libraries(
     ${Boost_LIBRARIES}
     ${DL_LIBRARY}
     gtest
+    gmock
     vsomeip_utilities
 )
 
