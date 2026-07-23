@@ -2,10 +2,9 @@
 
 source "${BASH_SOURCE[0]%/*}"/shlib/common.shlib
 
-# Reserve the fixed SOME/IP test ports to avoid the kernel using them for ephemeral ports
-source "${BASH_SOURCE[0]%/*}/../../test/network_tests/conf/reserved_test_ports.sh"
-sysctl -wq "net.ipv4.ip_local_reserved_ports=${RESERVED_TEST_PORTS}" 2>/dev/null ||
-    echo "WARNING: Could not reserve test ports on slave" >&2
+# The ephemeral local port range is narrowed via docker-compose.yaml sysctls so
+# the kernel never hands out the fixed SOME/IP test ports as ephemeral source
+# ports. The slave runs in its container namespace, so no re-apply is needed here.
 
 mkdir -p /run/sshd
 exec /sbin/sshd -D
