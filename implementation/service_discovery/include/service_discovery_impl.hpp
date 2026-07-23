@@ -14,6 +14,7 @@
 #include <forward_list>
 #include <atomic>
 #include <tuple>
+#include <random>
 
 #include <boost/asio/steady_timer.hpp>
 
@@ -213,11 +214,11 @@ private:
 
     void update_request(service_t _service, instance_t _instance);
 
-    void start_offer_debounce_timer(bool _first_start);
+    void start_offer_debounce_timer(std::chrono::milliseconds _duration);
     void stop_offer_debounce_timer();
     void on_offer_debounce_timer_expired(const boost::system::error_code& _error);
 
-    void start_find_debounce_timer(bool _first_start);
+    void start_find_debounce_timer(std::chrono::milliseconds _duration);
     void stop_find_debounce_timer();
     void on_find_debounce_timer_expired(const boost::system::error_code& _error);
 
@@ -362,7 +363,8 @@ private:
     boost::asio::steady_timer subscription_expiration_timer_;
     std::chrono::steady_clock::time_point next_subscription_expiration_;
 
-    std::chrono::milliseconds initial_delay_;
+    // RNG + SD parameters
+    std::mt19937 random_generator_; // used for initial wait phase (see PRS_SOMEIPSD_00399)
     std::chrono::milliseconds offer_debounce_time_;
     std::chrono::milliseconds repetitions_base_delay_;
     std::uint8_t repetitions_max_;

@@ -1839,6 +1839,11 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
     } catch (...) {
         // intentionally left empty
     }
+
+    if (sd_initial_delay_min_ > sd_initial_delay_max_) {
+        VSOMEIP_ERROR_P << "Bad parameters, service_discovery.initial_delay_min > service_discovery.initial_delay_max, will swap";
+        std::swap(sd_initial_delay_max_, sd_initial_delay_min_);
+    }
 }
 
 void configuration_impl::load_npdu_default_timings(const configuration_element& _element) {

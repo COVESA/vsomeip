@@ -9,7 +9,6 @@
 #include <chrono>
 #include <iomanip>
 #include <forward_list>
-#include <random>
 #include <sstream>
 #include <thread>
 #include <algorithm>
@@ -54,7 +53,7 @@ service_discovery_impl::service_discovery_impl(service_discovery_host* _host, co
     serializer_(std::make_shared<serializer>(configuration_->get_buffer_shrink_threshold())),
     deserializer_(std::make_shared<deserializer>(configuration_->get_buffer_shrink_threshold())), ttl_timer_(_host->get_io()),
     ttl_timer_runtime_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 2), ttl_(VSOMEIP_SD_DEFAULT_TTL),
-    subscription_expiration_timer_(_host->get_io()), initial_delay_(0), offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
+    subscription_expiration_timer_(_host->get_io()), offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
     repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY), repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX),
     cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY), offer_debounce_timer_(_host->get_io()),
     find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
@@ -86,36 +85,9 @@ void service_discovery_impl::init() {
 
     ttl_ = configuration_->get_sd_ttl();
 
-    // generate random initial delay based on initial delay min and max
-    std::uint32_t initial_delay_min = configuration_->get_sd_initial_delay_min();
-    std::uint32_t initial_delay_max = configuration_->get_sd_initial_delay_max();
-    if (initial_delay_min > initial_delay_max) {
-        const std::uint32_t tmp(initial_delay_min);
-        initial_delay_min = initial_delay_max;
-        initial_delay_max = tmp;
-    }
-
-    try {
-        std::random_device r;
-        std::mt19937 e(r());
-        std::uniform_int_distribution<std::uint32_t> distribution(initial_delay_min, initial_delay_max);
-        initial_delay_ = std::chrono::milliseconds(distribution(e));
-    } catch (const std::exception& e) {
-        VSOMEIP_ERROR << "Failed to generate random initial delay: " << e.what();
-
-        // Fallback to the Mersenne Twister engine
-        const auto seed = static_cast<std::mt19937::result_type>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch())
-                        .count());
-
-        std::mt19937 mtwister{seed};
-
-        // Interpolate between initial_delay bounds
-        initial_delay_ = std::chrono::milliseconds(
-                initial_delay_min
-                + (static_cast<std::int64_t>(mtwister()) * static_cast<std::int64_t>(initial_delay_max - initial_delay_min)
-                   / static_cast<std::int64_t>(std::mt19937::max() - std::mt19937::min())));
-    }
+    // no need for "real" entrophy here, it's good enough to seed with uptime; avoid `random_device`
+    random_generator_.seed(static_cast<std::mt19937::result_type>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count()));
 
     repetitions_base_delay_ = std::chrono::milliseconds(configuration_->get_sd_repetitions_base_delay());
     repetitions_max_ = configuration_->get_sd_repetitions_max();
@@ -184,9 +156,15 @@ void service_discovery_impl::start() {
         offers_received_after_last_resume_ = offers_received_.load();
         offers_watchdog_.cancel();
     }
+
+    // see PRS_SOMEIPSD_00399: initial wait phase before sending any messages
+    std::uniform_int_distribution<std::uint32_t> distribution{configuration_->get_sd_initial_delay_min(),
+                                                              configuration_->get_sd_initial_delay_max()};
+    std::chrono::milliseconds initial_delay{distribution(random_generator_)};
+
     start_main_phase_timer();
-    start_offer_debounce_timer(true);
-    start_find_debounce_timer(true);
+    start_offer_debounce_timer(initial_delay);
+    start_find_debounce_timer(initial_delay);
     start_ttl_timer();
     start_last_msg_received_timer();
 }
@@ -2368,16 +2346,9 @@ void service_discovery_impl::offer_service(const std::shared_ptr<serviceinfo>& _
     }
 }
 
-void service_discovery_impl::start_find_debounce_timer(bool _first_start) {
+void service_discovery_impl::start_find_debounce_timer(std::chrono::milliseconds _duration) {
     std::scoped_lock its_lock{offer_debounce_timer_mutex_};
-    if (_first_start) {
-        find_debounce_timer_.expires_after(initial_delay_);
-    } else if (remaining_find_initial_debounce_reps_ > 0) {
-        find_debounce_timer_.expires_after(find_initial_debounce_time_);
-        --remaining_find_initial_debounce_reps_;
-    } else {
-        find_debounce_timer_.expires_after(find_debounce_time_);
-    }
+    find_debounce_timer_.expires_after(_duration);
     find_debounce_timer_.async_wait(std::bind(&service_discovery_impl::on_find_debounce_timer_expired, this, std::placeholders::_1));
 }
 
@@ -2395,10 +2366,20 @@ void service_discovery_impl::on_find_debounce_timer_expired(const boost::system:
     if (_error) { // timer was canceled
         return;
     }
+
+    std::chrono::milliseconds duration = [this]() {
+        std::scoped_lock its_lock{offer_debounce_timer_mutex_};
+        if (remaining_find_initial_debounce_reps_ > 0) {
+            --remaining_find_initial_debounce_reps_;
+            return find_initial_debounce_time_;
+        } else {
+            return find_debounce_time_;
+        }
+    }();
+
     // Only copy the accumulated requests of the initial wait phase
     // if the sent counter for the request is zero.
     requests_t repetition_phase_finds;
-    bool new_finds(false);
     {
         std::scoped_lock its_lock(requested_mutex_);
         for (const auto& [si, req] : requested_) {
@@ -2406,13 +2387,11 @@ void service_discovery_impl::on_find_debounce_timer_expired(const boost::system:
                 repetition_phase_finds[si] = req;
             }
         }
-        if (repetition_phase_finds.size()) {
-            new_finds = true;
-        }
     }
 
-    if (!new_finds) {
-        start_find_debounce_timer(false);
+    if (repetition_phase_finds.empty()) {
+        // TODO: we should *definitely* start this timer on demand instead of looping it constantly!
+        start_find_debounce_timer(duration);
         return;
     }
 
@@ -2436,16 +2415,12 @@ void service_discovery_impl::on_find_debounce_timer_expired(const boost::system:
     its_timer->expires_after(its_delay);
     its_timer->async_wait(std::bind(&service_discovery_impl::on_find_repetition_phase_timer_expired, this, std::placeholders::_1, its_timer,
                                     its_repetitions, its_delay.count()));
-    start_find_debounce_timer(false);
+    start_find_debounce_timer(duration);
 }
 
-void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
+void service_discovery_impl::start_offer_debounce_timer(std::chrono::milliseconds _duration) {
     std::scoped_lock its_lock{offer_debounce_timer_mutex_};
-    if (_first_start) {
-        offer_debounce_timer_.expires_after(initial_delay_);
-    } else {
-        offer_debounce_timer_.expires_after(offer_debounce_time_);
-    }
+    offer_debounce_timer_.expires_after(_duration);
     offer_debounce_timer_.async_wait(std::bind(&service_discovery_impl::on_offer_debounce_timer_expired, this, std::placeholders::_1));
 }
 
@@ -2477,7 +2452,8 @@ void service_discovery_impl::on_offer_debounce_timer_expired(const boost::system
     }
 
     if (!new_offers) {
-        start_offer_debounce_timer(false);
+        // TODO: we should *definitely* start this timer on demand instead of looping it constantly!
+        start_offer_debounce_timer(offer_debounce_time_);
         return;
     }
 
@@ -2514,7 +2490,7 @@ void service_discovery_impl::on_offer_debounce_timer_expired(const boost::system
     its_timer->expires_after(its_delay);
     its_timer->async_wait(std::bind(&service_discovery_impl::on_repetition_phase_timer_expired, this, std::placeholders::_1, its_timer,
                                     its_repetitions, its_delay.count()));
-    start_offer_debounce_timer(false);
+    start_offer_debounce_timer(offer_debounce_time_);
 }
 
 void service_discovery_impl::on_repetition_phase_timer_expired(const boost::system::error_code& _error,
@@ -2786,8 +2762,8 @@ bool service_discovery_impl::check_source_address(const boost::asio::ip::address
 
 void service_discovery_impl::update_remote_subscription(const std::shared_ptr<remote_subscription>& _subscription) {
 
-    // check if parent subscription exists, if so use it to check for pending clients, otherwise use the subscription itself to check for
-    // pending clients
+    // check if parent subscription exists, if so use it to check for pending clients, otherwise use the subscription itself to check
+    // for pending clients
     auto subscription_ = _subscription->get_parent_or_self();
     if (!subscription_->is_pending() || 0 == subscription_->get_answers()) {
         std::shared_ptr<remote_subscription_ack> its_ack;
