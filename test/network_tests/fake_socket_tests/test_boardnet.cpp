@@ -1285,6 +1285,105 @@ TEST_F(server_offering_multiple_fields, graceful_stop_offer) {
             << "Pending in-window offer was not auto-emitted after graceful timeout.";
 }
 
+TEST_F(server_offering_multiple_fields, graceful_stop_offer_after_str) {
+    // Tests the graceful stop offer mechanism, where the cycle STOP OFFER/OFFER happens right after a STR.
+    prepare_ecus_and_apps();
+    auto* server = ecu_one_.apps_["guest_server"];
+    auto* router_one = ecu_one_.router_;
+    auto* client = ecu_two_.apps_["guest_client"];
+
+    client->request_service(multi_field_service_.instance_);
+
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
+
+    server->offer(multi_field_service_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+
+    server->stop_offer(multi_field_service_.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+
+    client->availability_record_.clear();
+
+    // Offer inside the graceful stop offer window: must NOT propagate immediately.
+    server->offer(multi_field_service_);
+    ASSERT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                            std::chrono::milliseconds(500)))
+            << "Offer must not propagate during graceful stop-offer window.";
+
+    // No further user-side calls: the routing manager must auto-emit the
+    // deferred offer when the timer expires. Wait for offer delay cycle + initial wait phase.
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                           std::chrono::milliseconds(2600)))
+            << "Pending in-window offer was not auto-emitted after graceful timeout.";
+}
+
+TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_str_) {
+    // Tests the graceful stop offer mechanism, where the cycle STOP OFFER/OFFER happens right before a STR.
+    prepare_ecus_and_apps();
+    auto* server = ecu_one_.apps_["guest_server"];
+    auto* router_one = ecu_one_.router_;
+    auto* client = ecu_two_.apps_["guest_client"];
+
+    client->request_service(multi_field_service_.instance_);
+
+    server->offer(multi_field_service_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+
+    server->stop_offer(multi_field_service_.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+
+    server->offer(multi_field_service_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
+
+    client->availability_record_.clear();
+
+    // Debounced offer are immediately propagated after a STR, so the offer must be received immediately.
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                           std::chrono::milliseconds(500)))
+            << "Debounced offer must propagate immediately after a STR.";
+}
+
+TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_and_after_str) {
+    // Tests the graceful stop offer mechanism, where the cycle STOP OFFER/OFFER happens before and after a STR.
+    prepare_ecus_and_apps();
+    auto* server = ecu_one_.apps_["guest_server"];
+    auto* router_one = ecu_one_.router_;
+    auto* client = ecu_two_.apps_["guest_client"];
+
+    client->request_service(multi_field_service_.instance_);
+
+    server->offer(multi_field_service_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+
+    server->stop_offer(multi_field_service_.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+
+    server->offer(multi_field_service_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
+
+    client->availability_record_.clear();
+
+    // Debounced offer are immediately propagated after a STR, so the offer must be received immediately.
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                           std::chrono::milliseconds(500)))
+            << "Debounced offer must propagate immediately after a STR.";
+
+    server->stop_offer(multi_field_service_.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+
+    server->offer(multi_field_service_);
+    ASSERT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                            std::chrono::milliseconds(500)));
+
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                           std::chrono::milliseconds(2500)));
+}
+
 struct tcp_notifications : public base_fake_socket_fixture {
 
     // Custom interface with a service that has events being notified via tcp and udp

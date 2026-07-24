@@ -2722,8 +2722,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
         case routing_state_e::RS_SUSPENDED: {
             VSOMEIP_INFO_P << "Set routing to RS_SUSPENDED";
 
-            // Remove all stop offers and cancel the shared graceful timer.
-            last_stop_offer_.clear();
             stop_offer_graceful_timer_.cancel();
 
             // stop processing of incoming SD messages
@@ -2855,6 +2853,17 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             if (trigger_offer_watchdog) {
                 discovery_->start_offer_watchdog();
             }
+
+            for (const auto& [expiry, entry] : last_stop_offer_) {
+                if (entry.second) {
+                    init_service_info(entry.first.service, entry.first.instance, true);
+                }
+            }
+
+            last_stop_offer_.clear();
+            stop_offer_graceful_timer_.expires_after(std::chrono::milliseconds(configuration_->get_sd_cyclic_offer_delay()));
+            stop_offer_graceful_timer_.async_wait(
+                    std::bind(&routing_manager_impl::stop_offer_graceful_timeout, shared_from_this(), std::placeholders::_1));
 
             // Trigger initial offer phase for relevant services
             VSOMEIP_INFO_P << "Offer services.";
