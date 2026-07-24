@@ -259,7 +259,8 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
                                        ttl_t _ttl, client_t _client, const std::shared_ptr<eventgroupinfo>& _info) {
 
     if (is_suspended_) {
-        VSOMEIP_WARNING_P << "Ignoring subscription as we are suspended";
+        VSOMEIP_WARNING_P << "Ignoring subscription to [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
+                          << "] as we are suspended";
         return;
     }
 
@@ -377,7 +378,8 @@ void service_discovery_impl::get_subscription_address(const std::shared_ptr<boar
 
 void service_discovery_impl::unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client) {
     if (is_suspended_) {
-        VSOMEIP_WARNING_P << "Ignoring subscription as we are suspended";
+        VSOMEIP_WARNING_P << "Ignoring unsubscription from [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
+                          << "] as we are suspended";
         return;
     }
 
@@ -446,7 +448,8 @@ void service_discovery_impl::unsubscribe(service_t _service, instance_t _instanc
 
 void service_discovery_impl::unsubscribe_all(service_t _service, instance_t _instance) {
     if (is_suspended_) {
-        VSOMEIP_WARNING_P << "Ignoring subscription as we are suspended";
+        VSOMEIP_WARNING_P << "Ignoring unsubscription from all eventgroups of [" << hex4(_service) << "." << hex4(_instance)
+                          << "] as we are suspended";
         return;
     }
 
