@@ -11,41 +11,49 @@
 
   RM --\ SC : SUBSCRIBE_ACK
 
+  SC -> SC : capture pre-traffic RSS baseline (reference only)
+
   SC -> RM : REQUEST MEMORY_START_METHOD
 
   loop while stop_watchdog is false
-    SC -> SC : sleep for 2 seconds
+    SC -> SC : sleep WATCHDOG_INTERVAL (2s)
 
-    SC -> SC : calculate time passed between last\nmessage received and now
+    SC -> SC : log throughput; measure time since\nlast message received
 
-    alt if calculated time is bigger than 10
+    alt no message for > CONSUMER_IDLE_TIMEOUT (10s)
       SC -> SC : stop_watchdog = true
     end
   end
-
-  SC -> RM : REQUEST MEMORY_STOP_METHOD
 
   note across
     This happens in background during the test
   endnote
 
   loop while stop_checking_ is false
-    SC -> SC : sleep for 5 seconds
+    SC -> SC : sleep MEMORY_CHECKER_INTERVAL (5s)
 
-    SC -> SC : read /proc/self/statm
+    SC -> SC : read /proc/self/statm (skip failed reads)
 
     SC -> SC : save Resident set size * page size
   end
 
-  SC -> SC : calculate the average memory used
-
-  SC -> SC : make sure that every element in\ntest_memory_array is smaller than\n115% of the calculated average
-
   note across
-    For each message received
+    Evaluated on the main thread after the checker joins
   endnote
 
-  SC -> SC : verify message serviceID and methodID
+  SC -> SC : make sure the peak sample in\ntest_memory_array is smaller than\n115% of the steady-state floor\n(min sample, first one excluded)
 
-  SC -> RM : REQUEST received methodID
+  SC -> RM : REQUEST MEMORY_STOP_METHOD (on teardown)
+
+  note across
+    On each received notification (background)
+  endnote
+
+  RM --\ SC : notification (MEMORY_EVENT + i)
+
+  SC -> SC : verify serviceID/methodID,\nincrement received counter
+
+  alt every ACK_INTERVAL messages
+    SC -> RM : REQUEST MEMORY_ACK_METHOD\n(cumulative received count)
+  end
 @enduml

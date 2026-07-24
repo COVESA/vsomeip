@@ -4,45 +4,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/internal/logger.hpp>
+#include <chrono>
 #include <cstring>
 #include "common/test_main.hpp"
-#if defined(__has_include) && __has_include(<valgrind/valgrind.h>)
-#include <valgrind/valgrind.h>
-#else
-#define RUNNING_ON_VALGRIND 0
-#endif
 #include "memory_test_service.hpp"
 
-void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& stop_checking_) {
-    while (!stop_checking_) {
-        std::this_thread::sleep_for(MEMORY_CHECKER_INTERVAL);
-
-        static const std::uint32_t its_pagesize = static_cast<std::uint32_t>(getpagesize() / 1024);
-
-        std::FILE* its_file = std::fopen("/proc/self/statm", "r");
-        if (!its_file) {
-            VSOMEIP_ERROR << "check_memory: couldn't open: errno " << errno;
-            return;
-        }
-        std::uint64_t its_size(0);
-        std::uint64_t its_rsssize(0);
-        std::uint64_t its_sharedpages(0);
-        std::uint64_t its_text(0);
-        std::uint64_t its_lib(0);
-        std::uint64_t its_data(0);
-        std::uint64_t its_dirtypages(0);
-
-        if (EOF
-            == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib,
-                           &its_data, &its_dirtypages)) {
-            VSOMEIP_ERROR << "check_memory: error reading: errno " << errno;
-        }
-        std::fclose(its_file);
-
-        test_memory_.push_back(its_rsssize * its_pagesize);
-        VSOMEIP_INFO << "logged service: " << its_rsssize * its_pagesize;
-    }
-}
 memory_test_service::memory_test_service(const char* app_name_) : vsomeip_utilities::base_vsip_app(app_name_) {
     for (uint16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
         _app->offer_event(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_EVENT + i, {MEMORY_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
@@ -52,6 +18,8 @@ memory_test_service::memory_test_service(const char* app_name_) : vsomeip_utilit
                                    std::bind(&memory_test_service::on_start, this, std::placeholders::_1));
     _app->register_message_handler(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_STOP_METHOD,
                                    std::bind(&memory_test_service::on_stop, this, std::placeholders::_1));
+    _app->register_message_handler(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_ACK_METHOD,
+                                   std::bind(&memory_test_service::on_ack, this, std::placeholders::_1));
     _app->offer_service(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_MAJOR, MEMORY_MINOR);
 }
 void memory_test_service::on_start(const std::shared_ptr<vsomeip::message> /*&_message*/) {
@@ -68,6 +36,43 @@ void memory_test_service::on_stop(const std::shared_ptr<vsomeip::message> /*&_me
     VSOMEIP_INFO << "Received a STOP command.";
 }
 
+void memory_test_service::on_ack(const std::shared_ptr<vsomeip::message>& _message) {
+    const auto its_payload = _message->get_payload();
+    if (!its_payload || its_payload->get_length() < sizeof(std::uint64_t)) {
+        return;
+    }
+    std::uint64_t received{0};
+    // Host-order copy; the client wrote the counter with the same layout and
+    // both run on the same architecture in CI (see send_ack()).
+    std::memcpy(&received, its_payload->get_data(), sizeof(received));
+
+    // Acks may arrive out of order over UDP; only ever move the high-water
+    // mark forward.
+    std::uint64_t prev = acked_count_.load();
+    while (received > prev && !acked_count_.compare_exchange_weak(prev, received)) {
+        // prev was reloaded by compare_exchange_weak; retry.
+    }
+}
+
+void memory_test_service::wait_for_flow_control(std::uint64_t sent_) {
+    auto last_progress = std::chrono::steady_clock::now();
+    std::uint64_t last_acked = acked_count_.load();
+
+    while (sent_ - acked_count_.load() >= FLOW_CONTROL_WINDOW) {
+        const std::uint64_t current_acked = acked_count_.load();
+        if (current_acked != last_acked) {
+            last_acked = current_acked;
+            last_progress = std::chrono::steady_clock::now();
+        } else if (std::chrono::steady_clock::now() - last_progress > FLOW_CONTROL_STALL_TIMEOUT) {
+            VSOMEIP_WARNING << "message_sender: no ack progress for "
+                            << std::chrono::duration_cast<std::chrono::seconds>(FLOW_CONTROL_STALL_TIMEOUT).count() << "s (sent " << sent_
+                            << ", acked " << current_acked << "); proceeding";
+            return;
+        }
+        std::this_thread::sleep_for(FLOW_CONTROL_POLL);
+    }
+}
+
 void memory_test_service::message_sender(std::atomic<bool>& stop_checking_) {
     auto its_payload = vsomeip::runtime::get()->create_payload();
     auto its_payload2 = vsomeip::runtime::get()->create_payload();
@@ -75,27 +80,24 @@ void memory_test_service::message_sender(std::atomic<bool>& stop_checking_) {
     its_payload->set_data(std::vector<uint8_t>(NOTIFY_PAYLOAD_SIZE, 20));
     its_payload2->set_data(std::vector<uint8_t>(NOTIFY_PAYLOAD_SIZE, 10));
 
-    const auto send_interval = RUNNING_ON_VALGRIND ? MESSAGE_SENDER_INTERVAL_VALGRIND : MESSAGE_SENDER_INTERVAL;
-    const int message_number = RUNNING_ON_VALGRIND ? TEST_MESSAGE_NUMBER_VALGRIND : TEST_MESSAGE_NUMBER;
-    if (RUNNING_ON_VALGRIND) {
-        VSOMEIP_INFO << "message_sender: running under Valgrind — interval " << send_interval.count() << " ms, " << message_number
-                     << " iterations";
-    }
-    int count{0};
-    for (int message_no = 0; message_no <= message_number; message_no++) {
+    std::uint64_t sent{0};
+    const auto deadline = std::chrono::steady_clock::now() + MESSAGE_SENDER_DURATION;
+    while (std::chrono::steady_clock::now() < deadline) {
+        wait_for_flow_control(sent);
         for (uint16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
             _app->notify(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_EVENT + i, its_payload);
-            count++;
+            sent++;
         }
-        std::this_thread::sleep_for(send_interval);
+        std::this_thread::sleep_for(MESSAGE_SENDER_INTERVAL);
+        wait_for_flow_control(sent);
         for (uint16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
             _app->notify(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_EVENT + i, its_payload2);
-            count++;
+            sent++;
         }
-        std::this_thread::sleep_for(send_interval);
+        std::this_thread::sleep_for(MESSAGE_SENDER_INTERVAL);
     }
     stop_checking_ = true;
-    VSOMEIP_INFO << "sent " << count << " messages";
+    VSOMEIP_INFO << "sent " << sent << " messages, client acked " << acked_count_.load();
 }
 
 // wait for the start message, run the threads to send messages
@@ -111,7 +113,7 @@ void memory_test_service::setup_app(const std::function<void(void)> executionHan
         }
 
         {
-            // 3. Wait for client to send stop message
+            // 4. Wait for client to send stop message
             std::unique_lock lk(stop_mutex);
             condition_wait_stop.wait_for(lk, WAIT_STOP_MESSAGE);
             std::cout << "service: exiting" << std::endl;
@@ -122,48 +124,44 @@ void memory_test_service::setup_app(const std::function<void(void)> executionHan
 TEST(memory_test, send_messages) {
 
     // Test steps:
-    //      1: Start measuring memory load
-    //      2: After receiving start message from the client, start sending
-    //         notifications (load bigger than 1392 bytes) for each event
-    //         TP
-    //      3: Wait for client stop message
-    //      4: Stop measuring load and evaluate load increase
+    //      1: After receiving the start message from the client, capture a
+    //         pre-traffic memory baseline and start sampling memory
+    //      2: Send notifications (SOME/IP-TP segmented) for each event under
+    //         application-level flow control until MESSAGE_SENDER_DURATION
+    //      3: On the main thread, evaluate that peak memory stayed within
+    //         MEMORY_LOAD_LIMIT of the steady-state floor
+    //      4: Wait for the client stop message, then exit
     //
-    // At the end evaluate if the threshold of 5% increase in memory load was not surpassed
+    // Flow control keeps the send queue from filling, so a memory increase
+    // beyond the threshold reflects a genuine leak rather than queue congestion
+    // on a slow/contended host.
 
     memory_test_service its_service("memory_test_service");
     std::atomic<bool> stop_checking{false};
+    std::vector<std::uint64_t> test_memory_array;
+    std::uint64_t baseline_rss{0};
 
     std::thread memory_checker_thread;
 
-    // 1. Measure load until stop_checking is triggered
     its_service.setup_app([&] {
-        memory_checker_thread = std::thread([&stop_checking] {
-            std::vector<std::uint64_t> test_memory_array;
-            std::uint64_t sum{0};
-
-            check_memory(test_memory_array, stop_checking);
-
-            for (auto memory_stat : test_memory_array) {
-                sum += memory_stat;
-                VSOMEIP_INFO << memory_stat;
-            }
-            double memory_average = static_cast<double>(sum) / static_cast<double>(test_memory_array.size());
-            VSOMEIP_INFO << memory_average;
-
-            // 4. Evaluate memory load increase
-            for (auto memory_stat : test_memory_array) {
-                EXPECT_LT(static_cast<double>(memory_stat), (static_cast<double>(memory_average) * MEMORY_LOAD_LIMIT))
-                        << "memory not lesser than " << (static_cast<double>(memory_average) * MEMORY_LOAD_LIMIT);
-            }
-        });
+        // 1. Baseline captured while the app is warm but no traffic flows yet.
+        baseline_rss = read_rss_kib();
+        memory_checker_thread = std::thread([&stop_checking, &test_memory_array] { check_memory(test_memory_array, stop_checking); });
         // 2. Start sending notifications
         its_service.message_sender(stop_checking);
-    });
 
-    if (memory_checker_thread.joinable()) {
-        memory_checker_thread.join();
-    }
+        if (memory_checker_thread.joinable()) {
+            memory_checker_thread.join();
+        }
+
+        // 3. Evaluate memory load increase on the main thread so a failure is
+        //    reported by gtest instead of escaping the worker thread and aborting.
+        //    Done before waiting for the client's stop message, so the STOP
+        //    handshake is the last step of the test.
+        evaluate_memory(test_memory_array, baseline_rss);
+    });
+    // 4. setup_app returns after the client's stop message (or WAIT_STOP_MESSAGE
+    //    times out); the app then tears down.
 }
 int main(int argc, char** argv) {
     return test_main(argc, argv, std::chrono::seconds(300));

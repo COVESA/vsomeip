@@ -1,6 +1,6 @@
 # Memory Test
 
-This test makes sure that memory load does not increase significantly during vsomeip-lib operation. It has one service-provider offering a service and sending notifications for various methods with different payloads and a service-consumer subscribing to the offered service sending requests for every notification received.
+This test makes sure that memory load does not increase significantly during vsomeip-lib operation. It has one service-provider offering a service and sending notifications for various methods with different payloads and a service-consumer subscribing to the offered service.
 
 ## Purpose
 
@@ -8,15 +8,23 @@ This test makes sure that memory load does not increase significantly during vso
 
 ## Test Logic
 
+The producer streams large (SOME/IP-TP segmented) notifications while both sides sample their resident set size (RSS). Because the notifications are unreliable (UDP) there is no transport backpressure, so the sender uses **application-level flow control** to stay in step with the consumer: it never lets more than `FLOW_CONTROL_WINDOW` notifications be outstanding (sent but not yet acknowledged). This keeps the endpoint send queue from filling on a slow, Valgrind-instrumented or otherwise contended host, so the RSS stays flat and any growth beyond the threshold reflects a genuine leak rather than transient queue congestion.
+
+The sender runs for a fixed wall-clock duration (`MESSAGE_SENDER_DURATION`) rather than a fixed message count, so the amount of data scales to whatever the consumer can absorb while the test duration stays bounded well under its timeout in every environment.
+
+### Evaluation
+
+Both sides evaluate their samples the same way, **on the main thread** once sampling has stopped (so a failure is reported by gtest instead of escaping a worker thread and aborting the process). The check compares the *peak* sampled RSS against the **steady-state floor** — the lowest RSS sampled once traffic is flowing — and requires the peak to stay below `MEMORY_LOAD_LIMIT` (115%) of that floor. The floor is the minimum over the collected samples, excluding the very first sample (which can be taken mid warm-up ramp) and any failed `/proc` read (which reads as `0` and is discarded). Comparing against the floor rather than the cold pre-traffic baseline tolerates the one-time working-set growth when traffic starts, while a genuine leak still climbs above the floor and fails the test. Each side also captures a pre-traffic RSS baseline, but this is logged for reference only and is **not** part of the assertion.
+
 ### Service provider
 
-The service provider after offering the service, waits for MEMORY_START_METHOD request and starts the memory check process that retrieves resident set size and page size and multiply them together during the whole test execution time. After receiving the MEMORY_START_METHOD it starts sending 2 notifications with 2 different payloads for all methodIDs. When all notifications are sent the service provider waits for MEMORY_STOP_METHOD request and verifies that each memory load calculated during the test process is smaller than 115% of its average.
+The service provider offers the service, then waits for the `MEMORY_START_METHOD` request. On receiving it, it captures a pre-traffic RSS baseline (reference only), starts the background memory sampler (RSS every 5 s), and begins sending two notifications with two different payloads for all event IDs, throttled by the flow-control window. When `MESSAGE_SENDER_DURATION` elapses it stops sampling and, on the main thread, evaluates the samples against the steady-state floor as described above. Finally it waits for the `MEMORY_STOP_METHOD` request before exiting, so the stop handshake is the last step.
 
 ![Diagram](docs/memory_test_service.png)
 
 ### Service consumer
 
-The service consumer after requesting and subscribing to the offered service sends a MEMORY_START_METHOD request. Like the service provider it also starts the memory check process that is maintained during the whole test duration. For each message that it receives, it calculates the time between last message and current message and if elapsed time is bigger than 10 seconds it concludes the test and sends a MEMORY_STOP_METHOD request. It makes the same memory load calculations as service provider making sure memory load was under expected values.
+The service consumer requests and subscribes to the offered service, then sends the `MEMORY_START_METHOD` request (capturing its own pre-traffic RSS baseline first, for reference only). Like the provider it samples RSS in the background for the whole test. For every `ACK_INTERVAL` notifications received it sends the provider a lightweight `MEMORY_ACK_METHOD` request carrying its cumulative received count — this is the flow-control signal, and being cumulative it is robust to the occasional dropped UDP ack. A watchdog logs throughput every `WATCHDOG_INTERVAL` (2 s) and, once no message has arrived for `CONSUMER_IDLE_TIMEOUT` (10 s), concludes the test and evaluates its samples against the steady-state floor the same way as the provider. It sends `MEMORY_STOP_METHOD` last, on teardown, once the evaluation is done.
 
 ![Diagram](docs/memory_test_client.png)
 
