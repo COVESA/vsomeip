@@ -8,70 +8,11 @@
 
 #include "../../../implementation/routing/include/routing_client_state_machine.hpp"
 
-#include <boost/asio.hpp>
-#include <boost/asio/executor_work_guard.hpp>
-#include <thread>
-#include <chrono>
-#include <atomic>
-#include <condition_variable>
-
 using namespace vsomeip_v3;
-using namespace std::chrono_literals;
 
 class routing_client_state_machine_test : public ::testing::Test {
 protected:
-    void SetUp() override {
-        error_count_ = 0;
-        // Keep io_context alive with a work guard
-        work_guard_ =
-                std::make_unique<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(io_context_.get_executor());
-        io_thread_ = std::thread([this] { io_context_.run(); });
-    }
-
-    void TearDown() override {
-        // Release work guard to allow io_context to stop
-        work_guard_.reset();
-        io_context_.stop();
-        if (io_thread_.joinable()) {
-            io_thread_.join();
-        }
-    }
-
-    std::shared_ptr<routing_client_state_machine> create_state_machine() {
-
-        return std::make_shared<routing_client_state_machine>([this] {
-            {
-                std::scoped_lock lock(error_mutex_);
-                ++error_count_;
-            }
-            error_cv_.notify_all();
-        });
-    }
-
-    bool wait_for_error(int initial_count, std::chrono::milliseconds timeout = 2000ms) {
-        std::unique_lock lock(error_mutex_);
-        if (error_count_ > initial_count) {
-            return true;
-        }
-        return error_cv_.wait_for(lock, timeout, [this, initial_count] { return error_count_ > initial_count; });
-    }
-
-    void reset_error_counter() {
-        std::scoped_lock lock(error_mutex_);
-        error_count_ = 0;
-    }
-
-    int get_error_count() {
-        std::scoped_lock lock(error_mutex_);
-        return error_count_;
-    }
-
-    boost::asio::io_context io_context_;
-    std::unique_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_guard_;
-    std::thread io_thread_;
-    int error_count_{0};
-    std::mutex error_mutex_;
-    std::condition_variable error_cv_;
+    std::shared_ptr<routing_client_state_machine> create_state_machine() { return std::make_shared<routing_client_state_machine>(); }
 };
 
 // ============================================================================
@@ -103,37 +44,24 @@ TEST_F(routing_client_state_machine_test, deregistered_from_any_state) {
     sm->target_running();
 
     // From ST_DEREGISTERED
-    int initial_count = get_error_count();
     sm->deregistered();
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
-    EXPECT_TRUE(wait_for_error(initial_count, 100ms));
-
-    reset_error_counter();
 
     // From ST_REGISTERING
     ASSERT_TRUE(sm->start_registration());
-    initial_count = get_error_count();
     sm->deregistered();
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
-    EXPECT_TRUE(wait_for_error(initial_count, 100ms));
-
-    reset_error_counter();
 
     // From ST_REGISTERED
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered(0x1234));
-    initial_count = get_error_count();
     sm->deregistered();
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
-    EXPECT_TRUE(wait_for_error(initial_count, 100ms));
-
-    reset_error_counter();
 }
 
 TEST_F(routing_client_state_machine_test, graceful_deregistration_flow) {
     auto sm = create_state_machine();
     sm->target_running();
-    int initial_count = get_error_count();
 
     // Get to registered state
     ASSERT_TRUE(sm->start_registration());
@@ -142,7 +70,6 @@ TEST_F(routing_client_state_machine_test, graceful_deregistration_flow) {
     // ST_REGISTERED -> ST_DEREGISTERED
     sm->deregistered();
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
-    EXPECT_TRUE(wait_for_error(initial_count, 100ms));
 }
 
 // ============================================================================
@@ -221,19 +148,13 @@ TEST_F(routing_client_state_machine_test, can_reregister_after_deregistration) {
     ASSERT_TRUE(sm->registered(0x1234));
 
     // Deregister
-    int initial_count = get_error_count();
     sm->deregistered();
-    EXPECT_TRUE(wait_for_error(initial_count, 100ms));
-
-    reset_error_counter();
+    EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
 
     // Second registration
     EXPECT_TRUE(sm->start_registration());
     EXPECT_TRUE(sm->registered(0x1234));
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
-
-    // Should not have received error during re-registration
-    EXPECT_EQ(0, get_error_count());
 }
 
 // ============================================================================
@@ -269,20 +190,6 @@ TEST_F(routing_client_state_machine_test, can_restart_after_shutdown) {
 
     sm->target_running();
     EXPECT_TRUE(sm->start_registration());
-}
-
-// ============================================================================
-// Error Handler Tests
-// ============================================================================
-
-TEST_F(routing_client_state_machine_test, error_handler_called_on_manual_deregister) {
-    auto sm = create_state_machine();
-    sm->target_running();
-    int initial_count = get_error_count();
-
-    ASSERT_TRUE(sm->start_registration());
-    sm->deregistered();
-    EXPECT_TRUE(wait_for_error(initial_count, 200ms));
 }
 
 // ============================================================================

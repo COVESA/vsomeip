@@ -166,15 +166,12 @@ private:
 
     client_t get_client_by_address(const boost::asio::ip::address& _address, port_t _port) const;
 
-    void register_application(client_t _client, std::unique_lock<std::mutex>& receiver_lock_);
-
     void reconnect();
 
     void send_pong() const;
 
-    bool send_offer_service(protocol::service_data const& _data);
-
-    bool send_event_registrations(client_t _client, std::span<protocol::register_event_data const> _registrations);
+    bool send_event_registrations(client_t _client, std::span<protocol::register_event_data const> _registrations,
+                                  std::scoped_lock<std::mutex> const& _lock);
 
     void send_subscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
                         event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter);
@@ -205,7 +202,7 @@ private:
 
     [[nodiscard]] bool send_pending_commands(std::scoped_lock<std::mutex, std::mutex> const& _consumer_provider_lock);
 
-    void init_receiver_side([[maybe_unused]] std::unique_lock<std::mutex> const& _receive_lock);
+    bool create_and_start_receiver([[maybe_unused]] std::scoped_lock<std::mutex> const& _lock, client_t _client);
 
     void notify_remote_initially(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                  std::scoped_lock<std::mutex> const& _lock);
@@ -220,7 +217,7 @@ private:
 
     void request_debounce_timeout_cbk(boost::system::error_code const& _error);
 
-    bool send_request_services(std::span<protocol::service_data const> _requests);
+    bool send_request_services(std::span<protocol::service_data const> _requests, std::scoped_lock<std::mutex> const& _lock);
 
     void resend_provided_event_registrations();
     void log_status();
@@ -241,7 +238,7 @@ private:
      */
     void clear_remote_subscriptions(std::scoped_lock<std::mutex> const& _provider_lock);
 
-    void restart_sender(std::unique_lock<std::mutex> const& _sender_mutex);
+    void restart_sender(std::scoped_lock<std::mutex> const& _lock);
     void debounce_restart_sender_done();
 
     /// @brief Provider-side cleanup for a failing/closing accepted local server endpoint.
@@ -357,12 +354,20 @@ private:
     std::shared_ptr<timer> status_logger_;
     std::shared_ptr<timer> version_logger_;
 
-    mutable std::mutex sender_mutex_;
+    // Mutex guarding state_machine_, sender_, and the receivers below. It MUST be
+    // acquired last: never hold it while acquiring consumer_mutex_/provider_mutex_
+    // otherwise the consumer/provider <-> mutex_ lock order inverts
+    // (the deadlock this ordering avoids).
+    mutable std::mutex mutex_;
+
+    std::unique_ptr<routing_client_state_machine> state_machine_;
+
     bool sender_debounce_active_{false};
     bool start_sender_after_debounce_{false};
+    std::shared_ptr<timer> sender_debounce_;
     std::shared_ptr<local_endpoint> sender_; // --> stub
 
-    mutable std::mutex receiver_mutex_;
+    // Receivers are guarded by mutex_.
     std::shared_ptr<local_server> tcp_receiver_; // --> from everybody
     std::shared_ptr<local_server> uds_receiver_; // --> from everybody
 
@@ -371,11 +376,7 @@ private:
 
     routing_mode_e const routing_mode_;
 
-    std::unique_ptr<routing_client_state_machine> state_machine_;
-
     std::mutex lazy_load_mtx_;
-
-    std::shared_ptr<timer> sender_debounce_;
 
     std::shared_ptr<endpoint_manager_base> ep_mgr_;
 
