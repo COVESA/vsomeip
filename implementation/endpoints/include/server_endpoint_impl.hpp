@@ -151,6 +151,13 @@ private:
     // The caller must hold the `mutex_` lock
     void recalculate_queue_size(endpoint_data_type& _data) const;
 
+    // Bytes held in the batching stage (the current train_ plus all trains
+    // parked in dispatched_trains_) that have not yet been moved to queue_.
+    // Computed on demand and counted against queue_limit_ so pending trains
+    // cannot grow memory unbounded during high-frequency sending.
+    // The caller must hold the `mutex_` lock
+    std::size_t get_pending_train_size(const endpoint_data_type& _data) const;
+
     // Mapping of client ids to remote endpoints used to send responses to the correct targets.
     std::unordered_map<clients_key_t, endpoint_type> clients_to_target_;
     std::mutex clients_mutex_;

@@ -375,6 +375,19 @@ void server_endpoint_impl<Protocol>::recalculate_queue_size(endpoint_data_type& 
 }
 
 template<typename Protocol>
+std::size_t server_endpoint_impl<Protocol>::get_pending_train_size(const endpoint_data_type& _data) const {
+    std::size_t its_size = (_data.train_ && _data.train_->buffer_) ? _data.train_->buffer_->size() : 0;
+    for (const auto& its_dispatched : _data.dispatched_trains_) {
+        for (const auto& its_train : its_dispatched.second) {
+            if (its_train && its_train->buffer_) {
+                its_size += its_train->buffer_->size();
+            }
+        }
+    }
+    return its_size;
+}
+
+template<typename Protocol>
 bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std::uint32_t _size,
                                                        endpoint_data_type& _endpoint_data) const {
 
@@ -383,17 +396,21 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
         return true;
     }
 
-    // Current queue size is bigger than the maximum queue size
-    if (_endpoint_data.queue_size_ > endpoint_impl<Protocol>::queue_limit_) {
+    // Account for both the flushed output queue and the batching stage still
+    // waiting to be flushed.
+    const std::size_t its_pending_train_size = get_pending_train_size(_endpoint_data);
+    if (_endpoint_data.queue_size_ + its_pending_train_size > endpoint_impl<Protocol>::queue_limit_) {
         size_t its_error_queue_size{_endpoint_data.queue_size_};
         recalculate_queue_size(_endpoint_data);
 
-        VSOMEIP_WARNING_P << "Detected possible queue size underflow (" << its_error_queue_size << "). Recalculating it ("
-                          << _endpoint_data.queue_size_ << ")";
+        if (its_error_queue_size != _endpoint_data.queue_size_) {
+            VSOMEIP_WARNING_P << "Detected possible queue size underflow (" << its_error_queue_size << "). Recalculating it ("
+                              << _endpoint_data.queue_size_ << ")";
+        }
     }
 
-    if (_endpoint_data.queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_
-        || _endpoint_data.queue_size_ + _size < _size) { // overflow protection
+    if (const std::size_t its_used_size = _endpoint_data.queue_size_ + its_pending_train_size;
+        its_used_size + _size > endpoint_impl<Protocol>::queue_limit_ || its_used_size + _size < _size) { // overflow protection
         service_t its_service(0);
         method_t its_method(0);
         client_t its_client(0);
@@ -413,7 +430,8 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
         }
         VSOMEIP_ERROR_P << "Queue size limit (" << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
                         << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]"
-                        << " queue_size: " << _endpoint_data.queue_size_ << " data size: " << _size;
+                        << " queue_size: " << _endpoint_data.queue_size_ << " pending_train_size: " << its_pending_train_size
+                        << " data size: " << _size;
         return false;
     }
     return true;
@@ -592,7 +610,9 @@ size_t server_endpoint_impl<Protocol>::get_queue_size() const {
     {
         std::scoped_lock its_lock(mutex_);
         for (const auto& t : targets_) {
-            its_queue_size += t.second.queue_size_;
+            // Include the batching stage (pending trains) so the reported size
+            // reflects the total committed memory.
+            its_queue_size += t.second.queue_size_ + get_pending_train_size(t.second);
         }
     }
     return its_queue_size;

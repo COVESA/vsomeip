@@ -11,6 +11,7 @@ set(configuration_files
     multiple_client_one_process_uds.json
     ecu_one.json
     ecu_two.json
+    ecu_two_queue_limited.json
     guest.json
     switch_client_id.json
 )
@@ -55,6 +56,7 @@ set (TEST_SUITES
     test_debounce
     test_event_subscription_callback
     test_hybrid_mode
+    test_queue_limit
     test_interface_manipulation_recreate
     test_multiversion_support
     test_protocol_messages

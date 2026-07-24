@@ -807,8 +807,13 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segm
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std::uint32_t _size) const {
 
-    if (endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
-        && (queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_ || queue_size_ + _size < _size)) { // overflow protection
+    // Account for the memory already committed to outgoing traffic: both the
+    // flushed output queue (queue_size_) and the batching stage still waiting to
+    // be flushed (get_pending_train_size()).
+    const std::size_t its_pending_train_size = get_pending_train_size();
+    if (const std::size_t its_used_size = queue_size_ + its_pending_train_size;
+        endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
+        && (its_used_size + _size > endpoint_impl<Protocol>::queue_limit_ || its_used_size + _size < _size)) { // overflow protection
         service_t its_service(0);
         method_t its_method(0);
         client_t its_client(0);
@@ -828,7 +833,7 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
         }
         VSOMEIP_ERROR_P << "Queue size limit (" << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
                         << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "] "
-                        << "queue_size: " << queue_size_ << " data size: " << _size;
+                        << "queue_size: " << queue_size_ << " pending_train_size: " << its_pending_train_size << " data size: " << _size;
         return false;
     }
     return true;
@@ -850,10 +855,26 @@ void client_endpoint_impl<Protocol>::queue_train(const std::shared_ptr<train>& _
 }
 
 template<typename Protocol>
+std::size_t client_endpoint_impl<Protocol>::get_pending_train_size() const {
+
+    std::size_t its_size = (train_ && train_->buffer_) ? train_->buffer_->size() : 0;
+    for (const auto& [its_tp, its_trains] : dispatched_trains_) {
+        for (const auto& its_train : its_trains) {
+            if (its_train && its_train->buffer_) {
+                its_size += its_train->buffer_->size();
+            }
+        }
+    }
+    return its_size;
+}
+
+template<typename Protocol>
 size_t client_endpoint_impl<Protocol>::get_queue_size() const {
 
     std::scoped_lock its_lock(mutex_);
-    return queue_size_;
+    // Report the total committed memory: the flushed output queue plus the
+    // batching stage still waiting to be flushed.
+    return queue_size_ + get_pending_train_size();
 }
 
 template<typename Protocol>
