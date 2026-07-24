@@ -22,7 +22,6 @@ This documentation was generated for version 3.5 of vSomeIP.
   - [Configuration File Structure](#configuration-file-structure)
   - [Autoconfiguration](#autoconfiguration)
   - [routingmanagerd](#routingmanagerd)
-  - [Trace Connector](#trace-connector)
   - [Tools](#tools)
   - [vsomeip Hello World](#vsomeip-hello-world)
 
@@ -273,46 +272,6 @@ When using the daemon it should be ensured that:
 * If the default name is overridden the entry has to be adapted accordingly.
 * The system wide configuration file should contain the information about all other offered services on the system as well.
 * There's no other vsomeip configuration file used on the system which contains a `"routing"` entry. As there can only be one routing manager per system.
-
-
-# Trace Connector
-
-The Trace Connector is used to forward the internal messages that are sent over the Unix Domain Sockets to DLT.
-Thus, it requires that DLT is installed and the DLT module can be found in the context of CMake.
-
-
-## Dynamic Configuration
-
-The Trace Connector can also be configured dynamically over its interfaces.
-You need to include '<vsomeip/trace.hpp>' to access its public interface.
-
-### Example:
-
-```c++
-    // get trace connector
-    std::shared_ptr<vsomeip::trace::connector> its_connector
-    = vsomeip::trace::connector::get();
-
-    // add channel
-    std::shared_ptr<vsomeip::trace::channel> its_channel
-    = its_connector->create_channel("MC", "My channel");
-
-    // add filter rule
-    vsomeip::trace::match_t its_match
-        = std::make_tuple(0x1234, 0xffff, 0x80e8);
-    vsomeip::trace::filter_id_t its_filter_id
-    = its_channel->add_filter(its_match, true);
-
-    // init trace connector
-    its_connector->init();
-
-    // enable trace connector
-    its_connector->set_enabled(true);
-
-    // remove the filter
-    its_channel->remove_filter(its_filter_id);
-```
-
 
 # Tools
 ## vsomeip_ctrl

@@ -3,6 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+/**
+ * @note This entire file is *DEPRECATED* - do not use any of the definitions, they only matter for internal libvsomeip implementation
+ * details. The rest of the API does not use the definitions below. This file will be removed in the next major library release
+ */
+
 #pragma once
 
 #include <memory>
@@ -147,9 +152,7 @@ public:
 class connector {
 public:
     /**
-     * \brief Get access to the connector.
-     *
-     * \return Shared pointer to the singleton object.
+     * \brief This function is deprecated and will be removed in a future release. Will cause link failure!
      */
     static std::shared_ptr<connector> get();
 
