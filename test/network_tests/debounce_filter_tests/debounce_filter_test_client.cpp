@@ -22,7 +22,11 @@ namespace {
 // until the stream has settled into steady state.
 constexpr int64_t WARMUP_INTERVALS = 3;
 // Number of steady-state intervals to average over.
-constexpr int64_t MEASURE_INTERVALS = 5;
+constexpr int64_t MEASURE_INTERVALS = 10;
+// Base tolerance (in ms) allowed around the expected debounce interval when
+// checking the measured average. Scaled by the test timeout multiplier so
+// slower/loaded environments get proportionally more slack.
+constexpr int64_t TOLERANCE_MS = 25;
 } // namespace
 
 debounce_test_client::debounce_test_client(int64_t _interval) :
@@ -208,9 +212,10 @@ TEST(debounce_test, normal_interval) {
     its_client.start();
     its_client.wait();
 
-    // Average Interval should be between 25ms and 75ms
-    EXPECT_GE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_1 - 25);
-    EXPECT_LE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_1 + 25);
+    // Average Interval should be within TOLERANCE_MS (scaled) of DEBOUNCE_INTERVAL_1
+    const auto its_tolerance = (double)TOLERANCE_MS * common::get_timeout_scale();
+    EXPECT_GE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_1 - its_tolerance);
+    EXPECT_LE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_1 + its_tolerance);
 }
 
 TEST(debounce_test, large_interval) {
@@ -220,9 +225,10 @@ TEST(debounce_test, large_interval) {
     its_client.start();
     its_client.wait();
 
-    // Average Interval should be between 275ms and 325ms
-    EXPECT_GE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_2 - 25);
-    EXPECT_LE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_2 + 25);
+    // Average Interval should be within TOLERANCE_MS (scaled) of DEBOUNCE_INTERVAL_2
+    const auto its_tolerance = (double)TOLERANCE_MS * common::get_timeout_scale();
+    EXPECT_GE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_2 - its_tolerance);
+    EXPECT_LE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_2 + its_tolerance);
 }
 
 TEST(debounce_test, disable) {
