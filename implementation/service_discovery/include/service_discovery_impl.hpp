@@ -133,6 +133,8 @@ private:
     entry_data_t create_eventgroup_entry(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                          const std::shared_ptr<subscription>& _subscription, reliability_type_e _offer_type);
 
+    bool has_unreceived_field_value(const std::shared_ptr<subscription>& _subscription) const;
+
     void insert_subscription_ack(const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
                                  const std::shared_ptr<eventgroupinfo>& _info, ttl_t _ttl,
                                  const std::shared_ptr<endpoint_definition>& _target, const std::set<client_t>& _clients);

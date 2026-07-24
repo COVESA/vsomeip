@@ -47,12 +47,16 @@ ecu_config& ecu_config::add_interface(std::vector<interface> offered, vsomeip::p
         for (auto const& e : iface.events_) {
             event_config ec{e.event_id_, false, e.reliability_ == vsomeip::reliability_type_e::RT_RELIABLE};
             svc.events_.push_back(ec);
-            groups[e.eventgroup_id_].push_back(e.event_id_);
+            for (auto egid : e.eventgroup_id_) {
+                groups[egid].push_back(e.event_id_);
+            }
         }
         for (auto const& f : iface.fields_) {
             event_config ec{f.event_id_, true, f.reliability_ == vsomeip::reliability_type_e::RT_RELIABLE};
             svc.events_.push_back(ec);
-            groups[f.eventgroup_id_].push_back(f.event_id_);
+            for (auto egid : f.eventgroup_id_) {
+                groups[egid].push_back(f.event_id_);
+            }
         }
         for (auto const& [egid, event_ids] : groups) {
             svc.event_groups_.push_back({egid, event_ids});

@@ -34,14 +34,14 @@ static std::string const client_name_{"client"};
 struct base_event_subscription_callback : public base_fake_socket_fixture {
     interface interface_{0x1000,
                          {},
-                         {interface::event_spec{0x8001, 0x8001, vsomeip::reliability_type_e::RT_UNRELIABLE},
-                          interface::event_spec{0x8002, 0x8002, vsomeip::reliability_type_e::RT_UNRELIABLE},
-                          interface::event_spec{0x8003, 0x8003, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
+                         {event_spec{0x8001, {0x8001}, vsomeip::reliability_type_e::RT_UNRELIABLE},
+                          event_spec{0x8002, {0x8002}, vsomeip::reliability_type_e::RT_UNRELIABLE},
+                          event_spec{0x8003, {0x8003}, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
     ecu_setup provider_ecu_{"provider", ecu_config{boardnet::ecu_one_config}.add_interface({interface_}), *socket_manager_};
 
-    event_ids field_one_ = interface_.fields_[0];
-    event_ids field_two_ = interface_.fields_[1];
-    event_ids field_three_ = interface_.fields_[2];
+    event_ids field_one_ = {interface_.instance_, interface_.fields_[0]};
+    event_ids field_two_ = {interface_.instance_, interface_.fields_[1]};
+    event_ids field_three_ = {interface_.instance_, interface_.fields_[2]};
 
     app* server_;
     app* client_;

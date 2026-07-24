@@ -222,7 +222,7 @@ TEST_F(test_connection_control, guest_service) {
 
     // guest offer, client requests
     guest->offer(service_instance_);
-    guest->offer_event(offered_event_);
+    guest->offer_event(offered_event_.si_, offered_event_.to_event_spec());
     client_->request_service(service_instance_);
     client_->subscribe_field(offered_event_);
     // client must see service available, subscription must work

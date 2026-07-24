@@ -48,18 +48,19 @@ target_link_libraries(fake_socket_helpers
 set (TEST_SUITES
     stress_routing_info_server_reconnects
     stress_routing_info_server_reoffers
+    test_boardnet
     test_connection_control
     test_connection_restoration
     test_client_lifecycle
-    test_event_subscription_callback
-    test_protocol_messages
-    test_boardnet
-    test_interface_manipulation_recreate
     test_debounce
+    test_event_subscription_callback
+    test_hybrid_mode
+    test_interface_manipulation_recreate
+    test_multiversion_support
+    test_protocol_messages
+    test_sd_protocol
     test_uds_communication
     test_vlan_toggle_registration
-    test_hybrid_mode
-    test_multiversion_support
 )
 
 foreach(TEST_SUITE ${TEST_SUITES})

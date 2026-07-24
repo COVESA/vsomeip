@@ -102,12 +102,12 @@ public:
     /**
      * Forwards the request to the vsomeip::application::offer()
      */
-    void offer_event(event_ids const& _ei);
+    void offer_event(service_instance _si, event_spec const& _ei);
 
     /**
      * Forwards the request to the vsomeip::application::offer()
      */
-    void offer_field(event_ids const& _ei);
+    void offer_field(service_instance _si, event_spec const& _ei);
 
     /**
      * Forwards the request to the vsomeip::application::stop_offer_service()
@@ -294,7 +294,7 @@ private:
     void subscribe(event_ids const& _ei, vsomeip::event_type_e _et);
     void subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et);
     void subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _et, debounce_filter_t const& _filter);
-    void offer(event_ids const& _ei, vsomeip::event_type_e _et);
+    void offer(service_instance _si, event_spec const& _ei, vsomeip::event_type_e _et);
 
     bool is_running_{false};
     bool is_initialized_{false};

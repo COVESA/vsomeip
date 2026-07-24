@@ -54,10 +54,10 @@ bool app::is_router() const {
 }
 void app::offer(interface const& _interface) {
     for (auto const& event : _interface.events_) {
-        offer_event(event);
+        offer_event(_interface.instance_, event);
     }
     for (auto const& field : _interface.fields_) {
-        offer_field(field);
+        offer_field(_interface.instance_, field);
     }
     offer(_interface.instance_);
 }
@@ -80,24 +80,28 @@ void app::set_offer_service_hook(offer_service_hook_t hook) {
     offer_service_hook_ = std::move(hook);
 }
 
-void app::offer_event(event_ids const& _ei) {
+void app::offer_event(service_instance _si, event_spec const& _ei) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
-    offer(_ei, vsomeip::event_type_e::ET_EVENT);
+    offer(_si, _ei, vsomeip::event_type_e::ET_EVENT);
 }
 
-void app::offer_field(event_ids const& _ei) {
+void app::offer_field(service_instance _si, event_spec const& _ei) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
-    offer(_ei, vsomeip::event_type_e::ET_FIELD);
+    offer(_si, _ei, vsomeip::event_type_e::ET_FIELD);
 }
 
 void app::subscribe(interface const& _interface) {
     request_service(_interface.instance_);
 
     for (auto const& event : _interface.events_) {
-        subscribe_event(event);
+        for (auto const& eventgroup : event.eventgroup_id_) {
+            subscribe_event(event_ids{_interface.instance_, event.event_id_, eventgroup, event.reliability_});
+        }
     }
     for (auto const& field : _interface.fields_) {
-        subscribe_field(field);
+        for (auto const& eventgroup : field.eventgroup_id_) {
+            subscribe_field(event_ids{_interface.instance_, field.event_id_, eventgroup, field.reliability_});
+        }
     }
 }
 
@@ -289,12 +293,10 @@ void app::subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _e
     app_->subscribe_with_debounce(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.si_.major_, _ei.event_id_, filter);
 }
 
-void app::offer(event_ids const& _ei, vsomeip::event_type_e _et) {
+void app::offer(service_instance _si, event_spec const& _ei, vsomeip::event_type_e _et) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
-    std::set<vsomeip::eventgroup_t> its_eventgroups;
-    its_eventgroups.insert(_ei.eventgroup_id_);
-    app_->offer_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, std::chrono::milliseconds::zero(), false,
-                      true, nullptr, _ei.reliability_);
+    app_->offer_event(_si.service_, _si.instance_, _ei.event_id_, _ei.eventgroup_id_, _et, std::chrono::milliseconds::zero(), false, true,
+                      nullptr, _ei.reliability_);
 }
 
 void app::set_routing_state(vsomeip::routing_state_e _state) {

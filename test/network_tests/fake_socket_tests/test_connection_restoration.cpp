@@ -48,8 +48,8 @@ struct test_connection_restoration : public base_fake_socket_fixture {
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         server_->offer(service_instance_);
-        server_->offer_event(offered_event_);
-        server_->offer_field(offered_field_);
+        server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+        server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     }
 
     void start_client_app() {
@@ -1321,8 +1321,8 @@ TEST_F(test_connection_restoration, double_assign_client_ack_id_diff_ids) {
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
     server_->offer(service_instance_);
-    server_->offer_event(offered_event_);
-    server_->offer_field(offered_field_);
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     server_->request_service(service_instance_);
 
     EXPECT_TRUE(router_to_server_gate->wait_for_blocked());

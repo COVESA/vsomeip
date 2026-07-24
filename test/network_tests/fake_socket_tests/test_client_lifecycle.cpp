@@ -53,8 +53,8 @@ struct test_client_lifecycle : public base_fake_socket_fixture {
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         server_->offer(service_instance_);
-        server_->offer_event(offered_event_);
-        server_->offer_field(offered_field_);
+        server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+        server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     }
 
     void start_client_app() {
@@ -176,7 +176,7 @@ TEST_F(test_client_lifecycle, router_consumes_field_before_service_tries_to_offe
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
     server_->offer(service_instance_);
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     send_field_message();
 
     ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
@@ -192,7 +192,7 @@ TEST_F(test_client_lifecycle, router_consumes_field_before_service_tries_to_offe
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
     server_->offer(service_instance_);
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
     send_field_message();
     EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(field_checker_));
@@ -203,7 +203,7 @@ TEST_F(test_client_lifecycle, router_consumes_field_after_service_tries_to_offer
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
     server_->offer(service_instance_);
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     send_field_message();
 
     start_router();
@@ -249,9 +249,9 @@ TEST_F(test_client_lifecycle, mutual_offerings_and_consumptions_with_router) {
     // only offer now, otherwise the routing_manager will encounter
     // data race in the sec_client usage :/
     routingmanagerd_->offer(interfaces::beef);
-    routingmanagerd_->send_event(interfaces::beef.fields_[0], beef_payload);
+    routingmanagerd_->send_event({interfaces::beef.instance_, interfaces::beef.fields_[0]}, beef_payload);
     server_->offer(interfaces::cafe);
-    server_->send_event(interfaces::cafe.fields_[0], cafe_payload);
+    server_->send_event({interfaces::cafe.instance_, interfaces::cafe.fields_[0]}, cafe_payload);
 
     // ensure setup is fully operational
     client_ = start_client(client_name_);
@@ -276,8 +276,8 @@ TEST_F(test_client_lifecycle, cached_field) {
     other_service.service_ += 2;
     event_ids field_one{other_service, 0x8010, 0x2};
     event_ids field_two{other_service, 0x8011, 0x2};
-    server_->offer_event(field_one);
-    server_->offer_field(field_two);
+    server_->offer_event(field_one.si_, field_one.to_event_spec());
+    server_->offer_field(field_two.si_, field_two.to_event_spec());
     server_->offer(other_service);
 
     // subscribing on the server side for both fields,
@@ -341,8 +341,8 @@ TEST_F(test_client_lifecycle, field_subscription_before_field_offering) {
     ASSERT_NE(server_, nullptr);
     ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
-    server_->offer_event(offered_event_);
-    server_->offer_field(offered_field_);
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     server_->offer(service_instance_);
     ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 
@@ -364,8 +364,8 @@ TEST_F(test_client_lifecycle, field_subscription_between_service_and_field_offer
     server_->offer(service_instance_);
     ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
 
-    server_->offer_event(offered_event_);
-    server_->offer_field(offered_field_);
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 
     send_field_message();
@@ -377,8 +377,8 @@ TEST_F(test_client_lifecycle, router_offers_field) {
     start_router();
     start_client_app();
     routingmanagerd_->offer(service_instance_);
-    routingmanagerd_->offer_event(offered_event_);
-    routingmanagerd_->offer_field(offered_field_);
+    routingmanagerd_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    routingmanagerd_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     routingmanagerd_->send_event(offered_field_, field_payload_);
 
     ASSERT_TRUE(subscribe_to_field());
@@ -555,8 +555,8 @@ TEST_F(test_client_lifecycle, missing_initial_events) {
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     // 3.
     server_->offer(service_instance_);
-    server_->offer_event(offered_event_);
-    server_->offer_field(offered_field_);
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     // 4.
     send_field_message();
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -795,7 +795,7 @@ TEST_F(test_client_lifecycle, subscribe_before_event_offering) {
     ASSERT_TRUE(client_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_event_)));
 
     // only now offer the field
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     send_field_message();
     EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
 }
@@ -1227,7 +1227,7 @@ TEST_F(test_client_lifecycle, resubscribe_after_service_restart_delivers_fresh_n
     message_checker const field_checker_v2{std::nullopt, service_instance_, offered_field_.event_id_,
                                            vsomeip::message_type_e::MT_NOTIFICATION, payload_v2};
 
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     server_->send_event(offered_field_, payload_v2);
     server_->offer(service_instance_);
 
@@ -1300,7 +1300,7 @@ TEST_F(test_single_io_thread, stop_flushes_queued_messages_with_one_io_thread) {
     ASSERT_TRUE(server->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
     ASSERT_TRUE(client->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
-    server->offer_field(field_);
+    server->offer_field(field_.si_, field_.to_event_spec());
     server->offer(service_);
 
     client->request_service(service_);
@@ -1395,9 +1395,9 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
 
         // A offers S1, B offers S2.
         a_->offer(s1_);
-        a_->offer_event(ev1_);
+        a_->offer_event(ev1_.si_, ev1_.to_event_spec());
         b_->offer(s2_);
-        b_->offer_event(ev2_);
+        b_->offer_event(ev2_.si_, ev2_.to_event_spec());
 
         // B consumes S1 (provider connection B -> A).
         b_->request_service(s1_);
@@ -1545,7 +1545,7 @@ TEST_F(test_provider_consumer_error_isolation, stale_consumer_does_not_tear_down
     ASSERT_NE(a_, nullptr);
     ASSERT_TRUE(a_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
     a_->offer(s1_);
-    a_->offer_event(ev1_);
+    a_->offer_event(ev1_.si_, ev1_.to_event_spec());
 
     // C is the new, live client: it only CONSUMES S1 (offers nothing), so A holds no consumer_
     // entry for C — only its accepted provider endpoint C -> A at (127.0.0.1, C_port + 1).
@@ -1699,9 +1699,9 @@ struct test_pending_event_registration_split : public base_fake_socket_fixture {
         ASSERT_TRUE(b_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
         a_->offer(s1_);
-        a_->offer_event(ev1_);
+        a_->offer_event(ev1_.si_, ev1_.to_event_spec());
         b_->offer(s2_);
-        b_->offer_event(ev2_);
+        b_->offer_event(ev2_.si_, ev2_.to_event_spec());
 
         b_->request_service(s1_);
         ASSERT_TRUE(b_->availability_record_.wait_for_last(service_availability::available(s1_)));
@@ -1813,7 +1813,7 @@ TEST_F(test_pending_event_registration_split, same_event_offered_and_consumed_by
 
     // A offers ev1 (provider set) and subscribes to its OWN ev1 (consumer set): same event, both sets.
     a_->offer(s1_);
-    a_->offer_event(ev1_);
+    a_->offer_event(ev1_.si_, ev1_.to_event_spec());
     a_->request_service(s1_);
     a_->subscribe_event(ev1_);
     ASSERT_TRUE(a_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)))
