@@ -17,6 +17,7 @@
 
 #include "logger_ext.hpp"
 #include "../include/event.hpp"
+#include "../include/debounce_func.hpp"
 #include "../include/types.hpp"
 #include "../include/event_dispatcher.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
@@ -470,67 +471,7 @@ bool event::add_subscriber(eventgroup_t _eventgroup, const std::shared_ptr<debou
 
             {
                 std::scoped_lock lk{filters_mutex_};
-                filters_[_client] = [_filter](const std::shared_ptr<payload>& _old, const std::shared_ptr<payload>& _new) {
-                    bool is_changed(false), is_elapsed(false);
-
-                    // Check whether we should forward because of changed data
-                    if (_filter->on_change_) {
-                        length_t its_min_length, its_max_length;
-
-                        if (_old->get_length() < _new->get_length()) {
-                            its_min_length = _old->get_length();
-                            its_max_length = _new->get_length();
-                        } else {
-                            its_min_length = _new->get_length();
-                            its_max_length = _old->get_length();
-                        }
-
-                        // Check whether all additional bytes (if any) are excluded
-                        for (length_t i = its_min_length; i < its_max_length; i++) {
-                            auto j = _filter->ignore_.find(i);
-                            // A change is detected when an additional byte is not
-                            // excluded at all or if its exclusion does not cover all
-                            // bits
-                            if (j == _filter->ignore_.end() || j->second != 0xFF) {
-                                is_changed = true;
-                                break;
-                            }
-                        }
-
-                        if (!is_changed) {
-                            const byte_t* its_old = _old->get_data();
-                            const byte_t* its_new = _new->get_data();
-                            for (length_t i = 0; i < its_min_length; i++) {
-                                auto j = _filter->ignore_.find(i);
-                                if (j == _filter->ignore_.end()) {
-                                    if (its_old[i] != its_new[i]) {
-                                        is_changed = true;
-                                        break;
-                                    }
-                                } else if (j->second != 0xFF) {
-                                    if ((its_old[i] & ~(j->second)) != (its_new[i] & ~(j->second))) {
-                                        is_changed = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (_filter->interval_ > -1) {
-                        // Check whether we should forward because of the elapsed time since
-                        // we did last time
-                        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-                        std::chrono::steady_clock::time_point last = _filter->last_forwarded_.load();
-                        int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count();
-                        is_elapsed = (last == std::chrono::steady_clock::time_point::max() || elapsed >= _filter->interval_);
-                        if (is_elapsed || (is_changed && _filter->on_change_resets_interval_)) {
-                            _filter->last_forwarded_.store(now);
-                        }
-                    }
-
-                    return (is_changed || is_elapsed);
-                };
+                filters_[_client] = make_debounce_func(_filter);
             }
         } else {
             std::scoped_lock lk{filters_mutex_};

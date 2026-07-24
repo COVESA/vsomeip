@@ -19,6 +19,7 @@
 #define protected public
 #include "../../../implementation/endpoints/include/udp_server_endpoint_impl.hpp"
 #include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
+#include "../../../implementation/endpoints/include/steady_clock.hpp"
 #include "../../../implementation/endpoints/include/asio_udp_socket.hpp"
 #include "../../../implementation/endpoints/include/boardnet_endpoint_host.hpp"
 #include "../../../implementation/routing/include/routing_host.hpp"
@@ -210,6 +211,11 @@ struct mocked_socket_factory : public vsomeip_v3::abstract_socket_factory {
 #endif
 
     std::unique_ptr<vsomeip_v3::abstract_timer> create_timer(boost::asio::io_context&) { return nullptr; }
+
+    std::shared_ptr<vsomeip_v3::abstract_clock> get_clock() override {
+        static auto clock = std::make_shared<vsomeip_v3::steady_clock>();
+        return clock;
+    }
 };
 
 vsomeip_v3::abstract_socket_factory* vsomeip_v3::abstract_socket_factory::get() {

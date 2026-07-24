@@ -13,6 +13,7 @@
 #endif
 #include "../include/asio_timer.hpp"
 #include "../include/netlink_connector.hpp"
+#include "../include/steady_clock.hpp"
 
 namespace vsomeip_v3 {
 
@@ -38,6 +39,11 @@ std::unique_ptr<udp_socket> asio_socket_factory::create_udp_socket(boost::asio::
 
 std::unique_ptr<abstract_timer> asio_socket_factory::create_timer(boost::asio::io_context& _io) {
     return std::make_unique<asio_timer>(_io);
+}
+
+std::shared_ptr<abstract_clock> asio_socket_factory::get_clock() {
+    static auto clock = std::make_shared<steady_clock>();
+    return clock;
 }
 
 #if defined(__linux__) || defined(__QNX__)

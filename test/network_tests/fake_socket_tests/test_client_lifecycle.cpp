@@ -103,9 +103,8 @@ struct test_client_lifecycle : public base_fake_socket_fixture {
             client_session{0, 1}, service_instance_, offered_event_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
     event_ids offered_field_{service_instance_, 0x8003, 0x6};
     std::vector<unsigned char> field_payload_{0x42, 0x13};
-    message first_expected_field_message_{client_session{0, 2}, // todo, why is the session a two here?
-                                          service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
-                                          field_payload_};
+    message first_expected_field_message_{client_session{0, 1}, service_instance_, offered_field_.event_id_,
+                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
     message_checker const field_checker_{std::nullopt, service_instance_, offered_field_.event_id_,
                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
     message_checker const event_checker_{std::nullopt, service_instance_, offered_event_.event_id_,
@@ -371,6 +370,29 @@ TEST_F(test_client_lifecycle, field_subscription_between_service_and_field_offer
     send_field_message();
 
     EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
+}
+
+TEST_F(test_client_lifecycle, early_group_subscriptions_to_a_single_service_are_supported) {
+    // It is a pain, but for now we should support this use case...?
+    start_router();
+    start_client_app();
+    client_->request_service(service_instance_); // eventgroup-level (wire ANY_EVENT) subscriptions to two distinct eventgroups
+    client_->subscribe_eventgroup_field(offered_field_); // eventgroup 0x6
+    client_->subscribe_eventgroup_event(offered_event_); // eventgroup 0x1
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    server_->offer(service_instance_); // both eventgroup subscriptions must reach the provider (creating/accumulating the placeholder)
+                                       // before the events are offered — this is the window in which the clobber used to happen
+    ASSERT_TRUE(client_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_field_)));
+    ASSERT_TRUE(client_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_event_)));
+    // // offering the real events triggers adoption of the placeholder's subscribers
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    send_field_message();
+    send_first_message();
+    EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
+    EXPECT_TRUE(client_->message_record_.wait_for(event_checker_)) << client_->message_record_;
 }
 
 TEST_F(test_client_lifecycle, router_offers_field) {
@@ -1240,6 +1262,31 @@ TEST_F(test_client_lifecycle, resubscribe_after_service_restart_delivers_fresh_n
     EXPECT_TRUE(client_->message_record_.wait_for(field_checker_v2));
     // The last recorded message must be v2, not the stale v1.
     EXPECT_TRUE(client_->message_record_.wait_for_last(field_checker_v2));
+}
+
+// A provider-side cyclic FIELD must keep poking its subscribers over time. The provider_event owns
+// the cyclic timer; routing_manager_client::periodic_notify does the actual sending. Driven only by
+// the timer, a subscriber must receive more than the single on-change value.
+TEST_F(test_client_lifecycle, cyclic_field_keeps_poking_subscriber) {
+    start_apps();
+
+    event_ids const cyclic_field{service_instance_, 0x8005, 0x8};
+    auto const cycle = common::scaled_timeout(std::chrono::milliseconds(5));
+
+    server_->get_application()->offer_event(cyclic_field.si_.service_, cyclic_field.si_.instance_, cyclic_field.event_id_,
+                                            {cyclic_field.eventgroup_id_}, vsomeip::event_type_e::ET_FIELD, cycle,
+                                            false /*change_resets_cycle*/, true /*update_on_change*/, nullptr, cyclic_field.reliability_);
+
+    request_service();
+    client_->subscribe_field(cyclic_field);
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(cyclic_field)));
+
+    // Set the field once: this stores the value and starts the cycle.
+    server_->send_event(cyclic_field, {0x00});
+
+    // Solely driven by the cyclic timer, more than two notifications must arrive within a scaled 30ms window.
+    ASSERT_TRUE(client_->message_record_.wait_for([](auto const& record) { return record.size() > 2; },
+                                                  common::scaled_timeout(std::chrono::milliseconds(30))));
 }
 
 /**

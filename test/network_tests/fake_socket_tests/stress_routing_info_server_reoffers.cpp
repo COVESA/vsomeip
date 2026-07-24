@@ -67,9 +67,8 @@ struct stress_service_reoffered : public base_fake_socket_fixture {
     event_ids offered_event_{interface_.instance_, interface_.events_[0]};
 
     std::vector<unsigned char> field_payload_{0x42, 0x13};
-    message first_expected_field_message_{client_session{0, 2}, // todo, why is the session a two here?
-                                          service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
-                                          field_payload_};
+    message first_expected_field_message_{client_session{0, 1}, service_instance_, offered_field_.event_id_,
+                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
 
     app* routingmanagerd_{};
     app* client_{};

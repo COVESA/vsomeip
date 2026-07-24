@@ -7,6 +7,7 @@
 
 #include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
 #include "../../../implementation/endpoints/include/asio_timer.hpp"
+#include "../../../implementation/endpoints/include/steady_clock.hpp"
 
 #include "fake_netlink_connector.hpp"
 #include "sockets/fake_uds_socket.hpp"
@@ -28,6 +29,9 @@ namespace vsomeip_v3::testing {
 class fake_socket_factory : public abstract_socket_factory {
 public:
     void set_manager(std::shared_ptr<socket_manager> const& _sm) { socket_manager_ = _sm; }
+
+    // Real monotonic clock: fake_socket tests run real asio_timers, so debounce interval
+    // logic must observe real elapsed time (not a frozen fake clock).
 
 private:
     std::shared_ptr<abstract_netlink_connector> create_netlink_connector(boost::asio::io_context& _io, const boost::asio::ip::address&,
@@ -73,6 +77,8 @@ private:
         // do not tinker with timeouts in network tests for now
         return std::make_unique<asio_timer>(_io);
     }
+
+    std::shared_ptr<abstract_clock> get_clock() override { return clock_; }
 #if defined(__linux__) || defined(__QNX__)
     std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context& _io) override {
         if (auto sm = socket_manager_.lock()) {
@@ -93,5 +99,6 @@ private:
 #endif
 
     std::weak_ptr<socket_manager> socket_manager_;
+    std::shared_ptr<steady_clock> clock_{std::make_shared<steady_clock>()};
 };
 }

@@ -98,9 +98,8 @@ struct test_connection_restoration : public base_fake_socket_fixture {
             client_session{0, 1}, service_instance_, offered_event_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
     event_ids offered_field_{service_instance_, 0x8003, 0x6};
     std::vector<unsigned char> field_payload_{0x42, 0x13};
-    message first_expected_field_message_{client_session{0, 2}, // todo, why is the session a two here?
-                                          service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
-                                          field_payload_};
+    message first_expected_field_message_{client_session{0, 1}, service_instance_, offered_field_.event_id_,
+                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
     message_checker const field_checker_{std::nullopt, service_instance_, offered_field_.event_id_,
                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
 

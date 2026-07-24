@@ -35,6 +35,7 @@
 #include "local_service_table.hpp"
 #include "local_offering_table.hpp"
 #include "event_dispatcher.hpp"
+#include "provider_event.hpp"
 #include "types.hpp"
 #include "../../protocol/include/protocol.hpp"
 #include "../../protocol/include/command_types.hpp"
@@ -137,7 +138,6 @@ public:
      */
     void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                   std::scoped_lock<std::mutex> const& _lock);
-    std::shared_ptr<event> find_provided_event(service_t _service, instance_t _instance, event_t _event) const;
     std::shared_ptr<event> find_consumed_event(service_t _service, instance_t _instance, event_t _event) const;
 
     std::string const& get_name() const;
@@ -155,12 +155,15 @@ public:
                                        const std::function<void(bool _is_available)>& _register_handler);
 
 private:
+    bool prepare_sending(client_t _client, std::shared_ptr<message> _message, bool _force);
+    bool send_event(client_t _client, std::shared_ptr<message> _message, std::scoped_lock<std::mutex> const& _provider_lock);
     void unregister_event_base(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
 
-    std::shared_ptr<event> find_provided_event(service_t _service, instance_t _instance, event_t _event,
-                                               std::scoped_lock<std::mutex> const& _lock) const;
     std::shared_ptr<event> find_consumed_event(service_t _service, instance_t _instance, event_t _event,
                                                std::scoped_lock<std::mutex> const& _lock) const;
+    std::shared_ptr<provider_event> find_provided_event(service_t _service, instance_t _instance, event_t _event,
+                                                        std::scoped_lock<std::mutex> const& _provider_lock) const;
+
     void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                      std::scoped_lock<std::mutex> const&);
 
@@ -211,7 +214,7 @@ private:
                                          std::scoped_lock<std::mutex> const& _lock);
     void clear_remote_subscriber_count(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const& _lock);
 
-    bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _notifier,
+    void create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _notifier,
                                                 const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
                                                 std::scoped_lock<std::mutex> const& _lock);
 
@@ -282,12 +285,12 @@ private:
      *
      * Caller *MUST* hold `provider_mutex_` through not only call, but also during the subscription ack/nack and initial events
      */
-    bool insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+    void insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                              const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
                              std::scoped_lock<std::mutex> const& _lock);
 
-    std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client,
-                                                                                std::scoped_lock<std::mutex> const& _provider_lock) const;
+    std::set<std::tuple<service_t, instance_t, eventgroup_t>> unsubscribe_client(const client_t _client,
+                                                                                 std::scoped_lock<std::mutex> const& _provider_lock);
     bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
                                            instance_t _instance, eventgroup_t _eventgroup, bool _is_provided);
     void stop_offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -299,11 +302,15 @@ private:
     bool is_requested(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const;
     bool is_subscribed(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                        std::scoped_lock<std::mutex> const&) const;
-    void register_provider_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
-                                 const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
-                                 std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
-                                 epsilon_change_func_t _epsilon_change_func, bool _is_cache_placeholder,
+    void register_provider_event(service_t _service, instance_t _instance, event_t _notifier, const std::set<eventgroup_t>& _eventgroups,
+                                 const event_type_e _type, std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+                                 bool _update_on_change, epsilon_change_func_t _epsilon_change_func,
                                  std::scoped_lock<std::mutex> const& _lock);
+
+    // Cyclic-timer poke from provider_event (which owns scheduling). Locks provider_mutex_, finds the
+    // event, pulls its current filtered notification and sends it to the subscribers.
+    void periodic_notify(service_t _service, instance_t _instance, event_t _event);
+
     void register_consumer_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
                                  const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
                                  std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
@@ -329,8 +336,8 @@ private:
     std::shared_ptr<eventgroupinfo> find_consumer_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                              std::scoped_lock<std::mutex> const&) const;
 
-    std::set<std::shared_ptr<event>> find_provided_events_by_group(service_t _service, instance_t _instance, eventgroup_t _group,
-                                                                   std::scoped_lock<std::mutex> const& _provider_lock) const;
+    std::set<std::shared_ptr<provider_event>> find_provided_events_by_group(service_t _service, instance_t _instance, eventgroup_t _group,
+                                                                            std::scoped_lock<std::mutex> const& _provider_lock) const;
 
     void finish_shutdown();
 
@@ -385,7 +392,7 @@ private:
     // "provider" side (offering of events, pending_offers, offered services etc.)
     mutable std::mutex provider_mutex_;
     // Set of services provided by this client
-    service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> provided_events_;
+    service_instance_map<std::unordered_map<event_t, std::shared_ptr<provider_event>>> provided_events_;
     service_instance_map<std::map<eventgroup_t, uint32_t>> remote_subscriber_count_;
     local_service_table offered_services_;
     // Event registrations offered by this client, awaiting (re)send to the routing manager.

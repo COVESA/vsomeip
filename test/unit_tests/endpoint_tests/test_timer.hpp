@@ -12,6 +12,7 @@
 #include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
 #include "../../../implementation/endpoints/include/abstract_netlink_connector.hpp"
 #include "../../../implementation/endpoints/include/abstract_timer.hpp"
+#include "../../../implementation/endpoints/include/steady_clock.hpp"
 
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/system/error_code.hpp>
@@ -61,6 +62,11 @@ public:
     std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context&) override { return nullptr; }
 #endif
     std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context&) override { return std::move(timer_); }
+
+    std::shared_ptr<abstract_clock> get_clock() override {
+        static auto clock = std::make_shared<steady_clock>();
+        return clock;
+    }
 
     // assumed to be filled by the fixtures.
     std::unique_ptr<abstract_timer> timer_;
