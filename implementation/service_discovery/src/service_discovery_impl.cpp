@@ -1327,6 +1327,17 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
         return; // Unknown remote offer type --> no way to access it!
     }
 
+    bool is_reliable_known(false);
+    bool is_unreliable_known(false);
+    bool drop_offer(false);
+    host_->is_remote_service_known(_service, _instance, _major, _minor, _reliable_address, _reliable_port, is_reliable_known,
+                                   _unreliable_address, _unreliable_port, is_unreliable_known, drop_offer);
+
+    if (drop_offer) {
+        VSOMEIP_WARNING_P << "Dropping offer for [" << hex4(_service) << "." << hex4(_instance) << "] due to endpoint mismatch";
+        return;
+    }
+
     if (_sd_ac_state.sd_acceptance_required_) {
 
         auto expire_subscriptions_and_services = [this, &_sd_ac_state, _service, _instance](const boost::asio::ip::address& _address,
@@ -1432,7 +1443,8 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
     }
 
     host_->add_routing_info(_service, _instance, _major, _minor, _ttl * get_ttl_factor(_service, _instance, ttl_factor_offers_),
-                            _reliable_address, _reliable_port, _unreliable_address, _unreliable_port);
+                            _reliable_address, _reliable_port, _unreliable_address, _unreliable_port, is_reliable_known,
+                            is_unreliable_known);
 }
 
 void service_discovery_impl::process_findservice_serviceentry(service_t _service, instance_t _instance, major_version_t _major,

@@ -36,9 +36,9 @@ public:
     void find_or_create_remote_client(service_t _service, instance_t _instance);
     void start_endpoint(vsomeip_v3::boardnet_endpoint& _endpoint);
     void is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                                 const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port, bool* _reliable_known,
-                                 const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
-                                 bool* _unreliable_known) const;
+                                 const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port, bool& _reliable_known,
+                                 const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port, bool& _unreliable_known,
+                                 bool& _drop_offer) const;
     void add_remote_service_info(service_t _service, instance_t _instance, const std::shared_ptr<endpoint_definition>& _ep_definition);
     void add_remote_service_info(service_t _service, instance_t _instance,
                                  const std::shared_ptr<endpoint_definition>& _ep_definition_reliable,

@@ -1123,10 +1123,10 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
         }
 
         if (its_instance == 0xFFFF) {
-            VSOMEIP_ERROR_P << "Dropped message with no matching instanceId, [" << hex4(its_service) << '.' << hex4(its_instance) << "."
-                            << hex4(its_method) << "." << hex4(its_client) << "." << hex4(its_session)
-                            << "] from: " << _remote_address.to_string() << ":" << _remote_port << ", multicast: " << std::boolalpha
-                            << _is_multicast;
+            VSOMEIP_WARNING_P << "Dropped message with no matching instanceId, [" << hex4(its_service) << '.' << hex4(its_instance) << "."
+                              << hex4(its_method) << "." << hex4(its_client) << "." << hex4(its_session)
+                              << "] from: " << _remote_address.to_string() << ":" << _remote_port << ", multicast: " << std::boolalpha
+                              << _is_multicast;
             return;
         }
 
@@ -1627,10 +1627,18 @@ void routing_manager_impl::remove_local(client_t _client) {
     ep_mgr_impl_->remove_routing_endpoint(_client);
 }
 
-// only called from the SD
+void routing_manager_impl::is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
+                                                   const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
+                                                   bool& _reliable_known, const boost::asio::ip::address& _unreliable_address,
+                                                   uint16_t _unreliable_port, bool& _unreliable_known, bool& _drop_offer) {
+    ep_mgr_impl_->is_remote_service_known(_service, _instance, _major, _minor, _reliable_address, _reliable_port, _reliable_known,
+                                          _unreliable_address, _unreliable_port, _unreliable_known, _drop_offer);
+}
+
 void routing_manager_impl::add_routing_info(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                             ttl_t _ttl, const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
-                                            const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port) {
+                                            const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
+                                            bool _is_reliable_known, bool _is_unreliable_known) {
 
     if (is_suspended()) {
         VSOMEIP_INFO_P << "We are suspended --> do nothing.";
@@ -1663,18 +1671,12 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
         its_info->set_ttl(_ttl);
     }
 
-    // Check whether remote services are unchanged
-    bool is_reliable_known(false);
-    bool is_unreliable_known(false);
-    ep_mgr_impl_->is_remote_service_known(_service, _instance, _major, _minor, _reliable_address, _reliable_port, &is_reliable_known,
-                                          _unreliable_address, _unreliable_port, &is_unreliable_known);
-
     bool udp_inserted(false);
     // Add endpoint(s) if necessary
-    if (_reliable_port != ILLEGAL_PORT && !is_reliable_known) {
+    if (_reliable_port != ILLEGAL_PORT && !_is_reliable_known) {
         std::shared_ptr<endpoint_definition> endpoint_def_tcp =
                 endpoint_definition::get(_reliable_address, _reliable_port, true, _service, _instance);
-        if (_unreliable_port != ILLEGAL_PORT && !is_unreliable_known) {
+        if (_unreliable_port != ILLEGAL_PORT && !_is_unreliable_known) {
             std::shared_ptr<endpoint_definition> endpoint_def_udp =
                     endpoint_definition::get(_unreliable_address, _unreliable_port, false, _service, _instance);
             ep_mgr_impl_->add_remote_service_info(_service, _instance, endpoint_def_tcp, endpoint_def_udp);
@@ -1697,7 +1699,7 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                 }
             }
         }
-    } else if (_reliable_port != ILLEGAL_PORT && is_reliable_known) {
+    } else if (_reliable_port != ILLEGAL_PORT && _is_reliable_known) {
         // has_requester() locks requested_services_mutex_ internally and releases it before returning; the
         // stub calls below re-enter the host under that same mutex, so it must not be held across them.
         if (has_requester(_service, _instance, _major, _minor)) {
@@ -1723,7 +1725,7 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
         }
     }
 
-    if (_unreliable_port != ILLEGAL_PORT && !is_unreliable_known) {
+    if (_unreliable_port != ILLEGAL_PORT && !_is_unreliable_known) {
         if (!udp_inserted) {
             std::shared_ptr<endpoint_definition> endpoint_def =
                     endpoint_definition::get(_unreliable_address, _unreliable_port, false, _service, _instance);
@@ -1736,11 +1738,11 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                 }
             }
         }
-    } else if (_unreliable_port != ILLEGAL_PORT && is_unreliable_known) {
+    } else if (_unreliable_port != ILLEGAL_PORT && _is_unreliable_known) {
         // has_requester() locks requested_services_mutex_ internally and releases it before returning; the
         // stub calls below re-enter the host under that same mutex, so it must not be held across them.
         if (has_requester(_service, _instance, _major, _minor)) {
-            if (_reliable_port == ILLEGAL_PORT && !is_reliable_known
+            if (_reliable_port == ILLEGAL_PORT && !_is_reliable_known
                 && !stub_->contained_in_routing_info(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(),
                                                      its_info->get_minor())) {
                 auto ep = its_info->get_endpoint(false);
@@ -1985,8 +1987,14 @@ void routing_manager_impl::init_routing_info() {
 
         if (its_reliable_port != ILLEGAL_PORT || its_unreliable_port != ILLEGAL_PORT) {
 
+            bool is_reliable_known(false);
+            bool is_unreliable_known(false);
+            bool drop_offer(false);
+            ep_mgr_impl_->is_remote_service_known(i.first, i.second, DEFAULT_MAJOR, DEFAULT_MINOR, its_address, its_reliable_port,
+                                                  is_reliable_known, its_address, its_unreliable_port, is_unreliable_known, drop_offer);
+
             add_routing_info(i.first, i.second, DEFAULT_MAJOR, DEFAULT_MINOR, DEFAULT_TTL, its_address, its_reliable_port, its_address,
-                             its_unreliable_port);
+                             its_unreliable_port, is_reliable_known, is_unreliable_known);
 
             if (its_reliable_port != ILLEGAL_PORT) {
                 ep_mgr_impl_->find_or_create_remote_client(i.first, i.second, true);

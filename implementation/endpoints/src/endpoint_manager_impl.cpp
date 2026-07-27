@@ -187,9 +187,11 @@ void endpoint_manager_impl::find_or_create_remote_client(service_t _service, ins
 
 void endpoint_manager_impl::is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major,
                                                     minor_version_t _minor, const boost::asio::ip::address& _reliable_address,
-                                                    uint16_t _reliable_port, bool* _reliable_known,
+                                                    uint16_t _reliable_port, bool& _reliable_known,
                                                     const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
-                                                    bool* _unreliable_known) const {
+                                                    bool& _unreliable_known, bool& _drop_offer) const {
+
+    _drop_offer = false;
 
     std::scoped_lock its_lock(endpoint_mutex_);
     if (auto found_si = remote_service_info_.find({_service, _instance}); found_si != remote_service_info_.end()) {
@@ -198,26 +200,40 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
             if (auto found_reliable = found_si->second.find(true); found_reliable != found_si->second.end()) {
                 its_definition = found_reliable->second;
                 if (its_definition->get_address() == _reliable_address && its_definition->get_port() == _reliable_port) {
-                    *_reliable_known = true;
+                    _reliable_known = true;
                 } else {
-                    VSOMEIP_WARNING << "Reliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
-                                    << static_cast<std::uint32_t>(_major) << "." << _minor
-                                    << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
-                                    << " new: " << _reliable_address.to_string() << ":" << _reliable_port;
+                    VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                      << static_cast<std::uint32_t>(_major) << "." << _minor
+                                      << "] with different endpoint: " << _reliable_address.to_string() << ":" << _reliable_port << ":"
+                                      << its_definition->is_reliable() << ", dropping the offer";
+                    _drop_offer = true;
                 }
+            } else {
+                VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                  << static_cast<std::uint32_t>(_major) << "." << _minor
+                                  << "] with different endpoint: " << _reliable_address.to_string() << ":" << _reliable_port
+                                  << ", dropping the offer";
+                _drop_offer = true;
             }
         }
         if (_unreliable_port != ILLEGAL_PORT) {
             if (auto found_unreliable = found_si->second.find(false); found_unreliable != found_si->second.end()) {
                 its_definition = found_unreliable->second;
                 if (its_definition->get_address() == _unreliable_address && its_definition->get_port() == _unreliable_port) {
-                    *_unreliable_known = true;
+                    _unreliable_known = true;
                 } else {
-                    VSOMEIP_WARNING << "Unreliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
-                                    << static_cast<std::uint32_t>(_major) << "." << _minor
-                                    << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
-                                    << " new: " << _unreliable_address.to_string() << ":" << _unreliable_port;
+                    VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                      << static_cast<std::uint32_t>(_major) << "." << _minor
+                                      << "] with different endpoint: " << _unreliable_address.to_string() << ":" << _unreliable_port << ":"
+                                      << its_definition->is_reliable() << ", dropping the offer";
+                    _drop_offer = true;
                 }
+            } else {
+                VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                  << static_cast<std::uint32_t>(_major) << "." << _minor
+                                  << "] with different endpoint: " << _unreliable_address.to_string() << ":" << _unreliable_port
+                                  << ", dropping the offer";
+                _drop_offer = true;
             }
         }
     }

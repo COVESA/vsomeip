@@ -155,9 +155,14 @@ public:
     void init_routing_info();
     void add_routing_info(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl,
                           const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
-                          const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port);
+                          const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port, bool _is_reliable_known,
+                          bool _is_unreliable_known);
     void del_routing_info(service_t _service, instance_t _instance, bool _has_reliable, bool _has_unreliable, bool _trigger_availability);
     void update_routing_info(std::chrono::milliseconds _elapsed);
+    void is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
+                                 const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port, bool& _reliable_known,
+                                 const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port, bool& _unreliable_known,
+                                 bool& _drop_offer);
 
     // Handle remote subscriptions / subscription acks
     void on_remote_subscribe(std::shared_ptr<remote_subscription>& _subscription, const remote_subscription_callback_t& _callback);

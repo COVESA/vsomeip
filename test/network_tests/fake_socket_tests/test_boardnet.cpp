@@ -3256,4 +3256,137 @@ TEST_F(test_someip_tp, test_someip_tp_mem_corruption) {
     tp_checker.payload_.value().insert(tp_checker.payload_.value().end(), 16, 0xBB);
     ASSERT_TRUE(ecu_one->message_record_.wait_for_any(tp_checker));
 }
+
+// Test reject changed offer
+//
+// Test setup: three ECUs on the same boardnet:
+//   - ecu_one  : consumer, subscribes to service_3344
+//   - ecu_two  : server A, offers service_3344
+//   - ecu_three: server B, offers the SAME service_3344 (same service + instance)
+//
+struct two_providers_one_consumer : public base_fake_socket_fixture {
+    // consumer_ecu_ is the pure client side (no offered services) -> consumer.
+    ecu_setup consumer_ecu_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
+    // server_a_ecu_ offers service_3344 -> server A.
+    ecu_setup server_a_ecu_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
+    // server_b_ecu_ also offers service_3344 -> server B.
+    ecu_setup server_b_ecu_{"ecu_three", ecu_config{boardnet::ecu_three_config}.add_interface({interfaces::boardnet::service_3344}),
+                            *socket_manager_};
+
+    app* consumer_{};
+    app* server_a_{};
+    app* server_b_{};
+
+    // Service and event to be offered by both ECUs
+    interface both_ecus_service = interfaces::boardnet::service_3344;
+    event_ids both_ecus_field = {both_ecus_service.instance_, both_ecus_service.fields_[0]};
+
+    // SD gates to block sending of Offers/StopOffers
+    std::shared_ptr<someip_gate> server_a_sd_gate = someip_gate::create();
+    std::shared_ptr<someip_gate> server_b_sd_gate = someip_gate::create();
+
+    // Records `true` whenever each server receives a subscribe
+    attribute_recorder<bool> server_a_got_subscriber_;
+    attribute_recorder<bool> server_b_got_subscriber_;
+
+    // Brings up all three ECUs, offers the services, install SD gates and register subscription handlers
+    void start_ecus() {
+
+        consumer_ecu_.prepare();
+        server_a_ecu_.prepare();
+        server_b_ecu_.prepare();
+
+        consumer_ecu_.start_router();
+        server_a_ecu_.start_router();
+        server_b_ecu_.start_router();
+
+        consumer_ = consumer_ecu_.router_;
+        server_a_ = server_a_ecu_.router_;
+        server_b_ = server_b_ecu_.router_;
+
+        ASSERT_TRUE(setup_data_pipe(server_a_ecu_.sd_endpoint(), server_a_ecu_.router_name_, socket_role::server,
+                                    server_a_sd_gate->get_data_pipe()));
+        ASSERT_TRUE(setup_data_pipe(server_b_ecu_.sd_endpoint(), server_b_ecu_.router_name_, socket_role::server,
+                                    server_b_sd_gate->get_data_pipe()));
+
+        server_a_->register_group_subscription_handler(both_ecus_field,
+                                                       [this](client_t, uid_t, gid_t, std::string const&, bool _is_subscribed) {
+                                                           if (_is_subscribed) {
+                                                               server_a_got_subscriber_.record(true);
+                                                           }
+                                                           return true;
+                                                       });
+        server_b_->register_group_subscription_handler(both_ecus_field,
+                                                       [this](client_t, uid_t, gid_t, std::string const&, bool _is_subscribed) {
+                                                           if (_is_subscribed) {
+                                                               server_b_got_subscriber_.record(true);
+                                                           }
+                                                           return true;
+                                                       });
+    }
+};
+
+// Test logic: verify that the consumer subscribes to only one of the providers, never to both and at least to one.
+//
+// 1. Both server apps offer the same interface, with SD blocked.
+//    This allows both offers in each ECU to be accepted
+//    (if the SD was unblocked, the second ECU would reject the internal offer)
+// 2. Unblock SD so offers are sent to boardnet
+// 3. Client requests and subscribes to the service
+// 4. Ensure that exactly one of the two servers receives the subscription (never both and at least to one).
+// 5. For the server which had its offer accepted, stop the sending of SD messages
+//    and stop the service(the client will not get the StopOffer)
+// 6. Ensure that, at first, the other server does not receive a subscription,
+//    since the previous offer is still alive due to the TTL
+// 7. Ensure that, after the first offer TTL expires, the other server receives a subscription
+
+TEST_F(two_providers_one_consumer, second_provider_offer_does_not_retrigger_subscribe) {
+    start_ecus();
+
+    // 1.
+    server_a_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
+    server_b_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
+
+    server_a_->offer(both_ecus_service);
+    server_b_->offer(both_ecus_service);
+
+    ASSERT_TRUE(server_a_sd_gate->wait_for_blocked()) << "Server A did not offer the service.";
+    ASSERT_TRUE(server_b_sd_gate->wait_for_blocked()) << "Server B did not offer the service.";
+
+    // 2.
+    server_a_sd_gate->block(false);
+    server_b_sd_gate->block(false);
+
+    // 3.
+    consumer_->request_service(both_ecus_service.instance_);
+    ASSERT_TRUE(consumer_->availability_record_.wait_for_last(service_availability::available(both_ecus_service.instance_)))
+            << "The consumer didn't receive the service availability after unblocking SD.";
+
+    consumer_->subscribe(both_ecus_service);
+    ASSERT_TRUE(consumer_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(both_ecus_field)))
+            << "The consumer never subscribed to the service.";
+
+    // 4.
+    bool const server_a_subscribed = server_a_got_subscriber_.wait_for_any(true, std::chrono::seconds(1));
+    bool const server_b_subscribed = server_b_got_subscriber_.wait_for_any(true, std::chrono::seconds(1));
+    EXPECT_TRUE(server_a_subscribed || server_b_subscribed) << "Neither server received the subscription.";
+    EXPECT_FALSE(server_a_subscribed && server_b_subscribed)
+            << "Both servers received the subscription; the consumer must subscribe to only one provider.";
+
+    // 5.
+    auto winner_gate = server_a_subscribed ? server_a_sd_gate : server_b_sd_gate;
+    app* winner = server_a_subscribed ? server_a_ : server_b_;
+    attribute_recorder<bool>& loser_got_subscriber = server_a_subscribed ? server_b_got_subscriber_ : server_a_got_subscriber_;
+
+    winner_gate->block(true);
+
+    winner->stop_offer(both_ecus_service.instance_);
+
+    // 6.
+    EXPECT_FALSE(loser_got_subscriber.wait_for_any(true, std::chrono::seconds(1))) << "The other server received a subscription too early.";
+
+    // 7.
+    EXPECT_TRUE(loser_got_subscriber.wait_for_any(true, std::chrono::seconds(10)))
+            << "The other server never received the subscription after the subscribed provider stopped offering.";
+}
 }
