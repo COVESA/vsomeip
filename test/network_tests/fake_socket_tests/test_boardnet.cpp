@@ -1306,8 +1306,9 @@ TEST_F(server_offering_multiple_fields, graceful_stop_offer_after_str) {
 
     // Offer inside the graceful stop offer window: must NOT propagate immediately.
     server->offer(multi_field_service_);
+    // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
     ASSERT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
-                                                            std::chrono::milliseconds(500)))
+                                                            std::chrono::milliseconds(650)))
             << "Offer must not propagate during graceful stop-offer window.";
 
     // No further user-side calls: the routing manager must auto-emit the
@@ -1338,10 +1339,10 @@ TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_str_) {
     router_one->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
 
     client->availability_record_.clear();
-
     // Debounced offer are immediately propagated after a STR, so the offer must be received immediately.
+    // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
     ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
-                                                           std::chrono::milliseconds(500)))
+                                                           std::chrono::milliseconds(650)))
             << "Debounced offer must propagate immediately after a STR.";
 }
 
@@ -1368,16 +1369,18 @@ TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_and_after_str
     client->availability_record_.clear();
 
     // Debounced offer are immediately propagated after a STR, so the offer must be received immediately.
+    // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
     ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
-                                                           std::chrono::milliseconds(500)))
+                                                           std::chrono::milliseconds(650)))
             << "Debounced offer must propagate immediately after a STR.";
 
     server->stop_offer(multi_field_service_.instance_);
     ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
 
     server->offer(multi_field_service_);
+    // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
     ASSERT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
-                                                            std::chrono::milliseconds(500)));
+                                                            std::chrono::milliseconds(650)));
 
     ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
                                                            std::chrono::milliseconds(2500)));
