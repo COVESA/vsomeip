@@ -6,28 +6,21 @@
 #pragma once
 
 #include <atomic>
-#include <functional>
 #include <map>
 #include <mutex>
 #include <string>
+#include <vector>
+
+#include <vsomeip/constants.hpp>
+#include <vsomeip/primitive_types.hpp>
 
 #include "enumeration_types.hpp"
-#include <vsomeip/trace.hpp>
+#include "types.hpp"
 
 namespace vsomeip_v3 {
 namespace trace {
 
-typedef std::function<bool(service_t, instance_t, method_t)> filter_func_t;
-
-// A non-negative filter: its predicate plus the filter type that decides both
-// the logging verbosity and whether it restricts the channel to an allow-list
-// (only POSITIVE does; HEADER_ONLY and FULL_PAYLOAD do not).
-struct trace_filter_entry {
-    filter_func_t func;
-    filter_type_e type;
-};
-
-class channel_impl : public channel {
+class channel_impl {
 public:
     channel_impl(const std::string& _id, const std::string& _name);
 

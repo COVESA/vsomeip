@@ -3,25 +3,26 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <vsomeip/constants.hpp>
-#include <vsomeip/runtime.hpp>
-
 #include <algorithm>
-#include <chrono>
+#include <climits>
 #include <ctime>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
 
+#ifdef USE_DLT
 #include "logger_ext.hpp"
+#else
+#include <sstream>
+#endif
+
+#include <vsomeip/constants.hpp>
+#include "vsomeip/defines.hpp"
+#include <vsomeip/runtime.hpp>
+#include <vsomeip/internal/logger.hpp>
+
 #include "../include/channel_impl.hpp"
 #include "../include/connector_impl.hpp"
 #include "../include/defines.hpp"
 #include "../include/tracing_policy.hpp"
 #include "../../configuration/include/trace.hpp"
-#include "../../protocol/include/command_types.hpp"
-#include "../../protocol/include/serialize.hpp"
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
@@ -120,7 +121,7 @@ void connector_impl::reset() {
 #endif
 }
 
-void connector_impl::set_enabled(const bool _enabled) {
+void connector_impl::set_enabled(bool _enabled) {
     is_enabled_ = _enabled;
 }
 
@@ -128,7 +129,7 @@ bool connector_impl::is_enabled() const {
     return is_enabled_;
 }
 
-void connector_impl::set_sd_enabled(const bool _sd_enabled) {
+void connector_impl::set_sd_enabled(bool _sd_enabled) {
     std::scoped_lock lk{configure_mutex_};
     is_sd_enabled_ = _sd_enabled;
 }
@@ -146,7 +147,7 @@ bool connector_impl::is_sd_message(const byte_t* _data, uint16_t _data_size) con
     return false;
 }
 
-std::shared_ptr<channel> connector_impl::add_channel(const trace_channel_t& _id, const std::string& _name) {
+std::shared_ptr<channel_impl> connector_impl::add_channel(const trace_channel_t& _id, const std::string& _name) {
 
     std::shared_ptr<channel_impl> its_channel;
     {
@@ -205,7 +206,7 @@ bool connector_impl::remove_channel(const trace_channel_t& _id) {
     return true;
 }
 
-std::shared_ptr<channel> connector_impl::get_channel(const std::string& _id) const {
+std::shared_ptr<channel_impl> connector_impl::get_channel(const std::string& _id) const {
     std::scoped_lock its_channels_lock(channels_mutex_);
     auto its_channel = channels_.find(_id);
     return (its_channel != channels_.end() ? its_channel->second : nullptr);

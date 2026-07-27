@@ -49,6 +49,7 @@
 #include "../../utility/include/service_instance_map.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../tracing/include/connector_impl.hpp"
+#include "../../tracing/include/header.hpp"
 
 #if defined(__QNX__)
 #define HAVE_INET_PTON 1

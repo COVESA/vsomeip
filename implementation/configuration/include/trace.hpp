@@ -5,13 +5,16 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip/trace.hpp>
+
 #include "../../tracing/include/defines.hpp"
 #include "../../tracing/include/enumeration_types.hpp"
+#include "../../tracing/include/types.hpp"
 
 namespace vsomeip_v3 {
 namespace cfg {

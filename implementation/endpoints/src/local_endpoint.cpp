@@ -15,6 +15,7 @@
 #include "../../protocol/include/serialize.hpp"
 #include "../../protocol/include/deserialize.hpp"
 #include "../../protocol/include/logging.hpp"
+#include "../../tracing/include/header.hpp"
 #include "../../tracing/include/connector_impl.hpp"
 #include "logger_ext.hpp"
 

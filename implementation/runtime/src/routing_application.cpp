@@ -7,7 +7,6 @@
 
 #include "../../endpoints/include/boardnet_endpoint.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
-#include "../../tracing/include/connector_impl.hpp"
 #include "../../utility/include/utility.hpp"
 
 #include "logger_ext.hpp"

@@ -52,6 +52,7 @@
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../tracing/include/connector_impl.hpp"
+#include "../../tracing/include/header.hpp"
 
 #ifndef ANDROID
 #include "../../e2e_protection/include/buffer/buffer.hpp"

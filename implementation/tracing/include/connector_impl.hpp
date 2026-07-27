@@ -9,19 +9,13 @@
 #include <dlt/dlt.h>
 #endif
 
-#include <mutex>
-#include <vector>
+#include <atomic>
 #include <map>
-
-#include <boost/shared_ptr.hpp>
+#include <memory>
+#include <mutex>
+#include <string>
 
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip/export.hpp>
-#include <vsomeip/trace.hpp>
-
-#include "enumeration_types.hpp"
-#include "header.hpp"
-#include "../../endpoints/include/buffer.hpp"
 
 namespace vsomeip_v3 {
 
@@ -33,29 +27,29 @@ namespace trace {
 
 class channel_impl;
 
-class connector_impl : public connector {
+class connector_impl {
 public:
-    VSOMEIP_EXPORT static std::shared_ptr<connector_impl> get();
+    static std::shared_ptr<connector_impl> get();
 
-    VSOMEIP_EXPORT connector_impl();
-    VSOMEIP_EXPORT virtual ~connector_impl();
+    connector_impl();
+    ~connector_impl();
 
-    VSOMEIP_EXPORT void configure(const std::shared_ptr<cfg::trace>& _configuration);
-    VSOMEIP_EXPORT void reset();
+    void configure(const std::shared_ptr<cfg::trace>& _configuration);
+    void reset();
 
-    VSOMEIP_EXPORT void set_enabled(const bool _enabled);
-    VSOMEIP_EXPORT bool is_enabled() const;
+    void set_enabled(bool _enabled);
+    bool is_enabled() const;
 
-    VSOMEIP_EXPORT void set_sd_enabled(const bool _sd_enabled);
-    VSOMEIP_EXPORT bool is_sd_enabled() const;
+    void set_sd_enabled(bool _sd_enabled);
+    bool is_sd_enabled() const;
 
-    VSOMEIP_EXPORT bool is_sd_message(const byte_t* _data, uint16_t _data_size) const;
+    bool is_sd_message(const byte_t* _data, uint16_t _data_size) const;
 
-    VSOMEIP_EXPORT std::shared_ptr<channel> add_channel(const std::string& _id, const std::string& _description);
-    VSOMEIP_EXPORT bool remove_channel(const std::string& _id);
-    VSOMEIP_EXPORT std::shared_ptr<channel> get_channel(const std::string& _id) const;
+    std::shared_ptr<channel_impl> add_channel(const std::string& _id, const std::string& _description);
+    bool remove_channel(const std::string& _id);
+    std::shared_ptr<channel_impl> get_channel(const std::string& _id) const;
 
-    VSOMEIP_EXPORT void trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size);
+    void trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size);
 
 private:
     std::atomic<bool> is_enabled_;

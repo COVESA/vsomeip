@@ -9,7 +9,7 @@
 namespace vsomeip_v3 {
 namespace trace {
 
-const filter_id_t FILTER_ID_ERROR(0);
+constexpr filter_id_t FILTER_ID_ERROR = 0;
 
 channel_impl::channel_impl(const std::string& _id, const std::string& _name) : id_(_id), name_(_name), current_filter_id_(1) { }
 
