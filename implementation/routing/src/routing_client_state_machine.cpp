@@ -45,7 +45,7 @@ void routing_client_state_machine::target_running() {
 
 [[nodiscard]] bool routing_client_state_machine::start_registration() {
     if (!shall_run_ || state_ != routing_client_state_e::ST_DEREGISTERED) {
-        VSOMEIP_WARNING_P << "Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
+        VSOMEIP_ERROR_P << "Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
         return false;
     }
     change_state(routing_client_state_e::ST_REGISTERING);
@@ -54,7 +54,7 @@ void routing_client_state_machine::target_running() {
 
 [[nodiscard]] bool routing_client_state_machine::registered(client_t _client) {
     if (state_ != routing_client_state_e::ST_REGISTERING) {
-        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
+        VSOMEIP_ERROR_P << "Unexpected state: " << state_;
         return false;
     }
 

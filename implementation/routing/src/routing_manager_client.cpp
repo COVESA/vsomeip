@@ -2043,8 +2043,7 @@ void routing_manager_client::restart_sender([[maybe_unused]] std::scoped_lock<st
         return;
     }
     start_sender_after_debounce_ = false;
-    if (!state_machine_->start_registration()) {
-        VSOMEIP_WARNING_P << "(" << hex4(get_client()) << ") Non-Deregistered State Set (" << state_machine_->state() << "). Returning";
+    if (!state_machine_->start_registration()) { // `start_registration` does logging
         return;
     }
     sender_ = ep_mgr_->create_routing_client();
