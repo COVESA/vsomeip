@@ -117,6 +117,35 @@ struct test_connection_restoration : public base_fake_socket_fixture {
     app* server_{};
 };
 
+TEST_F(test_connection_restoration, service_release_avoids_availability_forwarding) {
+    std::shared_ptr<command_gate> router_to_client_gate_ = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(client_name_, routingmanager_name_, socket_role::client, router_to_client_gate_->get_data_pipe()));
+    //  offers the service
+    start_apps();
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    server_->stop_offer(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+
+    router_to_client_gate_->block_at(vsomeip_v3::protocol::id_e::ROUTING_INFO_ID);
+    server_->offer(service_instance_);
+    ASSERT_TRUE(router_to_client_gate_->wait_for_blocked());
+    client_->release_service(service_instance_);
+
+    server_->stop_offer(service_instance_);
+    client_->availability_record_.clear();
+    // allow ADD_SERVICE to pass through, but no further routing info
+    router_to_client_gate_->block(false);
+    // the routing info should not have been forwarded to the client
+    ASSERT_FALSE(
+            client_->availability_record_.wait_for_any(service_availability::available(service_instance_), std::chrono::milliseconds(100)));
+    client_->request_service(service_instance_);
+    // and the replay should neither to a forwarding of the state (as this is outdated state)
+    EXPECT_FALSE(
+            client_->availability_record_.wait_for_any(service_availability::available(service_instance_), std::chrono::milliseconds(100)));
+}
+
 TEST_F(test_connection_restoration, client_renews_connection_deletes_client_info) {
     /**
      * When a server does not notice that a client connection is broken,

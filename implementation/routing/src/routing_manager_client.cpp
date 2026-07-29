@@ -358,6 +358,27 @@ void routing_manager_client::release_service(client_t _client, service_t _servic
                 .service_ = _service, .instance_ = _instance, .major_version_ = ANY_MAJOR, .minor_version_ = ANY_MINOR};
         requests_to_debounce_.remove(request);
         already_requested = requests_.remove(request);
+
+        // A wildcard (ANY_INSTANCE) request for the same service - e.g. a ProxyManager watching for
+        // any matching managed instance - relies on available_services_ to detect this concrete
+        // instance's later removal, independently of the request being released here. Resetting the
+        // entry while that request is still active would make the next stop-offer look like a
+        // no-op (available_services_.remove() returning false), silently dropping the AS_UNAVAILABLE
+        // notification for that other, still-interested requester.
+        protocol::service_data const wildcard_request{
+                .service_ = _service, .instance_ = ANY_INSTANCE, .major_version_ = ANY_MAJOR, .minor_version_ = ANY_MINOR};
+        const bool other_local_interest =
+                _instance != ANY_INSTANCE && (requests_.contains(wildcard_request) || requests_to_debounce_.contains(wildcard_request));
+
+        // Reset client-side availability tracking so a subsequent request_service() + RIE_ADD
+        // fires ON_AVAILABLE again. Without this, available_services_.add() returns false
+        // (already present) and the callback is silently suppressed as a duplicate.
+        if (!other_local_interest) {
+            if (const auto its_entry = available_services_.find_entry(_service, _instance, ANY_MAJOR)) {
+                available_services_.remove(_service, _instance, ANY_MAJOR);
+                host_->reset_availability_state(_service, _instance, its_entry->major, its_entry->minor);
+            }
+        }
     }
     std::scoped_lock inner_lock(mutex_);
     if (already_requested && state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
@@ -1359,6 +1380,20 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                     const auto its_instance(s.instance_);
                     const auto its_major(s.major_version_);
                     const auto its_minor(s.minor_version_);
+
+                    // Ignore a stale RIE_ADD for a service this client no longer requests (e.g. it
+                    // was in flight when release_service() ran).
+                    auto const requested = [&](instance_t _instance) {
+                        protocol::service_data const sd{
+                                .service_ = its_service, .instance_ = _instance, .major_version_ = ANY_MAJOR, .minor_version_ = ANY_MINOR};
+                        return requests_.contains(sd);
+                    };
+                    if (!requested(its_instance) && !requested(ANY_INSTANCE)) {
+                        VSOMEIP_WARNING << "Ignoring routing_info RIE_ADD in client 0x" << hex4(get_client()) << " for released service ["
+                                        << hex4(its_service) << "." << hex4(its_instance) << "]";
+                        continue;
+                    }
+
                     const bool newly_available = available_services_.add(its_service, its_instance, its_major, its_minor, its_client);
                     if (newly_available) {
                         host_->on_availability(its_service, its_instance, availability_state_e::AS_AVAILABLE, its_major, its_minor);

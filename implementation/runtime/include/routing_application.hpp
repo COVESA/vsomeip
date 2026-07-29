@@ -67,6 +67,7 @@ private:
 
     void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major = DEFAULT_MAJOR,
                          minor_version_t _minor = DEFAULT_MINOR) override;
+    void reset_availability_state(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) override;
     void on_state(state_type_e _state) override;
     void on_message(std::shared_ptr<message>&& _message) override;
     void on_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client,

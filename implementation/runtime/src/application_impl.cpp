@@ -1294,6 +1294,50 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     }
 }
 
+void application_impl::reset_availability_state(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
+    std::scoped_lock availability_lock{availability_mutex_};
+
+    auto reset_availability_states = [this, _service, _instance, _major, _minor](availability_major_minor_t& _av_ma_mi_it) {
+        auto found_major = _av_ma_mi_it.find(_major);
+        if (found_major != _av_ma_mi_it.end()) {
+            for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
+                auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
+                if (found_minor != found_major->second.end()) {
+                    set_availability_state(found_minor->second.second, _service, _instance, _major, _minor,
+                                           availability_state_e::AS_UNKNOWN);
+                }
+            }
+            auto found_any_minor = found_major->second.find(ANY_MINOR);
+            if (found_any_minor != found_major->second.end()) {
+                set_availability_state(found_any_minor->second.second, _service, _instance, _major, _minor,
+                                       availability_state_e::AS_UNKNOWN);
+            }
+        }
+        found_major = _av_ma_mi_it.find(ANY_MAJOR);
+        if (found_major != _av_ma_mi_it.end()) {
+            for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
+                auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
+                if (found_minor != found_major->second.end()) {
+                    set_availability_state(found_minor->second.second, _service, _instance, _major, _minor,
+                                           availability_state_e::AS_UNKNOWN);
+                }
+            }
+            auto found_any_minor = found_major->second.find(ANY_MINOR);
+            if (found_any_minor != found_major->second.end()) {
+                set_availability_state(found_any_minor->second.second, _service, _instance, _major, _minor,
+                                       availability_state_e::AS_UNKNOWN);
+            }
+        }
+    };
+
+    for (const service_instance_t si : {service_instance_t{_service, _instance}, service_instance_t{_service, ANY_INSTANCE},
+                                        service_instance_t{ANY_SERVICE, _instance}, service_instance_t{ANY_SERVICE, ANY_INSTANCE}}) {
+        if (auto found = availability_.find(si); found != availability_.end()) {
+            reset_availability_states(found->second);
+        }
+    }
+}
+
 const std::deque<message_handler_t>& application_impl::find_handlers(service_t _service, instance_t _instance, method_t _method) const {
 
     // The (ordered!) sequence of queries to attempt

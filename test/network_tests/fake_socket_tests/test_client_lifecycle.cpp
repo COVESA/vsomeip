@@ -709,28 +709,72 @@ TEST_F(test_client_lifecycle, availability_callback_is_only_called_once_on_stop)
     })) << client_->availability_record_;
 }
 
-TEST_F(test_client_lifecycle, release_then_request_blocks_duplicate_available) {
+TEST_F(test_client_lifecycle, bool_availability_handler_reports_available_and_unavailable) {
     /**
-     * After release_service(), the handler shadow remains AS_AVAILABLE.
-     * When request_service() is called again (service still offered), replay_availability()
-     * and the subsequent RIE_ADD from the routing manager both hit on_availability(AS_AVAILABLE).
-     * The shadow check (shadow == state) suppresses both — no second callback fires.
+     * Covers the bool availability_handler_t overload (and its enum->bool adapter):
+     * AS_AVAILABLE maps to true, everything else to false.
      **/
     start_apps();
+    client_->register_availability_bool_handler(service_instance_);
     request_service();
-    ASSERT_TRUE(await_service());
 
-    clear_command_record(client_name_, routingmanager_name_);
-    client_->release_service(service_instance_);
-    client_->request_service(service_instance_);
+    EXPECT_TRUE(client_->bool_availability_record_.wait_for_last(service_state{service_instance_, true}))
+            << client_->bool_availability_record_;
 
-    // Wait for the routing manager to receive the re-registration, ensuring RIE_ADD has had time to arrive
-    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::REQUEST_SERVICE_ID, socket_role::server));
+    stop_offer();
+    EXPECT_TRUE(client_->bool_availability_record_.wait_for_last(service_state{service_instance_, false}))
+            << client_->bool_availability_record_;
+}
 
-    // The dedup guard must suppress the duplicate AS_AVAILABLE — no second entry must appear
-    ASSERT_FALSE(client_->availability_record_.wait_for([](const auto& _r) { return _r.size() > 1; }, std::chrono::milliseconds(300)))
+TEST_F(test_client_lifecycle, both_availability_handlers_fire_consistently) {
+    /**
+     * The bool handler (specific service) and the default enum handler (ANY/ANY) coexist:
+     * both fire and stay in sync across an available/unavailable cycle.
+     **/
+    start_apps();
+    client_->register_availability_bool_handler(service_instance_);
+    request_service();
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)))
             << client_->availability_record_;
-    ASSERT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}));
+    ASSERT_TRUE(client_->bool_availability_record_.wait_for_last(service_state{service_instance_, true}))
+            << client_->bool_availability_record_;
+
+    stop_offer();
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)))
+            << client_->availability_record_;
+    ASSERT_TRUE(client_->bool_availability_record_.wait_for_last(service_state{service_instance_, false}))
+            << client_->bool_availability_record_;
+}
+
+TEST_F(test_client_lifecycle, release_then_offer_blocks_request_available) {
+    /*
+     * Client requests an unoffered service, and releases it at the same time that it is being offered
+     * The client should not receive an AVAILABLE for the released service
+     */
+    start_router();
+    start_client_app();
+    request_service();
+    auto _server = start_client(server_name_);
+    ASSERT_TRUE(_server->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::client));
+
+    client_->release_service(service_instance_);
+
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::RELEASE_SERVICE_ID, socket_role::server));
+    _server->offer(service_instance_);
+
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::client));
+
+    // Verify client did not receive ROUTING_INFO (with RIE_ADD_SERVICE_INSTANCE) for released service
+    ASSERT_FALSE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::ROUTING_INFO_ID, socket_role::client,
+                                  std::chrono::milliseconds(200)))
+            << "Should not receive ROUTING_INFO for released service";
+
+    // The availability record stays empty: the released service never became available to the client.
+    EXPECT_TRUE(client_->availability_record_.equals({})) << client_->availability_record_;
 }
 
 TEST_F(test_client_lifecycle, reoffer_after_stop_fires_available) {
@@ -875,6 +919,163 @@ TEST_F(test_client_lifecycle, empty_field_is_received) {
     EXPECT_FALSE(client_->message_record_.wait_for(checker, std::chrono::milliseconds(200))) << client_->message_record_;
 }
 
+TEST_F(test_client_lifecycle, request_release_request_forwards_available) {
+    start_apps();
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}));
+    client_->release_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}));
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_), 2));
+    EXPECT_TRUE(client_->availability_record_.equals(
+            {service_availability::available(service_instance_), service_availability::available(service_instance_)}));
+}
+
+TEST_F(test_client_lifecycle, release_before_rie_add_still_ends_available) {
+    start_apps();
+
+    // Hold back messages FROM router TO client so that release_service() runs while available_services_ is still empty.
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::client));
+
+    // Rapid sequence: request → release → re-request
+    request_service();
+    client_->release_service(service_instance_);
+    client_->request_service(service_instance_);
+
+    // While messages are held, nothing has reached the client yet.
+    ASSERT_TRUE(client_->availability_record_.equals({})) << client_->availability_record_;
+
+    // Release the held messages
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::client));
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    EXPECT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}))
+            << client_->availability_record_;
+}
+
+TEST_F(test_client_lifecycle, release_and_rerequest_one_service_among_many_ends_all_available) {
+    /**
+     * Multi-service analogue of release_before_rie_add_still_ends_available:
+     * three services are requested by the same client while router->client
+     * messages are held. Only the middle one is released then
+     * re-requested; the other two are steady bystanders.
+     */
+    service_instance const service_instance_three_{0x3346, 0x1};
+
+    start_apps();
+    server_->offer(service_instance_two_);
+    server_->offer(service_instance_three_);
+
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::client));
+
+    client_->request_service(service_instance_);
+    client_->request_service(service_instance_two_);
+    client_->request_service(service_instance_three_);
+    client_->release_service(service_instance_two_);
+    client_->request_service(service_instance_two_);
+
+    ASSERT_TRUE(client_->availability_record_.equals({})) << client_->availability_record_;
+
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::client));
+
+    // Every requested service ends AVAILABLE...
+    ASSERT_TRUE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_), 1));
+    ASSERT_TRUE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_two_), 1));
+    ASSERT_TRUE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_three_), 1));
+    // ...each exactly once: the stale RIE_ADD from the released request of service_instance_two_ must
+    // not produce a duplicate AVAILABLE(service_instance_two_).
+    EXPECT_FALSE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_two_), 2,
+                                                              std::chrono::milliseconds(200)))
+            << client_->availability_record_;
+}
+
+TEST_F(test_client_lifecycle, release_one_service_blocks_only_its_availability) {
+    /**
+     * Multi-service analogue of release_then_offer_blocks_request_available:
+     * the client requests two services and releases one of them before the
+     * server offers, ensuring the release reaches the router first so no
+     * RIE_ADD is ever generated for it.
+     */
+
+    start_router();
+    start_client_app();
+
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    client_->request_service(service_instance_);
+    client_->request_service(service_instance_two_);
+
+    // Release A and make sure the router processed the release before A is offered.
+    client_->release_service(service_instance_);
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::RELEASE_SERVICE_ID, socket_role::server));
+
+    server_->offer(service_instance_);
+    server_->offer(service_instance_two_);
+
+    // The still-requested sibling becomes available...
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_two_)));
+    // ...and the released service never does.
+    EXPECT_FALSE(client_->availability_record_.wait_for_any(service_availability::available(service_instance_),
+                                                            common::scaled_timeout(std::chrono::milliseconds(300))))
+            << client_->availability_record_;
+    EXPECT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_two_)}))
+            << client_->availability_record_;
+}
+
+TEST_F(test_client_lifecycle, rerequest_one_service_does_not_disturb_sibling) {
+    /**
+     * request_release_request_forwards_available, but with a sibling service:
+     * two services are available to the same client, only one is released then re-requested
+     */
+
+    start_apps();
+    server_->offer(service_instance_two_);
+
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    client_->request_service(service_instance_two_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_two_)));
+
+    client_->availability_record_.clear();
+
+    client_->release_service(service_instance_);
+    client_->request_service(service_instance_);
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    // We expect to only see service_instance_ available because the availability_record_ was cleared before
+    EXPECT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}))
+            << client_->availability_record_;
+}
+
+TEST_F(test_client_lifecycle, release_of_concrete_instance_does_not_block_wildcard_watcher) {
+    /**
+     * This mirrors the CommonAPI "managed interfaces" pattern, where a
+     * ProxyManager requests a service with ANY_INSTANCE to track every matching instance while
+     * a separately built proxy concretely requests one specific instance and is released once
+     * it's no longer needed - independently of the ProxyManager's ongoing interest.
+     **/
+    start_apps();
+
+    service_instance const wildcard_instance{service_instance_.service_, vsomeip::ANY_INSTANCE};
+    client_->request_service(wildcard_instance);
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}))
+            << client_->availability_record_;
+
+    client_->release_service(service_instance_);
+    server_->stop_offer(service_instance_);
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+    EXPECT_TRUE(client_->availability_record_.equals(
+            {service_availability::available(service_instance_), service_availability::unavailable(service_instance_)}))
+            << client_->availability_record_;
+}
+
 TEST_F(test_restart_clients, test_assignment_timeout_recover) {
     start_router();
 
@@ -992,6 +1193,51 @@ TEST_F(test_restart_clients, block_registration_process) {
 
     // and that application eventually registers
     EXPECT_TRUE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+}
+
+TEST_F(test_restart_clients, second_client_unaffected_by_first_release) {
+    /**
+     * Regression test: remove_client_request() must only affect the releasing client.
+     * Setup: two clients both requesting the same service.
+     * Action: client A releases and re-requests.
+     * Expected: client B's availability_record_ gets no new entries; client A gets available again.
+     **/
+    start_router();
+    start_server();
+
+    create_app(client_one_);
+    create_app(client_two_);
+
+    auto* client_a = start_client(client_one_);
+    ASSERT_TRUE(client_a->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    auto* client_b = start_client(client_two_);
+    ASSERT_TRUE(client_b->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // Both clients request the service
+    client_a->request_service(service_instance_);
+    ASSERT_TRUE(client_a->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_a->availability_record_.equals({service_availability::available(service_instance_)}))
+            << "Client A: " << client_a->availability_record_;
+
+    client_b->request_service(service_instance_);
+    ASSERT_TRUE(client_b->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_b->availability_record_.equals({service_availability::available(service_instance_)}))
+            << "Client B: " << client_b->availability_record_;
+
+    // Client A releases and re-requests
+    client_a->release_service(service_instance_);
+    client_a->request_service(service_instance_);
+
+    // Client A should see available again
+    ASSERT_TRUE(client_a->availability_record_.wait_for_count(service_availability::available(service_instance_), 2));
+    EXPECT_TRUE(client_a->availability_record_.equals(
+            {service_availability::available(service_instance_), service_availability::available(service_instance_)}))
+            << "Client A: " << client_a->availability_record_;
+
+    // Client B should see NO new entries
+    EXPECT_TRUE(client_b->availability_record_.equals({service_availability::available(service_instance_)}))
+            << "Client B should not be notified: " << client_b->availability_record_;
 }
 
 /**
@@ -1620,6 +1866,7 @@ TEST_F(test_provider_consumer_error_isolation, stale_consumer_does_not_tear_down
     ASSERT_NE(c_->get_client_id(), new_client);
     service_instance const stale_service{0x7A01, 0x1};
     service_instance const new_service{0x7A02, 0x1};
+    a_->request_service(stale_service);
 
     // 1. Plant a STALE consumer mapping on A: the old client "offers" S_STALE at (127.0.0.1, C_port).
     //    C offers nothing, so this is the only consumer_ entry at that address:port -> unambiguous.

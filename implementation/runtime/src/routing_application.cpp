@@ -226,6 +226,11 @@ void routing_application::on_availability(service_t _service, instance_t _instan
     VSOMEIP_ERROR_P << "Not supposed to be called: " << hex4(_service) << "." << hex4(_instance);
 }
 
+void routing_application::reset_availability_state([[maybe_unused]] service_t _service, [[maybe_unused]] instance_t _instance,
+                                                   [[maybe_unused]] major_version_t _major, [[maybe_unused]] minor_version_t _minor) {
+    // Routing application has no user-facing availability handlers to reset
+}
+
 void routing_application::on_state([[maybe_unused]] state_type_e _state) {
     VSOMEIP_ERROR_P << "Not supposed to be called";
 }

@@ -175,6 +175,13 @@ void app::release_service(service_instance _si) {
     app_->release_service(_si.service_, _si.instance_);
 }
 
+void app::register_availability_bool_handler(service_instance _si) {
+    // Explicitly-typed function disambiguates the overload (bool vs. availability_state_e).
+    vsomeip::availability_handler_t const handler =
+            std::bind(&app::on_availability_bool, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+    app_->register_availability_handler(_si.service_, _si.instance_, handler, _si.major_, _si.minor_);
+}
+
 void app::send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is sending: " << _ei;
     auto payload = vsomeip::runtime::get()->create_payload();
@@ -239,6 +246,12 @@ void app::on_availability(vsomeip::service_t _service, vsomeip::instance_t _inst
         TEST_LOG << "[app] \"" << app_->get_name() << "\" availability changed: " << avail;
         availability_record_.record(avail);
     }
+}
+
+void app::on_availability_bool(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+    auto const state = service_state{{_service, _instance}, _is_available};
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" availability changed (bool): " << state;
+    bool_availability_record_.record(state);
 }
 
 void app::on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,

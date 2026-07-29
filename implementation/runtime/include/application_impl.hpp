@@ -128,6 +128,7 @@ public:
     VSOMEIP_EXPORT void on_state(state_type_e _state);
     VSOMEIP_EXPORT void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
                                         minor_version_t _minor);
+    VSOMEIP_EXPORT void reset_availability_state(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     VSOMEIP_EXPORT void on_message(std::shared_ptr<message>&& _message);
     VSOMEIP_EXPORT void on_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client,
                                         const vsomeip_sec_client_t* _sec_client, const std::string& _env, bool _subscribed,
