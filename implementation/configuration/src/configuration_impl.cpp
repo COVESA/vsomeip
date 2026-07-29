@@ -4679,22 +4679,6 @@ partition_id_t configuration_impl::get_partition_id(service_t _service, instance
     return its_id;
 }
 
-reliability_type_e configuration_impl::get_reliability_type(const boost::asio::ip::address& _reliable_address,
-                                                            const uint16_t& _reliable_port,
-                                                            const boost::asio::ip::address& _unreliable_address,
-                                                            const uint16_t& _unreliable_port) const {
-
-    if (_reliable_port != ILLEGAL_PORT && _unreliable_port != ILLEGAL_PORT && !_reliable_address.is_unspecified()
-        && !_unreliable_address.is_unspecified()) {
-        return reliability_type_e::RT_BOTH;
-    } else if (_unreliable_port != ILLEGAL_PORT && !_unreliable_address.is_unspecified()) {
-        return reliability_type_e::RT_UNRELIABLE;
-    } else if (_reliable_port != ILLEGAL_PORT && !_reliable_address.is_unspecified()) {
-        return reliability_type_e::RT_RELIABLE;
-    }
-    return reliability_type_e::RT_UNKNOWN;
-}
-
 bool configuration_impl::is_security_enabled() const {
 
     return is_security_enabled_;

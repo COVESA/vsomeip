@@ -259,11 +259,6 @@ public:
     VSOMEIP_EXPORT std::map<std::string, std::string> get_additional_data(const std::string& _application_name,
                                                                           const std::string& _plugin_name);
 
-    VSOMEIP_EXPORT reliability_type_e get_reliability_type(const boost::asio::ip::address& _reliable_address,
-                                                           const uint16_t& _reliable_port,
-                                                           const boost::asio::ip::address& _unreliable_address,
-                                                           const uint16_t& _unreliable_port) const;
-
     VSOMEIP_EXPORT bool is_security_enabled() const;
     VSOMEIP_EXPORT bool is_security_external() const;
     VSOMEIP_EXPORT bool is_security_audit() const;

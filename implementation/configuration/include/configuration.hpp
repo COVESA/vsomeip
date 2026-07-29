@@ -277,10 +277,6 @@ public:
 
     virtual partition_id_t get_partition_id(service_t _service, instance_t _instance) const = 0;
 
-    virtual reliability_type_e get_reliability_type(const boost::asio::ip::address& _reliable_address, const uint16_t& _reliable_port,
-                                                    const boost::asio::ip::address& _unreliable_address,
-                                                    const uint16_t& _unreliable_port) const = 0;
-
     // security
     virtual bool is_security_enabled() const = 0;
     virtual bool is_security_external() const = 0;

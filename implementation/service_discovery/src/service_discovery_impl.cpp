@@ -688,8 +688,9 @@ bool service_discovery_impl::has_unreceived_field_value(const std::shared_ptr<su
     if (auto its_info = _subscription->get_eventgroupinfo().lock()) {
         for (const auto& its_event : its_info->get_events()) {
             if (its_event->is_field() && !its_event->is_set()) {
-                VSOMEIP_WARNING << "Field value for [" << hex4(its_event->get_service()) << "." << hex4(its_event->get_instance()) << "."
-                                << hex4(its_info->get_eventgroup()) << "." << hex4(its_event->get_event()) << "] not yet received.";
+                VSOMEIP_WARNING << "Initial value for field [" << hex4(its_event->get_service()) << "." << hex4(its_event->get_instance())
+                                << "." << hex4(its_info->get_eventgroup()) << "." << hex4(its_event->get_event())
+                                << "] not yet received, will StopSub/Sub in SD";
                 return true;
             }
         }
@@ -1307,25 +1308,68 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
                                                                uint16_t _unreliable_port,
                                                                std::vector<std::shared_ptr<message_impl>>& _resubscribes,
                                                                bool _received_via_multicast, const sd_acceptance_state_t& _sd_ac_state) {
+
+    // TODO: ought to have a codebase-wide helper, quite often to log service/instance/major or service/instance/major/minor..
+    auto service_str = [&_service, &_instance, &_major, &_minor]() {
+        std::stringstream s;
+        s << "[" << hex4(_service) << "." << hex4(_instance) << ":" << hex2(_major) << "." << hex8(_minor) << "]";
+        return s.str();
+    };
+
+    auto service_address_str = [&service_str, &_reliable_address, &_reliable_port, &_unreliable_address, &_unreliable_port]() {
+        std::stringstream s;
+        s << service_str() << " @ ";
+        if (_reliable_port != ILLEGAL_PORT) {
+            s << "tcp:" << _reliable_address.to_string() << ":" << _reliable_port;
+        }
+        if (_unreliable_port != ILLEGAL_PORT) {
+            if (_reliable_port != ILLEGAL_PORT) {
+                s << "+";
+            }
+            s << "udp:" << _unreliable_address.to_string() << ":" << _unreliable_port;
+        }
+        return s.str();
+    };
+
+    auto reliability_to_str = [](reliability_type_e _type) {
+        switch (_type) {
+        case reliability_type_e::RT_RELIABLE:
+            return "RT_RELIABLE";
+        case reliability_type_e::RT_UNRELIABLE:
+            return "RT_UNRELIABLE";
+        case reliability_type_e::RT_BOTH:
+            return "RT_BOTH";
+        default:
+            return "RT_UNKNOWN";
+        }
+    };
+
+    reliability_type_e offer_type = reliability_type_e::RT_UNKNOWN;
+    if (_reliable_port != ILLEGAL_PORT && _unreliable_port != ILLEGAL_PORT && !_reliable_address.is_unspecified()
+        && !_unreliable_address.is_unspecified()) {
+        offer_type = reliability_type_e::RT_BOTH;
+    } else if (_unreliable_port != ILLEGAL_PORT && !_unreliable_address.is_unspecified()) {
+        offer_type = reliability_type_e::RT_UNRELIABLE;
+    } else if (_reliable_port != ILLEGAL_PORT && !_reliable_address.is_unspecified()) {
+        offer_type = reliability_type_e::RT_RELIABLE;
+    }
+
+    if (offer_type == reliability_type_e::RT_UNKNOWN) {
+        VSOMEIP_ERROR_P << "Dropping offer of " << service_address_str() << " due to bad type " << reliability_to_str(offer_type);
+        return;
+    }
+
     bool is_secure = configuration_->is_secure_service(_service, _instance);
     if (is_secure
         && ((_reliable_port != ILLEGAL_PORT && !configuration_->is_secure_port(_reliable_address, _reliable_port, true))
             || (_unreliable_port != ILLEGAL_PORT && !configuration_->is_secure_port(_unreliable_address, _unreliable_port, false)))) {
 
-        VSOMEIP_WARNING_P << "Ignoring offer of [" << hex4(_service) << "." << hex4(_instance) << "]";
+        VSOMEIP_ERROR_P << "Dropping offer of " << service_address_str() << ", bad secure-port range";
         return;
     }
 
     // stop sending find service in repetition phase
     update_request(_service, _instance);
-
-    const reliability_type_e offer_type =
-            configuration_->get_reliability_type(_reliable_address, _reliable_port, _unreliable_address, _unreliable_port);
-
-    if (offer_type == reliability_type_e::RT_UNKNOWN) {
-        VSOMEIP_WARNING_P << "Unknown remote offer type [" << hex4(_service) << "." << hex4(_instance) << "]";
-        return; // Unknown remote offer type --> no way to access it!
-    }
 
     bool is_reliable_known(false);
     bool is_unreliable_known(false);
@@ -1334,18 +1378,19 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
                                    _unreliable_address, _unreliable_port, is_unreliable_known, drop_offer);
 
     if (drop_offer) {
-        VSOMEIP_WARNING_P << "Dropping offer for [" << hex4(_service) << "." << hex4(_instance) << "] due to endpoint mismatch";
+        VSOMEIP_ERROR_P << "Dropping offer of " << service_address_str() << " due to endpoint mismatch";
         return;
     }
 
     if (_sd_ac_state.sd_acceptance_required_) {
 
-        auto expire_subscriptions_and_services = [this, &_sd_ac_state, _service, _instance](const boost::asio::ip::address& _address,
-                                                                                            std::uint16_t _port, bool _reliable) {
+        auto expire_subscriptions_and_services = [this, &service_str, &_sd_ac_state](const boost::asio::ip::address& _address,
+                                                                                     std::uint16_t _port, bool _reliable) {
             const auto its_port_pair = std::make_pair(_reliable, _port);
             if (_sd_ac_state.expired_ports_.count(its_port_pair) == 0) {
-                VSOMEIP_WARNING << "sdi::Do not accept offer [" << hex4(_service) << "." << hex4(_instance) << "] from "
-                                << _address.to_string() << ":" << _port << " reliable=" << _reliable;
+                VSOMEIP_WARNING << "sdi::process_offerservice_serviceentry: Dropping offer of " << service_str() << " @ "
+                                << (_reliable ? "tcp:" : "udp:") << _address.to_string() << ":" << _port << " due to no-acceptance";
+
                 remove_remote_offer_type_by_ip(_address, _port, _reliable);
                 host_->expire_subscriptions(_address, _port, _reliable);
                 host_->expire_services(_address, _port, _reliable);
@@ -1385,7 +1430,8 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
 
     if (update_remote_offer_type(_service, _instance, offer_type, _reliable_address, _reliable_port, _unreliable_address, _unreliable_port,
                                  _received_via_multicast)) {
-        VSOMEIP_WARNING_P << "Remote offer type changed [" << hex4(_service) << "." << hex4(_instance) << "]";
+        VSOMEIP_ERROR_P << "Offer type changed to " << reliability_to_str(offer_type) << " for " << service_address_str();
+
         // Only update eventgroup reliability type if it was initially unknown
         auto its_eventgroups = host_->get_subscribed_eventgroups(_service, _instance);
         for (auto eg : its_eventgroups) {
@@ -1393,8 +1439,9 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
             if (its_info) {
                 if (its_info->is_reliability_auto_mode()) {
                     if (offer_type != reliability_type_e::RT_UNKNOWN && offer_type != its_info->get_reliability()) {
-                        VSOMEIP_WARNING_P << "Eventgroup reliability type changed [" << hex4(_service) << "." << hex4(_instance) << "."
-                                          << hex4(eg) << "] using reliability type:  " << static_cast<uint16_t>(offer_type);
+                        VSOMEIP_ERROR_P << "Eventgroup reliability type changed for eventgroup " << hex4(eg) << ", "
+                                        << service_address_str() << " from " << reliability_to_str(its_info->get_reliability()) << " to "
+                                        << reliability_to_str(offer_type);
                         its_info->set_reliability(offer_type);
                     }
                 }
@@ -1425,6 +1472,9 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
                                && was_previously_offered_by_unicast) {
                         its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING);
                     } else {
+                        VSOMEIP_WARNING_P << "Pending SubAck for client " << hex4(its_client) << " for eventgroup "
+                                          << hex4(its_eventgroup_id) << ", " << service_address_str() << " will resubscribe due to Offer";
+
                         its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED);
                     }
                 }
@@ -3017,7 +3067,7 @@ bool service_discovery_impl::update_remote_offer_type(service_t _service, instan
         break;
     case reliability_type_e::RT_UNKNOWN:
     default:
-        VSOMEIP_WARNING_P << "Unknown offer type [" << hex4(_service) << "." << hex4(_instance) << "]" << static_cast<int>(_offer_type);
+        VSOMEIP_ERROR_P << "Unknown offer type [" << hex4(_service) << "." << hex4(_instance) << "]" << static_cast<int>(_offer_type);
         break;
     }
     return ret;
