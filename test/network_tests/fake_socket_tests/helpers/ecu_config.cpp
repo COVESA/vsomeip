@@ -71,6 +71,12 @@ ecu_config& ecu_config::add_interface(std::vector<interface> offered, vsomeip::p
 
     return *this;
 }
+
+ecu_config& ecu_config::with_initial_delay(std::uint32_t min, std::uint32_t max) {
+    service_discovery_.initial_delay_min_ = min;
+    service_discovery_.initial_delay_max_ = max;
+    return *this;
+}
 namespace {
 
 template<typename T>

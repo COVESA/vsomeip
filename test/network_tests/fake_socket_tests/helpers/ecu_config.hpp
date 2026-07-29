@@ -73,6 +73,8 @@ struct ecu_config {
 
     ecu_config& add_interface(std::vector<interface> offered, vsomeip::port_t base_port = 30501);
 
+    ecu_config& with_initial_delay(std::uint32_t min, std::uint32_t max);
+
     std::vector<application_config> apps_;
     std::vector<service_config> services_;
     std::string network_;

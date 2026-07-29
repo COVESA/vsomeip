@@ -6,28 +6,16 @@
 #include "sample_configurations.hpp"
 
 #include "helpers/app.hpp"
-#include "helpers/attribute_recorder.hpp"
 #include "helpers/base_fake_socket_fixture.hpp"
 #include "helpers/ecu_setup.hpp"
 #include "helpers/message_checker.hpp"
-#include "helpers/command_gate.hpp"
-#include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
-#include "helpers/service_state.hpp"
 #include "helpers/someip_gate.hpp"
-#include "helpers/command_gate.hpp"
 
-#include <boost/asio/error.hpp>
-#include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
 
-#include <chrono>
-#include <cstdint>
 #include <cstdlib>
-#include <stdexcept>
-#include <thread>
-#include <utility>
 
 namespace vsomeip_v3::testing {
 
@@ -333,5 +321,148 @@ TEST_F(test_field_resubscribe, field_resubscribe_late_field_registration) {
     // yet been notified.
     ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_sequence(
             {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}}, std::chrono::seconds(2)));
+}
+
+const interface service_3344_instance_2{0x3344,
+                                        {event_spec{0x8001, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+                                        {event_spec{0x8002, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+                                        0x2};
+
+struct increased_initial_delay_with_multiple_instances : public base_fake_socket_fixture {
+    ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
+    ecu_setup ecu_two_{
+            "ecu_two",
+            ecu_config{boardnet::ecu_two_config}.with_initial_delay(10000, 10000).add_interface({service_3344_instance_2}, 30502),
+            *socket_manager_};
+};
+
+// This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait or not.
+// To ensure we never leave the initial_phase, we configure the initial_delay to 10 seconds.
+TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_after_find_triggered_offer) {
+    ecu_one_.add_guest({"guest_client", 0x1338});
+    ecu_two_.add_guest({"guest_server", 0x1337});
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* client = ecu_one_.apps_["guest_client"];
+    auto* server = ecu_two_.apps_["guest_server"];
+
+    // Offer and request the service
+    server->offer(interfaces::boardnet::service_3344);
+    client->request_service(interfaces::boardnet::service_3344.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_),
+                                                           std::chrono::seconds(2)));
+
+    // Prepare Service Discovery Gate
+    std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
+    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
+                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
+    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
+
+    // Stop offering the service
+    server->stop_offer(interfaces::boardnet::service_3344.instance_);
+
+    // Verify whether a StopService message was blocked or not, if it wasn't, we can safely assume it was not sent either.
+    EXPECT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
+}
+
+// This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait for each service-instance.
+TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_for_each_service_instance) {
+    ecu_one_.add_guest({"guest_client", 0x1338});
+    ecu_two_.add_guest({"guest_server", 0x1337});
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* client = ecu_one_.apps_["guest_client"];
+    auto* server = ecu_two_.apps_["guest_server"];
+
+    const auto first_instance = interfaces::boardnet::service_3344.instance_;
+    const auto second_instance = service_3344_instance_2.instance_;
+
+    server->offer(interfaces::boardnet::service_3344);
+    server->offer(service_3344_instance_2);
+    client->request_service(first_instance);
+    client->request_service(second_instance);
+    ASSERT_TRUE(client->availability_record_.wait_for_any(service_availability::available(first_instance)));
+    ASSERT_TRUE(client->availability_record_.wait_for_any(service_availability::available(second_instance)));
+
+    std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
+    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
+                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
+
+    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
+    server->stop_offer(first_instance);
+    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
+    router_one_sd_gate->block(false);
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(first_instance)));
+
+    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
+    server->stop_offer(second_instance);
+    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
+    router_one_sd_gate->block(false);
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(second_instance)));
+}
+
+struct sd_header_validation : public base_fake_socket_fixture {
+    ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
+
+    void prepare_ecus_and_apps() {
+        ecu_one_.add_guest({"guest_client", 0x1338});
+        ecu_two_.add_guest({"guest_server", 0x1337});
+
+        ecu_one_.prepare();
+        ecu_two_.prepare();
+
+        ecu_one_.start_apps();
+        ecu_two_.start_apps();
+    }
+};
+
+TEST_F(sd_header_validation, prs_someipsd_00154_sd_offer_with_nonzero_client_id_is_rejected) {
+    // SD messages shall have a Client-ID set to 0x0000.
+    // Verify that an incoming SD OFFER message carrying a non-zero Client-ID is silently
+    // discarded by the receiver (ECU one), while an identical message with Client-ID = 0x0000
+    // is accepted and causes normal service availability signalling.
+
+    prepare_ecus_and_apps();
+
+    auto* client = ecu_one_.apps_["guest_client"];
+    client->request_service(interfaces::boardnet::service_3344.instance_);
+
+    // construct_offer() builds a well-formed SD OFFER with Client-ID = 0x0000.
+    // We then overwrite bytes 8–9 (VSOMEIP_CLIENT_POS_MIN) with a non-zero value to
+    // simulate a non-compliant sender.
+    auto malformed_offer = construct_offer({interfaces::boardnet::service_3344.instance_, interfaces::boardnet::service_3344.events_[0]},
+                                           boardnet::ecu_two_config.unicast_ip_, 30501);
+    // SOME/IP header: bytes 8–9 are the Client-ID (big-endian).
+    malformed_offer[VSOMEIP_CLIENT_POS_MIN] = 0xDE;
+    malformed_offer[VSOMEIP_CLIENT_POS_MIN + 1] = 0xAD;
+
+    send_someip_sd_message(malformed_offer, ecu_two_.sd_endpoint(), ecu_one_.sd_endpoint());
+
+    // ECU one must NOT process the offer; service availability must NOT be reported.
+    EXPECT_FALSE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)))
+            << "SD OFFER with non-zero Client-ID (0xDEAD) was incorrectly accepted";
+    ;
+
+    // --- Valid offer: Client-ID = 0x0000 ---
+    // The identical offer with the correct Client-ID must be accepted and trigger
+    // service availability on ECU one.
+    auto valid_offer = construct_offer({interfaces::boardnet::service_3344.instance_, interfaces::boardnet::service_3344.events_[0]},
+                                       boardnet::ecu_two_config.unicast_ip_, 30501);
+
+    send_someip_sd_message(valid_offer, ecu_two_.sd_endpoint(), ecu_one_.sd_endpoint());
+
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)))
+            << "SD OFFER with Client-ID = 0x0000 was not accepted";
 }
 }

@@ -55,12 +55,14 @@ set (TEST_SUITES
     test_client_lifecycle
     test_debounce
     test_event_subscription_callback
+    test_framework
     test_hybrid_mode
     test_queue_limit
     test_interface_manipulation_recreate
     test_multiversion_support
     test_protocol_messages
     test_sd_protocol
+    test_someip_tp
     test_uds_communication
     test_vlan_toggle_registration
 )
