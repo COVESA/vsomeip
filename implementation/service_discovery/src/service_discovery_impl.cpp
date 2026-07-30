@@ -3293,8 +3293,6 @@ void service_discovery_impl::send_subscription_ack(const std::shared_ptr<remote_
         update_subscription_expiration_timer(its_messages);
     }
 
-    std::this_thread::yield();
-
     // We might need to send initial events
     for (const auto& its_subscription : _acknowledgement->get_subscriptions()) {
         // Assumption: We do _NOT_ need to check whether this is a child
