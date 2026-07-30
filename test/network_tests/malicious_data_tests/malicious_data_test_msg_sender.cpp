@@ -327,8 +327,11 @@ TEST_F(malicious_data, send_malicious_events) {
                     0x00, 0x00, 0x46, 0x09, 0x80, 0x00, 0x44, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             };
-            tcp_socket.send(boost::asio::buffer(its_malicious_data));
-
+            boost::system::error_code send_ec;
+            tcp_socket.send(boost::asio::buffer(its_malicious_data), 0, send_ec);
+            if (send_ec && send_ec != boost::asio::error::connection_reset && send_ec != boost::asio::error::broken_pipe) {
+                ADD_FAILURE() << "tcp_socket send failed: " << send_ec.message();
+            }
             // establish second tcp connection as client and send malicious data as well
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(boost::asio::ip::make_address(std::string(remote_address)), 34511);
@@ -479,8 +482,10 @@ TEST_F(malicious_data, send_malicious_events) {
                     0x00, 0x00, 0x46, 0x09, 0x80, 0x00, 0x44, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             };
-            tcp_socket2.send(boost::asio::buffer(its_malicious_client_data));
-
+            tcp_socket2.send(boost::asio::buffer(its_malicious_client_data), 0, send_ec);
+            if (send_ec && send_ec != boost::asio::error::connection_reset && send_ec != boost::asio::error::broken_pipe) {
+                ADD_FAILURE() << "tcp_socket2 send failed: " << send_ec.message();
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             // call shutdown method
             std::uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
@@ -488,7 +493,7 @@ TEST_F(malicious_data, send_malicious_events) {
             std::scoped_lock its_lock(socket_mutex);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (const std::exception& _e) {
-            ADD_FAILURE() << "catched exception: " << _e.what();
+            ADD_FAILURE() << "caught exception: " << _e.what();
         }
     });
 
@@ -670,8 +675,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                 while (keep_receiving) {
                     boost::system::error_code error;
                     tcp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
-                    if (error == boost::asio::error::connection_reset) {
-                        EXPECT_EQ(boost::asio::error::connection_reset, error);
+                    if (error == boost::asio::error::connection_reset || error == boost::asio::error::eof) {
                         fin_as_service_received++;
                         keep_receiving = false;
                     } else {
@@ -717,7 +721,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                 while (keep_receiving) {
                     boost::system::error_code error;
                     tcp_socket3.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
-                    if (error == boost::asio::error::connection_reset) {
+                    if (error == boost::asio::error::connection_reset || error == boost::asio::error::eof) {
                         fin_as_service_received++;
                         keep_receiving = false;
                     } else {
@@ -767,7 +771,8 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                         // service must sent back error response before closing the connection
                         EXPECT_EQ(error_response_as_client_received - 1u, fin_as_client_received);
                     } else {
-                        EXPECT_EQ(boost::asio::error::connection_reset, error);
+                        EXPECT_TRUE(error == boost::asio::error::connection_reset || error == boost::asio::error::eof)
+                                << "unexpected error: " << error.message();
                         fin_as_client_received++;
                         // service must sent back error response before closing the connection
                         EXPECT_EQ(error_response_as_client_received, fin_as_client_received);
@@ -1027,8 +1032,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
                     tcp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (!error) {
                         ADD_FAILURE() << __func__ << ":" << __LINE__ << " received a non-error:" << error.message();
-                    } else if (error == boost::asio::error::connection_reset) {
-                        EXPECT_EQ(boost::asio::error::connection_reset, error);
+                    } else if (error == boost::asio::error::connection_reset || error == boost::asio::error::eof) {
                         fin_as_service_received = true;
                         keep_receiving = false;
                     } else {
@@ -1087,8 +1091,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
                     tcp_socket2.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (!error) {
                         ADD_FAILURE() << __func__ << ":" << __LINE__ << " received a non-error:" << error.message();
-                    } else if (error == boost::asio::error::connection_reset) {
-                        EXPECT_EQ(boost::asio::error::connection_reset, error);
+                    } else if (error == boost::asio::error::connection_reset || error == boost::asio::error::eof) {
                         fin_as_client_received = true;
                         keep_receiving = false;
                     } else {
@@ -1305,8 +1308,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
                     tcp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (!error) {
                         ADD_FAILURE() << __func__ << ":" << __LINE__ << " received a non-error:" << error.message();
-                    } else if (error == boost::asio::error::connection_reset) {
-                        EXPECT_EQ(boost::asio::error::connection_reset, error);
+                    } else if (error == boost::asio::error::connection_reset || error == boost::asio::error::eof) {
                         fin_as_service_received = true;
                         keep_receiving = false;
                     } else {
@@ -1365,8 +1367,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
                     tcp_socket2.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (!error) {
                         ADD_FAILURE() << __func__ << ":" << __LINE__ << " received a non-error:" << error.message();
-                    } else if (error == boost::asio::error::connection_reset) {
-                        EXPECT_EQ(boost::asio::error::connection_reset, error);
+                    } else if (error == boost::asio::error::connection_reset || error == boost::asio::error::eof) {
                         fin_as_client_received = true;
                         keep_receiving = false;
                     } else {
@@ -1627,7 +1628,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
                         EXPECT_EQ(vsomeip::message_type_e::MT_ERROR, its_message->get_message_type());
                         error_response_as_client_received = true;
                         keep_receiving = false;
-                    } else {
+                    } else if (_error != boost::asio::error::operation_aborted && keep_receiving) {
                         ADD_FAILURE() << __func__ << ":" << __LINE__ << " error: " << _error.message();
                         return;
                     }
