@@ -137,7 +137,7 @@ public:
     void on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver, const boost::asio::ip::address& _remote_address,
                     port_t _remote_port, bool _is_multicast) override;
     // as routing_manager_stub_host
-    void on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable, client_t _bound_client,
+    bool on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable, client_t _bound_client,
                     const vsomeip_sec_client_t* _sec_client, uint8_t _check_status = 0, bool _is_from_remote = false) override;
 
     void on_notification(client_t _client, service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _notify_one);
@@ -267,7 +267,7 @@ private:
 
     [[nodiscard]] std::string get_client_info(client_t _client) const;
 
-    void deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length, bool _reliable,
+    bool deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length, bool _reliable,
                               client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _status_check = 0,
                               bool _is_from_remote = false);
 

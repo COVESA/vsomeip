@@ -1090,6 +1090,8 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
                         << " client=0x" << hex4(its_client) << " source=" << _remote_address << ":" << _remote_port;
     }
 
+    bool its_was_forwarded(false);
+
     if (its_service == VSOMEIP_SD_SERVICE) {
         if (discovery_ && its_method == sd::method) {
             if (configuration_->get_sd_port() == _remote_port) {
@@ -1099,9 +1101,14 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
                     return;
                 }
                 discovery_->on_message(_data, _length, _remote_address, _is_multicast);
+                its_was_forwarded = true;
             } else {
                 VSOMEIP_ERROR << "Ignored SD message from unknown port (" << _remote_port << ")";
             }
+        } else {
+            VSOMEIP_ERROR_P << "Dropped message for the SD service [" << hex4(its_service) << "." << hex4(its_method)
+                            << "] from: " << _remote_address.to_string() << ":" << _remote_port
+                            << (discovery_ ? ". Unexpected method id." : ". Service discovery is not available.");
         }
     } else {
         if (_is_multicast) {
@@ -1173,22 +1180,27 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
             return;
         }
 
-        // Common way of message handling
-        on_message(its_service, its_instance, _data, _length, _receiver->is_reliable(), VSOMEIP_ROUTING_CLIENT, nullptr, its_check_status,
-                   true);
+        its_was_forwarded = on_message(its_service, its_instance, _data, _length, _receiver->is_reliable(), VSOMEIP_ROUTING_CLIENT, nullptr,
+                                       its_check_status, true);
     }
 
-    trace::header its_header;
-    const boost::asio::ip::address_v4 its_remote_address =
-            _remote_address.is_v4() ? _remote_address.to_v4() : boost::asio::ip::make_address_v4("6.6.6.6");
-    trace::protocol_e its_protocol = _receiver->is_local() ? trace::protocol_e::local
-            : _receiver->is_reliable()                     ? trace::protocol_e::tcp
-                                                           : trace::protocol_e::udp;
-    its_header.prepare(its_remote_address, _remote_port, its_protocol, false, its_instance);
-    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _length);
+    if (its_was_forwarded) {
+        trace::header its_header;
+        const boost::asio::ip::address_v4 its_remote_address =
+                _remote_address.is_v4() ? _remote_address.to_v4() : boost::asio::ip::make_address_v4("6.6.6.6");
+        trace::protocol_e its_protocol = _receiver->is_local() ? trace::protocol_e::local
+                : _receiver->is_reliable()                     ? trace::protocol_e::tcp
+                                                               : trace::protocol_e::udp;
+        its_header.prepare(its_remote_address, _remote_port, its_protocol, false, its_instance);
+        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _length);
+    } else {
+        VSOMEIP_WARNING_P << "Dropped message [" << hex4(its_service) << "." << hex4(its_instance) << "." << hex4(its_method) << "."
+                          << hex4(its_client) << "." << hex4(its_session) << "] from: " << _remote_address.to_string() << ":"
+                          << _remote_port;
+    }
 }
 
-void routing_manager_impl::on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable,
+bool routing_manager_impl::on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable,
                                       client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _check_status,
                                       bool _is_from_remote) {
     client_t its_client;
@@ -1200,11 +1212,11 @@ void routing_manager_impl::on_message(service_t _service, instance_t _instance, 
     }
 
     if (utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-        deliver_notification(_service, _instance, _data, _size, _reliable, _bound_client, _sec_client, _check_status, _is_from_remote);
-    } else {
-        send(its_client, _data, _size, _instance, _reliable, _bound_client, _sec_client, _check_status, _is_from_remote,
-             false); // send to proxy
+        return deliver_notification(_service, _instance, _data, _size, _reliable, _bound_client, _sec_client, _check_status,
+                                    _is_from_remote);
     }
+    return send(its_client, _data, _size, _instance, _reliable, _bound_client, _sec_client, _check_status, _is_from_remote,
+                false); // send to proxy
 }
 
 void routing_manager_impl::on_notification(client_t _client, service_t _service, instance_t _instance, const byte_t* _data, length_t _size,
@@ -1343,7 +1355,7 @@ bool routing_manager_impl::has_subscribed_eventgroup(service_t _service, instanc
     return false;
 }
 
-void routing_manager_impl::deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length,
+bool routing_manager_impl::deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length,
                                                 bool _reliable, [[maybe_unused]] client_t _bound_client,
                                                 [[maybe_unused]] const vsomeip_sec_client_t* _sec_client, uint8_t _status_check,
                                                 bool _is_from_remote) {
@@ -1351,6 +1363,8 @@ void routing_manager_impl::deliver_notification(service_t _service, instance_t _
     std::scoped_lock lck(event_registration_mutex_);
     event_t its_event_id = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
     client_t its_client_id = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+
+    bool has_forwarded(false);
 
     std::shared_ptr<event> its_event = find_event(_service, _instance, its_event_id);
     if (its_event) {
@@ -1376,7 +1390,7 @@ void routing_manager_impl::deliver_notification(service_t _service, instance_t _
                 if (!cache_event) {
                     VSOMEIP_WARNING_P << "Dropping [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(its_event_id)
                                       << "]. No subscription to corresponding eventgroup.";
-                    return; // as there is nothing to do
+                    return false; // as there is nothing to do
                 }
             }
         }
@@ -1400,8 +1414,10 @@ void routing_manager_impl::deliver_notification(service_t _service, instance_t _
         if (its_event->get_type() != event_type_e::ET_SELECTIVE_EVENT) {
             for (const auto its_local_client : its_subscribers) {
                 if (std::shared_ptr<local_endpoint> its_local_target = find_routing_endpoint(its_local_client); its_local_target) {
-                    if (!send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
-                                    _status_check, VSOMEIP_ROUTING_CLIENT)) {
+                    if (send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
+                                   _status_check, VSOMEIP_ROUTING_CLIENT)) {
+                        has_forwarded = true;
+                    } else {
                         VSOMEIP_WARNING_P << "Failed to send event [" << hex4(_service) << "." << hex4(_instance) << "."
                                           << hex4(its_event_id) << "] to local client 0x" << hex4(its_local_client);
                     }
@@ -1413,8 +1429,10 @@ void routing_manager_impl::deliver_notification(service_t _service, instance_t _
         } else {
             if (its_subscribers.count(its_client_id) > 0) {
                 if (std::shared_ptr<local_endpoint> its_local_target = find_routing_endpoint(its_client_id); its_local_target) {
-                    if (!send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
-                                    _status_check, VSOMEIP_ROUTING_CLIENT)) {
+                    if (send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
+                                   _status_check, VSOMEIP_ROUTING_CLIENT)) {
+                        has_forwarded = true;
+                    } else {
                         VSOMEIP_WARNING_P << "Failed to send selective event [" << hex4(_service) << "." << hex4(_instance) << "."
                                           << hex4(its_event_id) << "] to local client 0x" << hex4(its_client_id);
                     }
@@ -1450,7 +1468,7 @@ void routing_manager_impl::deliver_notification(service_t _service, instance_t _
                               << "] Service has no subscribed eventgroup.";
         }
     }
-    return;
+    return has_forwarded;
 }
 
 bool routing_manager_impl::is_suppress_event(service_t _service, instance_t _instance, event_t _event) const {

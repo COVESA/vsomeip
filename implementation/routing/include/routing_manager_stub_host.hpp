@@ -53,7 +53,7 @@ public:
     virtual void on_unsubscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                     remote_subscription_id_t _unsubscription_id) = 0;
 
-    virtual void on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable,
+    virtual bool on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable,
                             client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _status_check = 0,
                             bool _is_from_remote = false) = 0;
 
