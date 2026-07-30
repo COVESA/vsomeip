@@ -125,39 +125,45 @@ vsomeip_sec_policy_result_t security::default_initialize() {
 
 vsomeip_sec_acl_result_t security::default_authenticate_router(const vsomeip_sec_client_t* _server) {
 
-    if (_server && _server->port != VSOMEIP_SEC_PORT_UNUSED)
+    if (_server && _server->port != VSOMEIP_SEC_PORT_UNUSED) {
         return VSOMEIP_SEC_OK;
+    }
 
-    if (policy_manager_->check_routing_credentials(_server))
+    if (policy_manager_->check_routing_credentials(_server)) {
         return VSOMEIP_SEC_OK;
-    else
+    } else {
         return VSOMEIP_SEC_PERM_DENIED;
+    }
 }
 
 vsomeip_sec_acl_result_t security::default_is_client_allowed_to_offer(const vsomeip_sec_client_t* _client,
                                                                       vsomeip_sec_service_id_t _service,
                                                                       vsomeip_sec_instance_id_t _instance) {
 
-    if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED)
+    if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED) {
         return VSOMEIP_SEC_OK;
+    }
 
-    if (policy_manager_->is_offer_allowed(_client, _service, _instance))
+    if (policy_manager_->is_offer_allowed(_client, _service, _instance)) {
         return VSOMEIP_SEC_OK;
-    else
+    } else {
         return VSOMEIP_SEC_PERM_DENIED;
+    }
 }
 
 vsomeip_sec_acl_result_t security::default_is_client_allowed_to_request(const vsomeip_sec_client_t* _client,
                                                                         vsomeip_sec_service_id_t _service,
                                                                         vsomeip_sec_instance_id_t _instance) {
 
-    if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED)
+    if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED) {
         return VSOMEIP_SEC_OK;
+    }
 
-    if (policy_manager_->is_client_allowed(_client, _service, _instance, 0x00, true))
+    if (policy_manager_->is_client_allowed(_client, _service, _instance, 0x00, true)) {
         return VSOMEIP_SEC_OK;
-    else
+    } else {
         return VSOMEIP_SEC_PERM_DENIED;
+    }
 }
 
 vsomeip_sec_acl_result_t security::default_is_client_allowed_to_access_member(const vsomeip_sec_client_t* _client,
@@ -165,13 +171,15 @@ vsomeip_sec_acl_result_t security::default_is_client_allowed_to_access_member(co
                                                                               vsomeip_sec_instance_id_t _instance,
                                                                               vsomeip_sec_member_id_t _member) {
 
-    if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED)
+    if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED) {
         return VSOMEIP_SEC_OK;
+    }
 
-    if (policy_manager_->is_client_allowed(_client, _service, _instance, _member, false))
+    if (policy_manager_->is_client_allowed(_client, _service, _instance, _member, false)) {
         return VSOMEIP_SEC_OK;
-    else
+    } else {
         return VSOMEIP_SEC_PERM_DENIED;
+    }
 }
 
 void security::default_sync_client(vsomeip_sec_client_t* _client) {

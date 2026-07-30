@@ -1270,8 +1270,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                             VSOMEIP_ERROR_P << "Failed due to a missing sender";
                         }
                     }
-                } else
+                } else {
                     VSOMEIP_ERROR_P << "Remove security policy command deserialization failed, memory: " << utility::dump(_data, _size);
+                }
             } else {
                 VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << " received a remove_security_policy message from client 0x"
                                 << hex4(its_client) << " which is not the router!";
@@ -1435,8 +1436,9 @@ void routing_manager_client::on_offered_services_info(std::vector<protocol::serv
     std::vector<std::pair<service_t, instance_t>> its_offered_services_info;
     its_offered_services_info.reserve(_services.size());
 
-    for (const auto& s : _services)
+    for (const auto& s : _services) {
         its_offered_services_info.push_back(std::make_pair(s.service_, s.instance_));
+    }
 
     host_->on_offered_services_info(its_offered_services_info);
 }
@@ -1748,8 +1750,9 @@ bool routing_manager_client::create_and_start_receiver([[maybe_unused]] std::sco
     auto create_receiver = [&](auto& _receiver, transport_protocol_e _protocol) {
         if (_receiver) {
             std::uint16_t its_port = _receiver->get_local_port();
-            if (its_port != ILLEGAL_PORT && _protocol == transport_protocol_e::TCP)
+            if (its_port != ILLEGAL_PORT && _protocol == transport_protocol_e::TCP) {
                 VSOMEIP_INFO << "Reusing local server endpoint @" << its_port << " endpoint: " << _receiver;
+            }
             return _receiver;
         }
         _receiver = ep_mgr_->create_local_server(_protocol);

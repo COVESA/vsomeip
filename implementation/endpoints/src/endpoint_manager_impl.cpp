@@ -540,8 +540,9 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(service_t _service
         }
 
         auto its_udp_server_endpoint = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_endpoint);
-        if (its_udp_server_endpoint)
+        if (its_udp_server_endpoint) {
             its_udp_server_endpoint->join(_address.to_string());
+        }
     } else {
         VSOMEIP_ERROR << "Could not find/create multicast endpoint!";
     }
@@ -572,11 +573,13 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
     }
     if (its_multicast_endpoint) {
         auto its_udp_server_endpoint = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_multicast_endpoint);
-        if (its_udp_server_endpoint)
+        if (its_udp_server_endpoint) {
             its_udp_server_endpoint->leave(its_address);
+        }
 
-        if (!is_used_endpoint(its_multicast_endpoint.get()))
+        if (!is_used_endpoint(its_multicast_endpoint.get())) {
             its_multicast_endpoint->stop(false);
+        }
     }
 }
 
@@ -976,8 +979,9 @@ void endpoint_manager_impl::get_used_client_ports(const boost::asio::ip::address
     auto find_address = used_client_ports_.find(_remote_address);
     if (find_address != used_client_ports_.end()) {
         auto find_port = find_address->second.find(_remote_port);
-        if (find_port != find_address->second.end())
+        if (find_port != find_address->second.end()) {
             _used_ports = find_port->second;
+        }
     }
 }
 
@@ -997,8 +1001,9 @@ void endpoint_manager_impl::release_used_client_port(const boost::asio::ip::addr
         auto find_port = find_address->second.find(_remote_port);
         if (find_port != find_address->second.end()) {
             auto find_reliable = find_port->second.find(_reliable);
-            if (find_reliable != find_port->second.end())
+            if (find_reliable != find_port->second.end()) {
                 find_reliable->second.erase(_local_port);
+            }
         }
     }
 }
@@ -1141,9 +1146,10 @@ void endpoint_manager_impl::log_client_states() const {
             for (const auto& its_reliability : its_port.second) {
                 for (const auto& its_partition : its_reliability.second) {
                     size_t its_queue_size = its_partition.second->get_queue_size();
-                    if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE)
+                    if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE) {
                         its_client_queue_sizes.push_back(
                                 std::make_pair(std::make_tuple(its_address.first, its_port.first, its_reliability.first), its_queue_size));
+                    }
                 }
             }
         }
@@ -1158,12 +1164,14 @@ void endpoint_manager_impl::log_client_states() const {
     for (size_t i = 0; i < its_max; i++) {
         its_log << std::get<0>(its_client_queue_sizes[i].first).to_string() << ":" << std::get<1>(its_client_queue_sizes[i].first) << "("
                 << (std::get<2>(its_client_queue_sizes[i].first) ? "tcp" : "udp") << "):" << its_client_queue_sizes[i].second;
-        if (i < its_max - 1)
+        if (i < its_max - 1) {
             its_log << ", ";
+        }
     }
 
-    if (its_log.str().length() > 0)
+    if (its_log.str().length() > 0) {
         VSOMEIP_INFO << "ECQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
+    }
 }
 
 void endpoint_manager_impl::log_server_states() const {
@@ -1179,8 +1187,9 @@ void endpoint_manager_impl::log_server_states() const {
     for (const auto& its_port : its_server_endpoints) {
         for (const auto& its_reliability : its_port.second) {
             size_t its_queue_size = its_reliability.second->get_queue_size();
-            if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE)
+            if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE) {
                 its_client_queue_sizes.push_back(std::make_pair(std::make_pair(its_port.first, its_reliability.first), its_queue_size));
+            }
         }
     }
 
@@ -1194,12 +1203,14 @@ void endpoint_manager_impl::log_server_states() const {
     for (size_t i = 0; i < its_max; i++) {
         its_log << its_client_queue_sizes[i].first.first << "(" << (its_client_queue_sizes[i].first.second ? "tcp" : "udp")
                 << "):" << its_client_queue_sizes[i].second;
-        if (i < its_max - 1)
+        if (i < its_max - 1) {
             its_log << ", ";
+        }
     }
 
-    if (its_log.str().length() > 0)
+    if (its_log.str().length() > 0) {
         VSOMEIP_INFO << "ESQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
+    }
 }
 
 void endpoint_manager_impl::add_multicast_option(const multicast_option_t& _option) {
@@ -1265,15 +1276,18 @@ bool endpoint_manager_impl::is_used_endpoint(boardnet_endpoint* const _endpoint)
     {
         std::scoped_lock its_lock(endpoint_mutex_);
         // Do we still use the endpoint to offer a service instance?
-        for (const auto& si : service_instances_)
-            if (si.second.count(_endpoint) > 0)
+        for (const auto& si : service_instances_) {
+            if (si.second.count(_endpoint) > 0) {
                 return true;
+            }
+        }
     }
 
     // Do we still use the endpoint to join a multicast address=
     auto its_udp_server_endpoint = dynamic_cast<udp_server_endpoint_impl*>(_endpoint);
-    if (its_udp_server_endpoint)
+    if (its_udp_server_endpoint) {
         return its_udp_server_endpoint->is_joining();
+    }
 
     return false;
 }

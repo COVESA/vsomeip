@@ -266,8 +266,9 @@ template<typename Protocol>
 void server_endpoint_impl<Protocol>::send_segments(const tp::tp_split_messages_t& _segments, std::uint32_t _separation_time,
                                                    const endpoint_type& _target) {
 
-    if (_segments.size() == 0)
+    if (_segments.size() == 0) {
         return;
+    }
 
     const auto its_target_iterator = find_or_create_target_unlocked(_target);
     auto& its_data = its_target_iterator->second;
@@ -523,8 +524,9 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
     std::scoped_lock its_lock(mutex_);
 
     auto it = targets_.find(_key);
-    if (it == targets_.end())
+    if (it == targets_.end()) {
         return;
+    }
 
     auto& its_data = it->second;
 

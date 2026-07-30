@@ -20,8 +20,9 @@ std::string runtime_impl::get_property(const std::string& _name) {
     auto its_runtime = std::static_pointer_cast<runtime_impl>(get());
     std::scoped_lock its_lock{its_runtime->properties_mutex_};
     auto found_property = its_runtime->properties_.find(_name);
-    if (found_property != its_runtime->properties_.end())
+    if (found_property != its_runtime->properties_.end()) {
         return found_property->second;
+    }
     return "";
 }
 
@@ -110,8 +111,9 @@ std::shared_ptr<payload> runtime_impl::create_payload(const std::vector<byte_t>&
 std::shared_ptr<application> runtime_impl::get_application(const std::string& _name) const {
     std::scoped_lock its_lock{applications_mutex_};
     auto found_application = applications_.find(_name);
-    if (found_application != applications_.end())
+    if (found_application != applications_.end()) {
         return found_application->second.lock();
+    }
     return nullptr;
 }
 

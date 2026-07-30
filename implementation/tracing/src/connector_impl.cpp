@@ -154,8 +154,9 @@ std::shared_ptr<channel_impl> connector_impl::add_channel(const trace_channel_t&
         std::scoped_lock its_channels_lock(channels_mutex_);
 
         // check whether we already know the requested channel
-        if (channels_.count(_id) > 0)
+        if (channels_.count(_id) > 0) {
             return nullptr;
+        }
 
         // create new channel
         its_channel = std::make_shared<channel_impl>(_id, _name);
@@ -220,11 +221,13 @@ std::shared_ptr<channel_impl> connector_impl::get_channel_impl(const std::string
 
 void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size) {
 
-    if (!is_enabled_)
+    if (!is_enabled_) {
         return;
+    }
 
-    if (_data_size == 0)
+    if (_data_size == 0) {
         return; // no data
+    }
 
     // Clip
     uint16_t its_data_size = uint16_t(_data_size > USHRT_MAX ? USHRT_MAX : _data_size);
@@ -232,8 +235,9 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
     uint32_t its_threshold;
     {
         std::scoped_lock lk{configure_mutex_};
-        if (is_sd_message(_data, its_data_size) && !is_sd_enabled_)
+        if (is_sd_message(_data, its_data_size) && !is_sd_enabled_) {
             return; // tracing of service discovery messages is disabled!
+        }
         its_threshold = full_logging_threshold_;
     }
 
@@ -252,8 +256,9 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
 #endif
     for (const auto& its_channel : channels_) {
         auto its_result = its_channel.second->matches(its_service, its_instance, its_method);
-        if (its_result == trace_result_e::DROP)
+        if (its_result == trace_result_e::DROP) {
             continue;
+        }
 
         // Full payload vs. header only (see should_log_full / full_logging_threshold_).
         const bool log_full = should_log_full(its_result, _data_size, its_threshold);

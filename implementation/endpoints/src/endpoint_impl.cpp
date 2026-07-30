@@ -72,8 +72,9 @@ instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
     instance_t its_instance(0xFFFF);
 
     auto its_host = endpoint_host_.lock();
-    if (its_host)
+    if (its_host) {
         its_instance = its_host->find_instance(_service, this);
+    }
 
     return its_instance;
 }

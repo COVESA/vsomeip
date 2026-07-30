@@ -153,8 +153,9 @@ template<typename Protocol>
 std::pair<message_buffer_ptr_t, uint32_t> client_endpoint_impl<Protocol>::get_front() {
 
     std::pair<message_buffer_ptr_t, uint32_t> its_entry;
-    if (queue_.size())
+    if (queue_.size()) {
         its_entry = queue_.front();
+    }
 
     return its_entry;
 }
@@ -436,8 +437,9 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
             }
             // After 30 attempts of 100ms (3s) increase the timer exponential
             // Double the timeout as long as the maximum allowed is larger
-            if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT && reconnect_counter_ > 30)
+            if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT && reconnect_counter_ > 30) {
                 connect_timeout_ = (connect_timeout_ << 1);
+            }
         } else {
             if (_error) {
                 VSOMEIP_WARNING_P << "connect_cbk attempt (" << _error.value() << "):" << _error.message()
@@ -535,9 +537,9 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
 
             update_last_departure();
 
-            if (queue_.empty())
+            if (queue_.empty()) {
                 is_sending_ = false;
-            else {
+            } else {
                 auto its_entry = get_front();
                 if (its_entry.first) {
                     send_queued(its_entry);

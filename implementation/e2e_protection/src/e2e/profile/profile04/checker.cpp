@@ -73,10 +73,11 @@ bool profile_04_checker::verify_counter(instance_t _instance, uint16_t _received
     auto find_counter = counter_.find(_instance);
     if (find_counter != counter_.end()) {
         uint16_t its_counter = find_counter->second;
-        if (its_counter < _received_counter)
+        if (its_counter < _received_counter) {
             its_delta = uint16_t(_received_counter - its_counter);
-        else
+        } else {
             its_delta = uint16_t(uint16_t(0xffff) - its_counter + _received_counter);
+        }
 
         find_counter->second = _received_counter;
     } else {

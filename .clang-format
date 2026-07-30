@@ -78,3 +78,6 @@ BreakConstructorInitializers: AfterColon
 
 # Do not format macro definition body.
 SkipMacroDefinitionBody: true
+
+# Always add braces around if/for/while/... bodies, even single-statement ones.
+InsertBraces: true

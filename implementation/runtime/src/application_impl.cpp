@@ -150,13 +150,15 @@ bool application_impl::init() {
             if (configuration_->get_security()->load()) {
                 VSOMEIP_INFO << "Using external security implementation!";
                 auto its_result = configuration_->get_security()->initialize();
-                if (VSOMEIP_SEC_POLICY_OK != its_result)
+                if (VSOMEIP_SEC_POLICY_OK != its_result) {
                     VSOMEIP_ERROR << "Initializing external security implementation failed (" << its_result << ')';
+                }
             }
         } else {
             VSOMEIP_INFO << "Using internal security implementation!";
-            if (configuration_->is_security_audit())
+            if (configuration_->is_security_audit()) {
                 security_mode_ = security_mode_e::SM_AUDIT;
+            }
         }
     } else {
         security_mode_ = security_mode_e::SM_OFF;
@@ -215,8 +217,9 @@ bool application_impl::init() {
         max_dispatch_time_ = its_configuration->get_max_dispatch_time(name_);
 
         has_session_handling_ = its_configuration->has_session_handling(name_);
-        if (!has_session_handling_)
+        if (!has_session_handling_) {
             VSOMEIP_INFO << "Application: " << name_ << " has session handling switched off!";
+        }
 
         std::string its_routing_host = its_configuration->get_routing_host_name();
         if (its_routing_host != "") {
@@ -234,8 +237,9 @@ bool application_impl::init() {
         } else {
             auto its_routing_address = its_configuration->get_routing_host_address();
             auto its_routing_port = its_configuration->get_routing_host_port();
-            if (its_routing_address.is_unspecified() || is_local_endpoint(its_routing_address, its_routing_port))
+            if (its_routing_address.is_unspecified() || is_local_endpoint(its_routing_address, its_routing_port)) {
                 is_routing_manager_host_ = utility::is_routing_manager(configuration_->get_network());
+            }
         }
 
         if (is_routing_manager_host_) {
@@ -360,8 +364,9 @@ void application_impl::start() {
         if (routing_app_) {
             routing_app_->start();
         }
-        if (routing_)
+        if (routing_) {
             routing_->start();
+        }
 
         for (size_t i = 0; i < io_thread_count - 1; i++) {
             auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
@@ -605,23 +610,27 @@ security_mode_e application_impl::get_security_mode() const {
 }
 
 void application_impl::offer_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    if (routing_)
+    if (routing_) {
         routing_->offer_service(client_, _service, _instance, _major, _minor);
+    }
 }
 
 void application_impl::stop_offer_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    if (routing_)
+    if (routing_) {
         routing_->stop_offer_service(client_, _service, _instance, _major, _minor);
+    }
 }
 
 void application_impl::request_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    if (routing_)
+    if (routing_) {
         routing_->request_service(client_, _service, _instance, _major, _minor);
+    }
 }
 
 void application_impl::release_service(service_t _service, instance_t _instance) {
-    if (routing_)
+    if (routing_) {
         routing_->release_service(client_, _service, _instance);
+    }
 }
 
 void application_impl::subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
@@ -633,25 +642,29 @@ void application_impl::subscribe(service_t _service, instance_t _instance, event
 }
 
 void application_impl::unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
-    if (routing_)
+    if (routing_) {
         routing_->unsubscribe(client_, _service, _instance, _eventgroup, ANY_EVENT);
+    }
 }
 
 void application_impl::unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
-    if (routing_)
+    if (routing_) {
         routing_->unsubscribe(client_, _service, _instance, _eventgroup, _event);
+    }
 }
 
 bool application_impl::is_available(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) const {
-    if (!routing_)
+    if (!routing_) {
         return false;
+    }
     return routing_->is_available(_service, _instance, _major, _minor);
 }
 
 bool application_impl::are_available(available_t& _available, service_t _service, instance_t _instance, major_version_t _major,
                                      minor_version_t _minor) const {
-    if (!routing_)
+    if (!routing_) {
         return false;
+    }
     return routing_->are_available(_available, _service, _instance, _major, _minor);
 }
 
@@ -1062,20 +1075,23 @@ void application_impl::offer_event(service_t _service, instance_t _instance, eve
 }
 
 void application_impl::stop_offer_event(service_t _service, instance_t _instance, event_t _event) {
-    if (routing_)
+    if (routing_) {
         routing_->unregister_event(client_, _service, _instance, _event, true);
+    }
 }
 
 void application_impl::request_event(service_t _service, instance_t _instance, event_t _event, const std::set<eventgroup_t>& _eventgroups,
                                      event_type_e _type, reliability_type_e _reliability) {
-    if (routing_)
+    if (routing_) {
         routing_->register_event(client_, _service, _instance, _event, _eventgroups, _type, _reliability, std::chrono::milliseconds::zero(),
                                  false, true, nullptr, false);
+    }
 }
 
 void application_impl::release_event(service_t _service, instance_t _instance, event_t _event) {
-    if (routing_)
+    if (routing_) {
         routing_->unregister_event(client_, _service, _instance, _event, false);
+    }
 }
 
 // Interface "routing_manager_host"
@@ -1133,8 +1149,9 @@ void application_impl::set_client(const client_t& _client) {
 
 session_t application_impl::get_session(bool _is_request) {
 
-    if (!has_session_handling_ && !_is_request)
+    if (!has_session_handling_ && !_is_request) {
         return 0;
+    }
 
     std::scoped_lock its_lock{session_mutex_};
     if (0 == ++session_) {
@@ -1420,8 +1437,9 @@ void application_impl::main_dispatch() {
             while (is_dispatching_ && is_active_dispatcher(its_id) && (its_handler = get_next_handler())) {
                 invoke_handler(its_lock, its_handler);
 
-                if (!is_dispatching_)
+                if (!is_dispatching_) {
                     break;
+                }
 
                 reschedule_availability_handler(its_handler);
                 reschedule_subscription_handler(its_handler);
@@ -1471,8 +1489,9 @@ void application_impl::dispatch() {
             while (is_dispatching_ && is_active_dispatcher(its_id) && (its_handler = get_next_handler())) {
                 invoke_handler(its_lock, its_handler);
 
-                if (!is_dispatching_)
+                if (!is_dispatching_) {
                     return;
+                }
 
                 reschedule_availability_handler(its_handler);
                 reschedule_subscription_handler(its_handler);

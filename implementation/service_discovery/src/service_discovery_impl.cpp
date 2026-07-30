@@ -413,18 +413,21 @@ void service_discovery_impl::unsubscribe(service_t _service, instance_t _instanc
 
                 // For selective subscriptions, the client must be added again
                 // to generate the selective option
-                if (its_subscription->is_selective())
+                if (its_subscription->is_selective()) {
                     its_subscription->add_client(_client);
+                }
 
                 const reliability_type_e its_reliability_type =
                         get_eventgroup_reliability(_service, _instance, _eventgroup, its_subscription);
                 auto its_data = create_eventgroup_entry(_service, _instance, _eventgroup, its_subscription, its_reliability_type);
-                if (its_data.entry_)
+                if (its_data.entry_) {
                     its_current_message->add_entry_data(its_data.entry_, its_data.options_);
+                }
 
                 // Remove it again before updating (only impacts last unsubscribe)
-                if (its_subscription->is_selective())
+                if (its_subscription->is_selective()) {
                     (void)its_subscription->remove_client(_client);
+                }
 
                 // Ensure to update the "real" subscription
                 its_subscription = found_eventgroup->second;
@@ -898,8 +901,9 @@ void service_discovery_impl::insert_subscription_ack_unlocked(const std::shared_
 
                 if (_clients.size() > 1 || (*(_clients.begin())) != 0) {
                     auto its_selective_option = its_eventgroup_entry->get_selective_option();
-                    if (its_selective_option)
+                    if (its_selective_option) {
                         its_selective_option->set_clients(_clients);
+                    }
                 }
 
                 return;
@@ -1559,10 +1563,11 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
     boost::asio::ip::address its_address;
 
     std::shared_ptr<boardnet_endpoint> its_dummy;
-    if (_endpoint->is_reliable())
+    if (_endpoint->is_reliable()) {
         get_subscription_address(_endpoint, its_dummy, its_address);
-    else
+    } else {
         get_subscription_address(its_dummy, _endpoint, its_address);
+    }
 
     {
         std::scoped_lock its_lock(subscribed_mutex_);
@@ -1597,8 +1602,9 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
 
                             its_subscription->set_endpoint(its_reliable, true);
                             its_subscription->set_endpoint(its_unreliable, false);
-                            for (const auto its_client : its_subscription->get_clients())
+                            for (const auto its_client : its_subscription->get_clients()) {
                                 its_subscription->set_state(its_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
+                            }
 
                             const reliability_type_e its_reliability_type =
                                     get_eventgroup_reliability(_service, _instance, its_eventgroup_id, its_subscription);
@@ -1657,8 +1663,9 @@ void service_discovery_impl::insert_offer_service(std::vector<std::shared_ptr<me
         its_entry->set_minor_version(_info->get_minor());
 
         ttl_t its_ttl = _info->get_ttl();
-        if (its_ttl > 0)
+        if (its_ttl > 0) {
             its_ttl = ttl_;
+        }
         its_entry->set_ttl(its_ttl);
 
         add_entry_data(_messages, its_data);
@@ -2192,8 +2199,9 @@ void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _serv
 
             if (!its_subscription->is_selective()) {
                 auto its_reliable = its_subscription->get_endpoint(true);
-                if (its_reliable)
+                if (its_reliable) {
                     its_reliable->restart();
+                }
             }
         }
     }
@@ -2291,11 +2299,13 @@ void service_discovery_impl::start_ttl_timer(int _shift) {
 
     std::chrono::milliseconds its_timeout(ttl_timer_runtime_);
     if (_shift > 0) {
-        if (its_timeout.count() > _shift)
+        if (its_timeout.count() > _shift) {
             its_timeout -= std::chrono::milliseconds(_shift);
+        }
 
-        if (its_timeout.count() > VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT)
+        if (its_timeout.count() > VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT) {
             its_timeout = std::chrono::milliseconds(VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT);
+        }
     }
 
     ttl_timer_.expires_after(its_timeout);
@@ -2872,8 +2882,9 @@ void service_discovery_impl::update_acknowledgement(const std::shared_ptr<remote
 
         const auto its_subscriptions = _acknowledgement->get_subscriptions();
         std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
-        for (const auto& its_subscription : its_subscriptions)
+        for (const auto& its_subscription : its_subscriptions) {
             pending_remote_subscriptions_.erase(its_subscription);
+        }
     }
 }
 
@@ -2913,8 +2924,9 @@ bool service_discovery_impl::has_opposite(message_impl::entries_t::const_iterato
             const auto its_other_entry = std::dynamic_pointer_cast<eventgroupentry_impl>(*its_other);
             if ((its_entry->get_ttl() == 0 && its_other_entry->get_ttl() > 0)
                 || (its_entry->get_ttl() > 0 && its_other_entry->get_ttl() == 0)) {
-                if (its_entry->matches(*(its_other_entry.get()), _options))
+                if (its_entry->matches(*(its_other_entry.get()), _options)) {
                     return true;
+                }
             }
         }
     }
@@ -3208,8 +3220,9 @@ std::shared_ptr<subscription> service_discovery_impl::create_subscription(major_
 
 void service_discovery_impl::send_subscription_ack(const std::shared_ptr<remote_subscription_ack>& _acknowledgement) {
 
-    if (_acknowledgement->is_done())
+    if (_acknowledgement->is_done()) {
         return;
+    }
 
     _acknowledgement->done();
 
@@ -3241,14 +3254,16 @@ void service_discovery_impl::send_subscription_ack(const std::shared_ptr<remote_
             {
                 std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
                 auto it = pending_remote_subscriptions_.find(its_parent);
-                if (it != pending_remote_subscriptions_.end())
+                if (it != pending_remote_subscriptions_.end()) {
                     its_parent_ack = it->second;
+                }
             }
             if (its_parent_ack) {
                 std::scoped_lock its_parent_lock(its_parent_ack->get_mutex());
                 for (const auto& its_subscription : its_parent_ack->get_subscriptions()) {
-                    if (its_subscription != its_parent)
+                    if (its_subscription != its_parent) {
                         its_subscription->set_answers(its_subscription->get_answers() + 1);
+                    }
                 }
             }
         }

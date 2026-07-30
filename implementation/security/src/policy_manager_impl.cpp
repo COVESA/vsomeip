@@ -28,10 +28,11 @@ template<typename T_>
 void read_data(const std::string& _in, T_& _out) {
     std::stringstream its_converter;
 
-    if (_in.size() > 2 && _in[0] == '0' && (_in[1] == 'x' || _in[1] == 'X'))
+    if (_in.size() > 2 && _in[0] == '0' && (_in[1] == 'x' || _in[1] == 'X')) {
         its_converter << std::hex << _in;
-    else
+    } else {
         its_converter << _in;
+    }
 
     its_converter >> _out;
 }
@@ -68,14 +69,17 @@ bool policy_manager_impl::check_credentials(client_t _client, const vsomeip_sec_
 
     return true;
 #else
-    if (!policy_enabled_)
+    if (!policy_enabled_) {
         return true;
+    }
 
-    if (!_sec_client)
+    if (!_sec_client) {
         return true;
+    }
 
-    if (_sec_client->port != VSOMEIP_SEC_PORT_UNUSED)
+    if (_sec_client->port != VSOMEIP_SEC_PORT_UNUSED) {
         return true;
+    }
 
     uid_t its_uid(_sec_client->user);
     gid_t its_gid(_sec_client->group);
@@ -296,8 +300,9 @@ bool policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t* _sec_clie
 
     return true;
 #else
-    if (!policy_enabled_)
+    if (!policy_enabled_) {
         return true;
+    }
 
     uid_t its_uid(ANY_UID);
     gid_t its_gid(ANY_GID);
@@ -366,11 +371,13 @@ void policy_manager_impl::load(const configuration_element& _element, const bool
         load_security_policy_extensions(_element);
         load_routing_credentials(_element);
 
-        if (policy_enabled_ && check_credentials_)
+        if (policy_enabled_ && check_credentials_) {
             VSOMEIP_INFO << "Security configuration is active.";
+        }
 
-        if (policy_enabled_ && !check_credentials_)
+        if (policy_enabled_ && !check_credentials_) {
             VSOMEIP_INFO << "Security configuration is active but in audit mode (allow all)";
+        }
     }
 }
 
@@ -508,8 +515,9 @@ bool policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<p
 
                 const auto found_service = service_interface_whitelist_.find(its_service);
                 has_service = (found_service != service_interface_whitelist_.end());
-                if (!has_service)
+                if (!has_service) {
                     break;
+                }
             }
 
             if (!has_service) {
@@ -556,8 +564,9 @@ bool policy_manager_impl::parse_policy(const byte_t*& _buffer, uint32_t& _buffer
                                        const std::shared_ptr<policy>& _policy) const {
 
     bool is_valid = _policy->deserialize(_buffer, _buffer_size);
-    if (is_valid)
+    if (is_valid) {
         is_valid = _policy->get_uid_gid(_uid, _gid);
+    }
     return is_valid;
 }
 
@@ -668,8 +677,9 @@ void policy_manager_impl::load_policy(const boost::property_tree::ptree& _tree) 
                 policy->allow_who_ = true;
             }
             if (has_uid_range && has_gid_range) {
-                for (const auto u : its_uid_interval_set)
+                for (const auto u : its_uid_interval_set) {
                     policy->credentials_ += std::make_pair(u, its_gid_interval_set);
+                }
                 policy->allow_who_ = true;
             }
         } else if (i->first == "allow") {
@@ -691,8 +701,9 @@ void policy_manager_impl::load_policy(const boost::property_tree::ptree& _tree) 
         }
     }
     std::unique_lock its_lock(any_client_policies_mutex_);
-    if (!exist_in_any_client_policies_unlocked(policy))
+    if (!exist_in_any_client_policies_unlocked(policy)) {
         any_client_policies_.push_back(policy);
+    }
 }
 
 void policy_manager_impl::load_policy_body(std::shared_ptr<policy>& _policy, const boost::property_tree::ptree::const_iterator& _tree) {
@@ -738,8 +749,9 @@ void policy_manager_impl::load_policy_body(std::shared_ptr<policy>& _policy, con
                                     load_interval_set(m->second, its_method_interval_set);
                                 }
                             }
-                            if (its_method_interval_set.empty())
+                            if (its_method_interval_set.empty()) {
                                 its_method_interval_set.insert(all_methods);
+                            }
                             for (const auto i : its_instance_interval_set) {
                                 its_instance_method_intervals += std::make_pair(i, its_method_interval_set);
                             }
@@ -963,8 +975,9 @@ void policy_manager_impl::load_interval_set(const boost::property_tree::ptree& _
             if (!its_data.data().empty()) {
                 T_ its_id;
                 read_data(its_data.data(), its_id);
-                if (its_id >= its_min && its_id <= its_max)
+                if (its_id >= its_min && its_id <= its_max) {
                     its_intervals.insert(its_id);
+                }
             } else {
                 T_ its_first, its_last;
                 bool has_first(false), has_last(false);
@@ -1006,8 +1019,9 @@ void policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _
     std::scoped_lock lock_outer{any_client_policies_mutex_, _policy->mutex_};
     for (const auto& o : _policy->offers_) {
         for (const auto& p : any_client_policies_) {
-            if (p == _policy)
+            if (p == _policy) {
                 continue;
+            }
 
             std::scoped_lock lock_inner(p->mutex_);
 
@@ -1068,8 +1082,9 @@ void policy_manager_impl::get_clients(uid_t _uid, gid_t _gid, std::unordered_set
 
     std::scoped_lock its_lock(ids_mutex_);
     for (const auto& i : ids_) {
-        if (i.second.port == VSOMEIP_SEC_PORT_UNUSED && i.second.user == _uid && i.second.group == _gid)
+        if (i.second.port == VSOMEIP_SEC_PORT_UNUSED && i.second.user == _uid && i.second.group == _gid) {
             _clients.insert(i.first);
+        }
     }
 }
 
@@ -1161,8 +1176,9 @@ std::shared_ptr<policy> policy_manager_impl::create_policy() const {
 
 void policy_manager_impl::print_policy(const std::shared_ptr<policy>& _policy) const {
 
-    if (_policy)
+    if (_policy) {
         _policy->print();
+    }
 }
 
 bool policy_manager_impl::parse_uid_gid(const byte_t*& _buffer, uint32_t& _buffer_size, uid_t& _uid, gid_t& _gid) const {

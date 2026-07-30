@@ -84,8 +84,9 @@ configuration_impl::configuration_impl(const std::string& _path) :
     security_ = std::make_shared<security>(policy_manager_);
     unicast_ = boost::asio::ip::make_address(VSOMEIP_UNICAST_ADDRESS);
     netmask_ = boost::asio::ip::make_address(VSOMEIP_NETMASK);
-    for (auto i = 0; i < ET_MAX; i++)
+    for (auto i = 0; i < ET_MAX; i++) {
         is_configured_[i] = false;
+    }
 
 #ifdef _WIN32
     routing_.host_.unicast_ = boost::asio::ip::make_address("127.0.0.1");
@@ -157,8 +158,9 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     magic_cookies_.insert(_other.magic_cookies_.begin(), _other.magic_cookies_.end());
     message_sizes_ = _other.message_sizes_;
 
-    for (auto i = 0; i < ET_MAX; i++)
+    for (auto i = 0; i < ET_MAX; i++) {
         is_configured_[i] = _other.is_configured_[i];
+    }
 
     network_ = _other.network_;
     configuration_path_ = _other.configuration_path_;
@@ -197,8 +199,9 @@ configuration_impl::~configuration_impl() { }
 
 bool configuration_impl::load(const std::string& _name) {
     std::scoped_lock its_lock(mutex_);
-    if (is_loaded_)
+    if (is_loaded_) {
         return true;
+    }
 
     // Environment
     char* its_env;
@@ -233,8 +236,9 @@ bool configuration_impl::load(const std::string& _name) {
     its_named_configuration += "_" + _name;
 
     its_env = VSOMEIP_GETENV(its_named_configuration.c_str());
-    if (nullptr == its_env)
+    if (nullptr == its_env) {
         its_env = VSOMEIP_GETENV(VSOMEIP_ENV_CONFIGURATION);
+    }
     if (nullptr != its_env) {
         if (utility::is_file(its_env)) {
             its_file = its_env;
@@ -296,8 +300,9 @@ bool configuration_impl::load(const std::string& _name) {
 
     // Log about reading of configuration file(s) that failed.
     // (This may fail if the logger configuration is incomplete/missing).
-    for (const auto& f : its_failed)
+    for (const auto& f : its_failed) {
         VSOMEIP_WARNING << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
+    }
 
     // set global unicast address for all services with magic cookies enabled
     set_magic_cookies_unicast_address();
@@ -305,11 +310,13 @@ bool configuration_impl::load(const std::string& _name) {
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
     for (const auto& i : its_input) {
-        if (utility::is_file(i))
+        if (utility::is_file(i)) {
             VSOMEIP_INFO << "Using configuration file: \"" << i << "\".";
+        }
 
-        if (utility::is_folder(i))
+        if (utility::is_folder(i)) {
             VSOMEIP_INFO << "Using configuration folder: \"" << i << "\".";
+        }
     }
 
     VSOMEIP_INFO << "Parsed vsomeip configuration in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
@@ -341,8 +348,9 @@ void configuration_impl::lazy_load_security(const std::string& _client_host) {
 
     // load security configuration files from UID_GID sub folder if existing
     std::string its_security_config_folder = policy_manager_->get_security_config_folder(its_folder);
-    if (!its_security_config_folder.empty())
+    if (!its_security_config_folder.empty()) {
         its_input.insert(its_security_config_folder);
+    }
 
     read_data(its_input, its_mandatory_elements, its_failed, true, true);
 
@@ -466,13 +474,15 @@ void configuration_impl::read_data(const std::set<std::string>& _input, std::vec
                     //_read_second_level to read the second level folders only after
                     // the start, without this the ECU block
                     std::string name = j->path().string() + "/vsomeip_security.json";
-                    if (utility::is_file(name))
+                    if (utility::is_file(name)) {
                         its_names[name] = true;
+                    }
                 }
             }
 
-            for (const auto& n : its_names)
+            for (const auto& n : its_names) {
                 load_policy_data(n.first, _elements, _failed, n.second);
+            }
         }
     }
 }
@@ -500,13 +510,15 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
     std::set<std::string> its_warnings;
 
     if (!is_logging_loaded_) {
-        for (const auto& e : _elements)
+        for (const auto& e : _elements) {
             is_logging_loaded_ = load_logging(e, its_warnings) || is_logging_loaded_;
+        }
 
         if (is_logging_loaded_) {
             logger::logger_impl::init(shared_from_this());
-            for (const auto& w : its_warnings)
+            for (const auto& w : its_warnings) {
                 VSOMEIP_WARNING << w;
+            }
         }
     }
 
@@ -689,10 +701,12 @@ bool configuration_impl::load_routing(const configuration_element& _element) {
             if (!is_loaded) {
                 routing_.host_.name_ = its_routing.data();
             } else {
-                if (routing_.guests_.unicast_.is_unspecified())
+                if (routing_.guests_.unicast_.is_unspecified()) {
                     routing_.guests_.unicast_ = routing_.host_.unicast_;
-                if (routing_.guests_.ports_.empty())
+                }
+                if (routing_.guests_.ports_.empty()) {
                     routing_.guests_.ports_[{ANY_UID, ANY_GID}].emplace(31492, 31999);
+                }
             }
 
             // Try to validate the port configuration. Check whether a range
@@ -712,8 +726,9 @@ bool configuration_impl::load_routing(const configuration_element& _element) {
                     bool is_matching((r.first % 2) == (routing_.host_.port_ % 2));
                     if (!is_matching) {
                         its_pair.first++;
-                        if (is_even)
+                        if (is_even) {
                             its_pair.second--;
+                        }
                     } else if (!is_even) {
                         its_pair.second--;
                     }
@@ -724,12 +739,14 @@ bool configuration_impl::load_routing(const configuration_element& _element) {
                     }
                 }
 
-                for (const auto& r : its_invalid_ranges)
+                for (const auto& r : its_invalid_ranges) {
                     ug.second.erase(r);
+                }
                 its_invalid_ranges.clear();
 
-                for (const auto& r : its_corrected_ranges)
+                for (const auto& r : its_corrected_ranges) {
                     ug.second.insert(r);
+                }
                 its_corrected_ranges.clear();
             }
             is_configured_[ET_ROUTING] = true;
@@ -837,8 +854,9 @@ void configuration_impl::load_routing_guest_ports(const boost::property_tree::pt
             its_ranges = load_routing_guest_port_range(its_range->second);
         }
 
-        if (!its_ranges.empty())
+        if (!its_ranges.empty()) {
             routing_.guests_.ports_[{its_uid, its_gid}] = its_ranges;
+        }
     }
 }
 
@@ -870,8 +888,9 @@ std::set<std::pair<port_t, port_t>> configuration_impl::load_routing_guest_port_
             }
         }
 
-        if (its_first_port > 0 && its_last_port > 0)
+        if (its_first_port > 0 && its_last_port > 0) {
             its_ranges.emplace(std::min(its_first_port, its_last_port), std::max(its_first_port, its_last_port));
+        }
     }
 
     return its_ranges;
@@ -1142,8 +1161,9 @@ void configuration_impl::load_tracing(const configuration_element& _element) {
 void configuration_impl::load_trace_channels(const boost::property_tree::ptree& _tree) {
     try {
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-            if (i == _tree.begin())
+            if (i == _tree.begin()) {
                 trace_->channels_.clear();
+            }
             load_trace_channel(i->second);
         }
     } catch (...) {
@@ -1193,14 +1213,15 @@ void configuration_impl::load_trace_filter(const boost::property_tree::ptree& _t
             has_channel = true;
         } else if (its_key == "type") {
             std::string its_value = i->second.data();
-            if (its_value == "negative")
+            if (its_value == "negative") {
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::NEGATIVE;
-            else if (its_value == "header-only")
+            } else if (its_value == "header-only") {
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::HEADER_ONLY;
-            else if (its_value == "full-payload")
+            } else if (its_value == "full-payload") {
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::FULL_PAYLOAD;
-            else
+            } else {
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::POSITIVE;
+            }
         } else {
             load_trace_filter_expressions(i->second, its_key, its_filter);
         }
@@ -1241,8 +1262,9 @@ void configuration_impl::load_trace_filter_expressions(const boost::property_tre
                 _filter->is_range_ = true;
                 _filter->matches_.insert(_filter->matches_.begin(), its_match);
             } else {
-                if (i->first == "to")
+                if (i->first == "to") {
                     _filter->is_range_ = true;
+                }
                 _filter->matches_.push_back(its_match);
             }
         }
@@ -1278,8 +1300,9 @@ void configuration_impl::load_trace_filter_match(const boost::property_tree::ptr
 
             try {
                 its_value = i->second.data();
-                if (its_value == "any")
+                if (its_value == "any") {
                     its_value = "0xffff";
+                }
 
                 if (i->first == "service") {
                     service_t its_service(ANY_SERVICE);
@@ -1325,8 +1348,9 @@ void configuration_impl::load_suppress_events(const configuration_element& _elem
                 load_suppress_events_data(i->second);
             }
 
-            if (suppress_events_.size())
+            if (suppress_events_.size()) {
                 is_suppress_events_enabled_ = true;
+            }
         }
     } catch (...) {
         // Intentionally left empty
@@ -1361,8 +1385,9 @@ void configuration_impl::load_suppress_events_data(const boost::property_tree::p
     }
 
     // If no event is present in the configuration, use ANY_EVENT!
-    if (events.empty())
+    if (events.empty()) {
         events.insert(ANY_EVENT);
+    }
 
     for (const auto& event : events) {
         insert_suppress_events(its_service, its_instance, event);
@@ -1446,8 +1471,9 @@ void configuration_impl::insert_suppress_events(service_t _service, instance_t _
 
 bool configuration_impl::check_suppress_events(service_t _service, instance_t _instance, event_t _event) const {
 
-    if (!is_suppress_events_enabled_)
+    if (!is_suppress_events_enabled_) {
         return false;
+    }
 
     std::set<suppress_t> event_combinations = {{_service, _instance, _event},       {_service, _instance, ANY_EVENT},
                                                {_service, ANY_INSTANCE, _event},    {_service, ANY_INSTANCE, ANY_EVENT},
@@ -1455,8 +1481,9 @@ bool configuration_impl::check_suppress_events(service_t _service, instance_t _i
                                                {ANY_SERVICE, ANY_INSTANCE, _event}, {ANY_SERVICE, ANY_INSTANCE, ANY_EVENT}};
 
     for (const auto& its_event : event_combinations) {
-        if (suppress_events_.find(its_event) != std::end(suppress_events_))
+        if (suppress_events_.find(its_event) != std::end(suppress_events_)) {
             return true;
+        }
     }
 
     return false;
@@ -1697,8 +1724,9 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     if (sd_ttl_ == 0) {
                         VSOMEIP_WARNING << "TTL=0 is not allowed. Using default (" << VSOMEIP_SD_DEFAULT_TTL << ")";
                         sd_ttl_ = VSOMEIP_SD_DEFAULT_TTL;
-                    } else
+                    } else {
                         is_configured_[ET_SERVICE_DISCOVERY_TTL] = true;
+                    }
                 }
             } else if (its_key == "cyclic_offer_delay") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY]) {
@@ -1886,8 +1914,9 @@ void configuration_impl::load_services(const configuration_element& _element) {
     std::scoped_lock its_lock(services_mutex_);
     try {
         auto its_services = _element.tree_.get_child("services");
-        for (auto i = its_services.begin(); i != its_services.end(); ++i)
+        for (auto i = its_services.begin(); i != its_services.end(); ++i) {
             load_service(i->second, default_unicast_);
+        }
     } catch (...) {
         // intentionally left empty
     }
@@ -2033,10 +2062,11 @@ void configuration_impl::load_event(std::shared_ptr<service>& _service, const bo
             } else if (its_key == "is_field") {
                 its_is_field = (its_value == "true");
             } else if (its_key == "is_reliable") {
-                if (its_value == "true")
+                if (its_value == "true") {
                     its_reliability = reliability_type_e::RT_RELIABLE;
-                else
+                } else {
                     its_reliability = reliability_type_e::RT_UNRELIABLE;
+                }
             } else if (its_key == "cycle") {
                 std::stringstream its_converter;
                 its_converter << std::dec << its_value;
@@ -2215,8 +2245,9 @@ void configuration_impl::load_internal_services(const configuration_element& _el
 void configuration_impl::load_clients(const configuration_element& _element) {
     try {
         auto its_clients = _element.tree_.get_child("clients");
-        for (auto i = its_clients.begin(); i != its_clients.end(); ++i)
+        for (auto i = its_clients.begin(); i != its_clients.end(); ++i) {
             load_client(i->second);
+        }
     } catch (...) {
         // intentionally left empty!
     }
@@ -2532,8 +2563,9 @@ void configuration_impl::load_security(const configuration_element& _element) {
     }
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-    if (!is_security_external())
+    if (!is_security_external()) {
         policy_manager_->load(_element);
+    }
 #endif // !VSOMEIP_DISABLE_SECURITY
 }
 
@@ -2582,10 +2614,11 @@ void configuration_impl::load_partition(const boost::property_tree::ptree& _tree
                 its_converter.str("");
                 its_converter.clear();
 
-                if (its_data.find("0x") != std::string::npos)
+                if (its_data.find("0x") != std::string::npos) {
                     its_converter << std::hex;
-                else
+                } else {
                     its_converter << std::dec;
+                }
                 its_converter << its_data;
 
                 if (its_key == "service") {
@@ -2597,10 +2630,11 @@ void configuration_impl::load_partition(const boost::property_tree::ptree& _tree
                 }
             }
 
-            if (its_service > 0 && its_instance > 0)
+            if (its_service > 0 && its_instance > 0) {
                 its_partition_members[its_service].insert(its_instance);
-            else
+            } else {
                 VSOMEIP_ERROR << "P: <" << its_service_s << "." << its_instance_s << "> is no valid service instance.";
+            }
         }
 
         if (!its_partition_members.empty()) {
@@ -2797,8 +2831,9 @@ void configuration_impl::get_configured_timing_responses(service_t _service, con
 }
 
 bool configuration_impl::is_someip(service_t _service, instance_t _instance) const {
-    if (auto its_service = find_service({_service, _instance}); its_service)
+    if (auto its_service = find_service({_service, _instance}); its_service) {
         return (its_service->protocol_ == "someip");
+    }
     return true; // we need to explicitely configure a service to
                  // be something else than SOME/IP
 }
@@ -2876,20 +2911,24 @@ const boost::asio::ip::address& configuration_impl::get_routing_guest_address() 
 std::set<std::pair<port_t, port_t>> configuration_impl::get_routing_guest_ports(uid_t _uid, gid_t _gid) const {
 
     auto found = routing_.guests_.ports_.find({_uid, _gid});
-    if (found != routing_.guests_.ports_.end())
+    if (found != routing_.guests_.ports_.end()) {
         return found->second;
+    }
 
     found = routing_.guests_.ports_.find({_uid, ANY_GID});
-    if (found != routing_.guests_.ports_.end())
+    if (found != routing_.guests_.ports_.end()) {
         return found->second;
+    }
 
     found = routing_.guests_.ports_.find({ANY_UID, _gid});
-    if (found != routing_.guests_.ports_.end())
+    if (found != routing_.guests_.ports_.end()) {
         return found->second;
+    }
 
     found = routing_.guests_.ports_.find({ANY_UID, ANY_GID});
-    if (found != routing_.guests_.ports_.end())
+    if (found != routing_.guests_.ports_.end()) {
         return found->second;
+    }
 
     return std::set<std::pair<port_t, port_t>>();
 }
@@ -3009,8 +3048,9 @@ bool configuration_impl::has_session_handling(const std::string& _name) const {
     bool its_value(true);
 
     auto found_application = applications_.find(_name);
-    if (found_application != applications_.end())
+    if (found_application != applications_.end()) {
         its_value = found_application->second.has_session_handling_;
+    }
 
     return its_value;
 }
@@ -3068,11 +3108,13 @@ bool configuration_impl::is_remote(const std::shared_ptr<service>& _service) con
 bool configuration_impl::get_multicast(service_t _service, instance_t _instance, eventgroup_t _eventgroup, std::string& _address,
                                        uint16_t& _port) const {
     std::shared_ptr<eventgroup> its_eventgroup = find_eventgroup({_service, _instance}, _eventgroup);
-    if (!its_eventgroup)
+    if (!its_eventgroup) {
         return false;
+    }
 
-    if (its_eventgroup->multicast_address_.empty())
+    if (its_eventgroup->multicast_address_.empty()) {
         return false;
+    }
 
     _address = its_eventgroup->multicast_address_;
     _port = its_eventgroup->multicast_port_;
@@ -4211,8 +4253,9 @@ void configuration_impl::load_secure_services(const configuration_element& _elem
     std::scoped_lock its_lock(secure_services_mutex_);
     try {
         auto its_services = _element.tree_.get_child("secure-services");
-        for (auto i = its_services.begin(); i != its_services.end(); ++i)
+        for (auto i = its_services.begin(); i != its_services.end(); ++i) {
             load_secure_service(i->second);
+        }
     } catch (...) {
         // intentionally left empty
     }
@@ -4577,8 +4620,9 @@ void configuration_impl::set_sd_acceptance_rules_active(const boost::asio::ip::a
 bool configuration_impl::is_secure_service(service_t _service, instance_t _instance) const {
     std::scoped_lock its_lock(secure_services_mutex_);
     const auto its_service = secure_services_.find(_service);
-    if (its_service != secure_services_.end())
+    if (its_service != secure_services_.end()) {
         return (its_service->second.count(_instance) > 0);
+    }
     return false;
 }
 
@@ -4617,8 +4661,9 @@ void configuration_impl::get_tp_configuration(service_t _service, instance_t _in
 
             // Note: The following two lines do not make sense now,
             // but they will when TP configuration is reworked
-            if (its_method == its_info->tp_client_config_.end())
+            if (its_method == its_info->tp_client_config_.end()) {
                 its_method = its_info->tp_client_config_.find(ANY_METHOD);
+            }
 
             if (its_method != its_info->tp_client_config_.end()) {
                 _max_segment_length = its_method->second.first;
@@ -4630,8 +4675,9 @@ void configuration_impl::get_tp_configuration(service_t _service, instance_t _in
 
             // Note: The following two lines do not make sense now,
             // but they will when TP configuration is reworked
-            if (its_method == its_info->tp_service_config_.end())
+            if (its_method == its_info->tp_service_config_.end()) {
                 its_method = its_info->tp_service_config_.find(ANY_METHOD);
+            }
 
             if (its_method != its_info->tp_service_config_.end()) {
                 _max_segment_length = its_method->second.first;

@@ -196,8 +196,9 @@ void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
         if (last_sent_ != std::chrono::steady_clock::time_point()) {
             const auto its_elapsed =
                     std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - last_sent_).count();
-            if (_entry.second > its_elapsed)
+            if (_entry.second > its_elapsed) {
                 std::this_thread::sleep_for(std::chrono::microseconds(_entry.second - its_elapsed));
+            }
         }
         last_sent_ = std::chrono::steady_clock::now();
     } else {
@@ -420,9 +421,9 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
 
             update_last_departure();
 
-            if (queue_.empty())
+            if (queue_.empty()) {
                 is_sending_ = false;
-            else {
+            } else {
                 auto its_entry = get_front();
                 if (its_entry.first) {
                     send_queued(its_entry);

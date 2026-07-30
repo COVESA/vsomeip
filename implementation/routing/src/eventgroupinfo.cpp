@@ -216,8 +216,9 @@ std::set<std::shared_ptr<remote_subscription>> eventgroupinfo::get_remote_subscr
     std::set<std::shared_ptr<remote_subscription>> its_subscriptions;
 
     std::scoped_lock its_lock(subscriptions_mutex_);
-    for (const auto& i : subscriptions_)
+    for (const auto& i : subscriptions_) {
         its_subscriptions.insert(i.second);
+    }
 
     return its_subscriptions;
 }
@@ -295,11 +296,13 @@ bool eventgroupinfo::update_remote_subscription(const std::shared_ptr<remote_sub
             // Build set of events first to avoid having to
             // hold the "events_mutex_" in parallel to the internal event mutexes.
             std::scoped_lock its_lock(events_mutex_);
-            for (const auto& its_event : events_)
+            for (const auto& its_event : events_) {
                 its_events.insert(its_event);
+            }
         }
-        for (const auto& its_event : its_events)
+        for (const auto& its_event : its_events) {
             its_event->remove_pending(its_subscriber);
+        }
     }
 
     return its_result;
@@ -356,8 +359,9 @@ std::shared_ptr<remote_subscription> eventgroupinfo::get_remote_subscription(con
     std::scoped_lock its_lock(subscriptions_mutex_);
 
     auto find_subscription = subscriptions_.find(_id);
-    if (find_subscription != subscriptions_.end())
+    if (find_subscription != subscriptions_.end()) {
         return find_subscription->second;
+    }
 
     return nullptr;
 }
@@ -393,11 +397,13 @@ std::set<std::shared_ptr<endpoint_definition>> eventgroupinfo::get_unicast_targe
     std::scoped_lock its_lock(subscriptions_mutex_);
     for (const auto& s : subscriptions_) {
         const auto its_reliable = s.second->get_reliable();
-        if (its_reliable)
+        if (its_reliable) {
             its_targets.insert(its_reliable);
+        }
         const auto its_unreliable = s.second->get_unreliable();
-        if (its_unreliable)
+        if (its_unreliable) {
             its_targets.insert(its_unreliable);
+        }
     }
 
     return its_targets;
@@ -411,16 +417,18 @@ std::set<std::shared_ptr<endpoint_definition>> eventgroupinfo::get_multicast_tar
 bool eventgroupinfo::is_selective() const {
     // Selective eventgroups always contain a single event
     std::scoped_lock its_lock(events_mutex_);
-    if (events_.size() != 1)
+    if (events_.size() != 1) {
         return false;
+    }
 
     return ((*events_.begin())->get_type() == event_type_e::ET_SELECTIVE_EVENT);
 }
 
 void eventgroupinfo::update_id() {
     id_++;
-    if (id_ == PENDING_SUBSCRIPTION_ID)
+    if (id_ == PENDING_SUBSCRIPTION_ID) {
         id_ = 1;
+    }
 }
 
 void eventgroupinfo::send_initial_events(const std::shared_ptr<endpoint_definition>& _reliable,
@@ -457,8 +465,9 @@ void eventgroupinfo::send_initial_events(const std::shared_ptr<endpoint_definiti
     // Send events
     if (!its_reliable_events.empty()) {
         if (_reliable != nullptr) {
-            for (const auto& its_event : its_reliable_events)
+            for (const auto& its_event : its_reliable_events) {
                 its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
+            }
         } else {
             VSOMEIP_ERROR_P << "Received ptr (_reliable) is null";
         }
@@ -466,8 +475,9 @@ void eventgroupinfo::send_initial_events(const std::shared_ptr<endpoint_definiti
 
     if (!its_unreliable_events.empty()) {
         if (_unreliable != nullptr) {
-            for (const auto& its_event : its_unreliable_events)
+            for (const auto& its_event : its_unreliable_events) {
                 its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
+            }
         } else {
             VSOMEIP_ERROR_P << "Received ptr (_unreliable) is null";
         }

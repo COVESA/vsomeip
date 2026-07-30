@@ -45,23 +45,26 @@ void configuration_option_impl::remove_item(const std::string& _key) {
 
 std::vector<std::string> configuration_option_impl::get_keys() const {
     std::vector<std::string> l_keys;
-    for (const auto& elem : configuration_)
+    for (const auto& elem : configuration_) {
         l_keys.push_back(elem.first);
+    }
     return l_keys;
 }
 
 std::vector<std::string> configuration_option_impl::get_values() const {
     std::vector<std::string> l_values;
-    for (const auto& elem : configuration_)
+    for (const auto& elem : configuration_) {
         l_values.push_back(elem.second);
+    }
     return l_values;
 }
 
 std::string configuration_option_impl::get_value(const std::string& _key) const {
     std::string l_value("");
     auto l_elem = configuration_.find(_key);
-    if (l_elem != configuration_.end())
+    if (l_elem != configuration_.end()) {
         l_value = l_elem->second;
+    }
     return l_value;
 }
 
@@ -107,8 +110,9 @@ bool configuration_option_impl::deserialize(vsomeip_v3::deserializer* _from) {
                 l_key = l_item.substr(0, l_eqPos);
 
                 // if no "=" is found, no value is present for key (SWS_SD_00466)
-                if (l_eqPos != std::string::npos)
+                if (l_eqPos != std::string::npos) {
                     l_value = l_item.substr(l_eqPos + 1);
+                }
                 if (configuration_.end() == configuration_.find(l_key)) {
                     configuration_[l_key] = l_value;
                 } else {

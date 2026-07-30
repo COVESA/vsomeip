@@ -149,13 +149,15 @@ void event::set_payload(const std::shared_ptr<payload>& _payload, bool _force) {
     if (is_provided_) {
         if (prepare_update_payload_unlocked(_payload, _force)) {
             if (is_updating_on_change_) {
-                if (change_resets_cycle_)
+                if (change_resets_cycle_) {
                     stop_cycle();
+                }
 
                 notify(_force);
 
-                if (change_resets_cycle_)
+                if (change_resets_cycle_) {
                     start_cycle();
+                }
 
                 update_payload_unlocked();
             }
@@ -286,8 +288,9 @@ std::set<eventgroup_t> event::get_eventgroups(client_t _client) const {
 
     std::scoped_lock its_lock(eventgroups_mutex_);
     for (auto e : eventgroups_) {
-        if (e.second.count(_client) > 0)
+        if (e.second.count(_client) > 0) {
             its_eventgroups.insert(e.first);
+        }
     }
     return its_eventgroups;
 }
@@ -295,15 +298,17 @@ std::set<eventgroup_t> event::get_eventgroups(client_t _client) const {
 void event::add_eventgroup(eventgroup_t _eventgroup) {
 
     std::scoped_lock its_lock(eventgroups_mutex_);
-    if (eventgroups_.count(_eventgroup) == 0)
+    if (eventgroups_.count(_eventgroup) == 0) {
         eventgroups_[_eventgroup] = std::set<client_t>();
+    }
 }
 
 void event::set_eventgroups(const std::set<eventgroup_t>& _eventgroups) {
 
     std::scoped_lock its_lock(eventgroups_mutex_);
-    for (auto e : _eventgroups)
+    for (auto e : _eventgroups) {
         eventgroups_[e] = std::set<client_t>();
+    }
 }
 
 void event::update_cbk(boost::system::error_code const& _error) {
@@ -459,8 +464,9 @@ bool event::add_subscriber(eventgroup_t _eventgroup, const std::shared_ptr<debou
             its_filter_parameters << "(on_change=" << std::boolalpha << _filter->on_change_ << ", interval=" << _filter->interval_
                                   << ", on_change_resets_interval=" << std::boolalpha << _filter->on_change_resets_interval_
                                   << ", ignore=[ ";
-            for (auto i : _filter->ignore_)
+            for (auto i : _filter->ignore_) {
                 its_filter_parameters << "(" << i.first << ", " << hex2(i.second) << ") ";
+            }
             its_filter_parameters << "], send_current_value_after_=" << std::boolalpha << _filter->send_current_value_after_ << ")";
 
             VSOMEIP_INFO << "Filter parameters: " << its_filter_parameters.str();
@@ -515,8 +521,9 @@ std::set<client_t> event::get_subscribers() {
 
     std::set<client_t> its_subscribers;
     std::scoped_lock its_lock(eventgroups_mutex_);
-    for (const auto& e : eventgroups_)
+    for (const auto& e : eventgroups_) {
         its_subscribers.insert(e.second.begin(), e.second.end());
+    }
     return its_subscribers;
 }
 
@@ -540,8 +547,9 @@ std::set<client_t> event::get_filtered_subscribers(bool _force) {
     if (is_filters_empty) {
         bool must_forward = (has_default_epsilon_change_func_ || _force || epsilon_change_func_(its_payload, its_payload_update));
 
-        if (must_forward)
+        if (must_forward) {
             return its_subscribers;
+        }
 
     } else {
         byte_t is_allowed(0xff);
@@ -551,8 +559,9 @@ std::set<client_t> event::get_filtered_subscribers(bool _force) {
 
             auto its_specific = filters_.find(s);
             if (its_specific != filters_.end()) {
-                if (its_specific->second(its_payload, its_payload_update))
+                if (its_specific->second(its_payload, its_payload_update)) {
                     its_filtered_subscribers.insert(s);
+                }
             } else {
                 if (is_allowed == 0xff) {
                     is_allowed =
@@ -560,8 +569,9 @@ std::set<client_t> event::get_filtered_subscribers(bool _force) {
                                                                                                                                  : 0x00);
                 }
 
-                if (is_allowed == 0x01)
+                if (is_allowed == 0x01) {
                     its_filtered_subscribers.insert(s);
+                }
             }
         }
     }
@@ -575,8 +585,9 @@ std::set<client_t> event::update_and_get_filtered_subscribers(const std::shared_
 
     (void)prepare_update_payload_unlocked(_payload, true);
     auto its_subscribers = get_filtered_subscribers(!_is_from_remote);
-    if (_is_from_remote)
+    if (_is_from_remote) {
         update_payload_unlocked();
+    }
 
     return its_subscribers;
 }
@@ -584,8 +595,9 @@ std::set<client_t> event::update_and_get_filtered_subscribers(const std::shared_
 void event::clear_subscribers() {
 
     std::scoped_lock its_lock(eventgroups_mutex_);
-    for (auto& e : eventgroups_)
+    for (auto& e : eventgroups_) {
         e.second.clear();
+    }
 }
 
 bool event::has_ref(client_t _client, bool _is_provided) {

@@ -105,8 +105,9 @@ void provider_event::add_subscriber(eventgroup_t _group, client_t _client, const
         std::stringstream filter_parameters;
         filter_parameters << "(on_change=" << std::boolalpha << _filter->on_change_ << ", interval=" << _filter->interval_
                           << ", on_change_resets_interval=" << std::boolalpha << _filter->on_change_resets_interval_ << ", ignore=[ ";
-        for (auto i : _filter->ignore_)
+        for (auto i : _filter->ignore_) {
             filter_parameters << "(" << i.first << ", " << hex2(i.second) << ") ";
+        }
         filter_parameters << "], send_current_value_after_=" << std::boolalpha << _filter->send_current_value_after_ << ")";
         VSOMEIP_INFO_P << "filter parameters: " << filter_parameters.str();
 

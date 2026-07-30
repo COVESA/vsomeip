@@ -76,8 +76,9 @@ uint32_t e2e_crc::calculate_profile_04(buffer_view _buffer_view, const uint32_t 
 
     uint32_t crc = (_start_value ^ 0xFFFFFFFFU);
 
-    for (uint8_t byte : _buffer_view)
+    for (uint8_t byte : _buffer_view) {
         crc = lookup_table_profile_04_[static_cast<uint8_t>(byte ^ crc)] ^ (crc >> 8U);
+    }
 
     return (crc ^ 0xFFFFFFFFU);
 }
@@ -226,8 +227,9 @@ uint64_t e2e_crc::calculate_profile_07(buffer_view _buffer_view, const uint64_t 
 
     uint64_t crc = (_start_value ^ 0xFFFFFFFFFFFFFFFFU);
 
-    for (uint8_t byte : _buffer_view)
+    for (uint8_t byte : _buffer_view) {
         crc = lookup_table_profile_07_[static_cast<uint8_t>(byte ^ crc)] ^ (crc >> 8U);
+    }
 
     return (crc ^ 0xFFFFFFFFFFFFFFFFU);
 }

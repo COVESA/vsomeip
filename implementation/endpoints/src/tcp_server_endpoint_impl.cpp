@@ -996,8 +996,9 @@ std::string tcp_server_endpoint_impl::get_remote_information(const endpoint_type
 
 void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::error_code& _error) {
     std::shared_ptr<tcp_server_endpoint_impl> its_server(server_.lock());
-    if (!its_server)
+    if (!its_server) {
         return;
+    }
 
     std::scoped_lock its_lock(its_server->mutex_);
 

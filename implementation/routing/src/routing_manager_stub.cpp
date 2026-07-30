@@ -234,8 +234,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     case protocol::id_e::UNSUBSCRIBE_ID: {
         if (protocol::subscribe_data its_data; protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
             host_->unsubscribe(its_client, its_data.service_, its_data.instance_, its_data.eventgroup_, its_data.event_);
-        } else
+        } else {
             VSOMEIP_ERROR_P << "Deserializing unsubscribe failed: " << utility::dump(_data, _size);
+        }
         break;
     }
 
@@ -247,8 +248,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
 
             VSOMEIP_INFO << "SUBSCRIBE ACK(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "." << hex4(its_data.instance_)
                          << "." << hex4(its_data.eventgroup_) << "." << hex4(its_data.event_) << "] id=" << hex4(its_data.pending_id_);
-        } else
+        } else {
             VSOMEIP_ERROR_P << "Deserializing subscribe ack failed: " << utility::dump(_data, _size);
+        }
 
         break;
     }
@@ -261,8 +263,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
 
             VSOMEIP_INFO << "SUBSCRIBE NACK(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "." << hex4(its_data.instance_)
                          << "." << hex4(its_data.eventgroup_) << "." << hex4(its_data.event_) << "] id=" << hex4(its_data.pending_id_);
-        } else
+        } else {
             VSOMEIP_ERROR_P << "Deserializing subscribe nack failed :" << utility::dump(_data, _size);
+        }
 
         break;
     }
@@ -279,8 +282,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
 
             VSOMEIP_INFO << "UNSUBSCRIBE ACK(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
                          << hex4(its_eventgroup) << "] id=" << hex4(its_subscription_id);
-        } else
+        } else {
             VSOMEIP_ERROR_P << "Deserializing unsubscribe ack failed, memory: " << utility::dump(_data, _size);
+        }
         break;
     }
 
@@ -387,8 +391,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
             }
 
             handle_requests(its_client, its_allowed_requests);
-        } else
+        } else {
             VSOMEIP_ERROR_P << "Request service deserialization failed, memory: " << utility::dump(_data, _size);
+        }
 
         break;
     }
@@ -424,8 +429,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
                              << reg.is_provided_ << ":reliable=" << static_cast<int>(reg.reliability_) << "]";
             }
 
-        } else
+        } else {
             VSOMEIP_ERROR_P << "Register event deserialization failed, memory: " << utility::dump(_data, _size);
+        }
         break;
     }
 
@@ -436,8 +442,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
 
             VSOMEIP_INFO << "UNREGISTER EVENT(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "." << hex4(its_data.instance_)
                          << "." << hex4(its_data.event_) << ":is_provider=" << std::boolalpha << its_data.is_provided_ << "]";
-        } else
+        } else {
             VSOMEIP_ERROR_P << "Unregister event deserialization failed, memory: " << utility::dump(_data, _size);
+        }
         break;
     }
 
@@ -463,16 +470,18 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     case protocol::id_e::UPDATE_SECURITY_POLICY_RESPONSE_ID: {
         if (uint32_t its_update_id; protocol::deserialize(its_update_id, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
             on_security_update_response(its_update_id, its_client);
-        } else
+        } else {
             VSOMEIP_ERROR_P << "Update security policy deserialization failed, memory: " << utility::dump(_data, _size);
+        }
         break;
     }
 
     case protocol::id_e::REMOVE_SECURITY_POLICY_RESPONSE_ID: {
         if (uint32_t its_update_id; protocol::deserialize(its_update_id, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
             on_security_update_response(its_update_id, its_client);
-        } else
+        } else {
             VSOMEIP_ERROR_P << "Remove security policy deserialization failed, memory: " << utility::dump(_data, _size);
+        }
         break;
     }
 #endif // !VSOMEIP_DISABLE_SECURITY
@@ -587,8 +596,9 @@ void routing_manager_stub::init_routing_endpoint() {
     bool is_successful{true};
 
     auto create_root = [&](auto& _root, transport_protocol_e _protocol) {
-        if (_root)
+        if (_root) {
             return; // already initialised, skip
+        }
         if (!ep_mgr->create_routing_root(_root, _protocol, is_socket_activated_, shared_from_this())) {
             is_successful = false;
         }
@@ -681,8 +691,9 @@ void routing_manager_stub::send_client_routing_info(const client_t _target, std:
 
     if (auto its_target_endpoint = find_local_routing_endpoint(_target); its_target_endpoint) {
         its_target_endpoint->send(protocol::create_routing_info_cmd(VSOMEIP_ROUTING_CLIENT, std::move(_entries)));
-    } else
+    } else {
         VSOMEIP_ERROR_P << "Sending routing info to client " << get_client_info(_target) << " failed";
+    }
 }
 
 void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _service, instance_t _instance) {
@@ -699,8 +710,9 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
         for (auto its_requesting_client : its_requesting_clients) {
             vsomeip_sec_client_t its_requester_sec_client;
             if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(its_requesting_client, its_requester_sec_client)) {
-                if (!utility::compare(its_sec_client, its_requester_sec_client))
+                if (!utility::compare(its_sec_client, its_requester_sec_client)) {
                     send_client_credentials(its_requesting_client, its_credentials);
+                }
             }
         }
     }
@@ -938,15 +950,17 @@ void routing_manager_stub::handle_credentials(const client_t _client, std::set<p
         }
 
         // send credentials to clients
-        if (!its_credentials.empty())
+        if (!its_credentials.empty()) {
             send_client_credentials(_client, its_credentials);
+        }
     }
 }
 
 void routing_manager_stub::handle_requests(const client_t _client, std::set<protocol::service>& _requests) {
 
-    if (_requests.empty())
+    if (_requests.empty()) {
         return;
+    }
 
     boost::asio::ip::address its_address;
     port_t its_port;
@@ -1069,8 +1083,9 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
             }
             its_endpoint->send(protocol::create_distribute_security_policy_cmd(VSOMEIP_ROUTING_CLIENT, data));
         }
-    } else
+    } else {
         VSOMEIP_WARNING_P << "Could not send cached security policies to registering client: 0x" << hex4(_client);
+    }
 
     return false;
 }
@@ -1107,8 +1122,9 @@ bool routing_manager_stub::add_requester_policies(uid_t _uid, gid_t _gid, const 
     std::unordered_set<client_t> its_clients;
     configuration_->get_policy_manager()->get_clients(_uid, _gid, its_clients);
 
-    if (!its_clients.empty())
+    if (!its_clients.empty()) {
         return send_requester_policies(its_clients, _policies);
+    }
 
     return true;
 }
@@ -1119,8 +1135,9 @@ void routing_manager_stub::remove_requester_policies(uid_t _uid, gid_t _gid) {
     auto found_uid = requester_policies_.find(_uid);
     if (found_uid != requester_policies_.end()) {
         found_uid->second.erase(_gid);
-        if (found_uid->second.empty())
+        if (found_uid->second.empty()) {
             requester_policies_.erase(_uid);
+        }
     }
 }
 
@@ -1130,8 +1147,9 @@ void routing_manager_stub::get_requester_policies(uid_t _uid, gid_t _gid, std::s
     auto found_uid = requester_policies_.find(_uid);
     if (found_uid != requester_policies_.end()) {
         auto found_gid = found_uid->second.find(_gid);
-        if (found_gid != found_uid->second.end())
+        if (found_gid != found_uid->second.end()) {
             _policies = found_gid->second;
+        }
     }
 }
 
@@ -1273,8 +1291,9 @@ bool routing_manager_stub::update_security_policy_configuration(uid_t _uid, gid_
     // determine currently connected clients
     std::unordered_set<client_t> its_clients_to_inform;
     auto its_epm = host_->get_endpoint_manager();
-    if (its_epm)
+    if (its_epm) {
         its_clients_to_inform = its_epm->get_connected_clients();
+    }
 
     // add handler
     pending_security_update_id_t its_id;
@@ -1329,8 +1348,9 @@ bool routing_manager_stub::remove_security_policy_configuration(uid_t _uid, gid_
             // determine currently connected clients
             std::unordered_set<client_t> its_clients_to_inform;
             auto its_epm = host_->get_endpoint_manager();
-            if (its_epm)
+            if (its_epm) {
                 its_clients_to_inform = its_epm->get_connected_clients();
+            }
 
             if (!its_clients_to_inform.empty()) {
                 its_id = pending_security_update_add(its_clients_to_inform);

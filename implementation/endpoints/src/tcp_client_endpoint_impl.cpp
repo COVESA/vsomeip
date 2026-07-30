@@ -734,9 +734,9 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
 
             update_last_departure();
 
-            if (queue_.empty())
+            if (queue_.empty()) {
                 is_sending_ = false;
-            else {
+            } else {
                 auto its_entry = get_front();
                 if (its_entry.first) {
                     auto self = std::dynamic_pointer_cast<tcp_client_endpoint_impl>(shared_from_this());
@@ -797,8 +797,9 @@ void tcp_client_endpoint_impl::wait_until_sent(const boost::system::error_code& 
     std::unique_lock<std::recursive_mutex> its_lock(mutex_);
     if (!is_sending_ || !_error) {
         its_lock.unlock();
-        if (!_error)
+        if (!_error) {
             VSOMEIP_WARNING_P << "Maximum wait time for send operation exceeded for tce.";
+        }
 
         notify_disconnect();
         restart(true);

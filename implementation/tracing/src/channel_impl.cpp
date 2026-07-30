@@ -84,12 +84,15 @@ filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filte
     bool has_method(false);
 
     for (auto m : _matches) {
-        if (std::get<0>(m) != ANY_SERVICE)
+        if (std::get<0>(m) != ANY_SERVICE) {
             has_service = true;
-        if (std::get<1>(m) != ANY_INSTANCE)
+        }
+        if (std::get<1>(m) != ANY_INSTANCE) {
             has_instance = true;
-        if (std::get<2>(m) != ANY_METHOD)
+        }
+        if (std::get<2>(m) != ANY_METHOD) {
             has_method = true;
+        }
     }
 
     // Create a filter function
@@ -230,8 +233,9 @@ trace_result_e channel_impl::matches(service_t _service, instance_t _instance, m
 
     // If a negative filter matches --> drop!
     for (auto& its_filter : negative_) {
-        if (its_filter.second(_service, _instance, _method))
+        if (its_filter.second(_service, _instance, _method)) {
             return trace_result_e::DROP;
+        }
     }
 
     // If a positive/header-only/full-payload filter matches --> forward!
@@ -246,14 +250,16 @@ trace_result_e channel_impl::matches(service_t _service, instance_t _instance, m
 
         // Only a POSITIVE filter restricts the channel to an allow-list;
         // HEADER_ONLY and FULL_PAYLOAD leave other messages on the default path.
-        if (its_filter.second.type == filter_type_e::POSITIVE)
+        if (its_filter.second.type == filter_type_e::POSITIVE) {
             has_positive = true;
+        }
     }
 
     // If no positive filter is defined --> forward everything (subject to the
     // full-logging threshold).
-    if (!has_positive)
+    if (!has_positive) {
         return trace_result_e::DEFAULT;
+    }
 
     // Default --> Drop!
     return trace_result_e::DROP;

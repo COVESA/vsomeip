@@ -89,16 +89,19 @@ uint32_t utility::get_message_size(const byte_t* _data, size_t _size) {
 }
 
 uint32_t utility::get_payload_size(const byte_t* _data, uint32_t _size) {
-    if (_size <= VSOMEIP_FULL_HEADER_SIZE)
+    if (_size <= VSOMEIP_FULL_HEADER_SIZE) {
         return 0;
+    }
 
     uint32_t length_ = bithelper::read_uint32_be(&_data[4]);
 
-    if (length_ <= VSOMEIP_SOMEIP_HEADER_SIZE)
+    if (length_ <= VSOMEIP_SOMEIP_HEADER_SIZE) {
         return 0;
+    }
 
-    if (_size != (VSOMEIP_SOMEIP_HEADER_SIZE + length_))
+    if (_size != (VSOMEIP_SOMEIP_HEADER_SIZE + length_)) {
         return 0;
+    }
 
     return length_ - VSOMEIP_SOMEIP_HEADER_SIZE;
 }
@@ -109,12 +112,14 @@ bool utility::is_routing_manager(const std::string& _network) {
 
     std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
-    if (data.count(_network) > 0)
+    if (data.count(_network) > 0) {
         return false;
+    }
 
     auto r = data.insert(std::make_pair(_network, data_t()));
-    if (!r.second)
+    if (!r.second) {
         return false;
+    }
 
 #ifdef _WIN32
     wchar_t its_tmp_folder[MAX_PATH];
@@ -218,8 +223,9 @@ void utility::remove_lockfile(const std::string& _network) {
     auto& data = get_utility_data();
 
     auto r = data.find(_network);
-    if (r == data.end()) // No need to do anything as automatic
+    if (r == data.end()) { // No need to do anything as automatic
         return;
+    }
 
 #ifdef _WIN32
     if (r->second.lock_handle_ != INVALID_HANDLE_VALUE) {
@@ -262,8 +268,9 @@ bool utility::exists(const std::string& _path) {
 bool utility::is_file(const std::string& _path) {
     struct stat its_stat;
     if (stat(_path.c_str(), &its_stat) == 0) {
-        if (its_stat.st_mode & S_IFREG)
+        if (its_stat.st_mode & S_IFREG) {
             return true;
+        }
     }
     return false;
 }
@@ -271,8 +278,9 @@ bool utility::is_file(const std::string& _path) {
 bool utility::is_folder(const std::string& _path) {
     struct stat its_stat;
     if (stat(_path.c_str(), &its_stat) == 0) {
-        if (its_stat.st_mode & S_IFDIR)
+        if (its_stat.st_mode & S_IFDIR) {
             return true;
+        }
     }
     return false;
 }
@@ -293,8 +301,9 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
     static const client_t its_smallest_client = its_masked_diagnosis_address;
 
     auto r = data.find(_config->get_network());
-    if (r == data.end())
+    if (r == data.end()) {
         return VSOMEIP_CLIENT_UNSET;
+    }
 
     if (r->second.next_client_ == VSOMEIP_CLIENT_UNSET) {
         r->second.next_client_ = its_smallest_client;
@@ -369,8 +378,9 @@ void utility::release_client_id(const std::string& _network, client_t _client) {
     std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
     auto r = data.find(_network);
-    if (r != data.end())
+    if (r != data.end()) {
         r->second.used_clients_.erase(_client);
+    }
 }
 
 std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
@@ -379,8 +389,9 @@ std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
     std::set<client_t> its_used_clients;
     auto r = data.find(_network);
     if (r != data.end()) {
-        for (const auto& c : r->second.used_clients_)
+        for (const auto& c : r->second.used_clients_) {
             its_used_clients.insert(c.first);
+        }
     }
     return its_used_clients;
 }

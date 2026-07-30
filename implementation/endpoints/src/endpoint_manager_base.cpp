@@ -244,8 +244,9 @@ std::shared_ptr<local_acceptor> endpoint_manager_base::create_tcp_local_acceptor
                     }
                 } else {
                     its_current_wait_time += IPC_PORT_WAIT_TIME;
-                    if (its_current_wait_time > IPC_PORT_MAX_WAIT_TIME)
+                    if (its_current_wait_time > IPC_PORT_MAX_WAIT_TIME) {
                         break;
+                    }
 
                     std::this_thread::sleep_for(std::chrono::milliseconds(IPC_PORT_WAIT_TIME));
                 }

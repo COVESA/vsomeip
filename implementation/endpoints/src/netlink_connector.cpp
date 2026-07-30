@@ -381,19 +381,18 @@ void netlink_connector::send_rt_request(std::uint32_t _retry) {
 
 bool netlink_connector::has_address(const struct ifaddrmsg* ifa_struct, size_t length) const {
     auto retrta = static_cast<const struct rtattr*>(IFA_RTA(ifa_struct));
-    while
-        RTA_OK(retrta, length) {
-            if (retrta->rta_type == IFA_ADDRESS) {
-                if (address_.is_v4() && RTA_PAYLOAD(retrta) == sizeof(struct in_addr)
-                    && ::memcmp(RTA_DATA(retrta), address_.to_v4().to_bytes().data(), sizeof(struct in_addr)) == 0) {
-                    return true;
-                } else if (address_.is_v6() && RTA_PAYLOAD(retrta) == sizeof(struct in6_addr)
-                           && ::memcmp(RTA_DATA(retrta), address_.to_v6().to_bytes().data(), sizeof(struct in6_addr)) == 0) {
-                    return true;
-                }
+    while (RTA_OK(retrta, length)) {
+        if (retrta->rta_type == IFA_ADDRESS) {
+            if (address_.is_v4() && RTA_PAYLOAD(retrta) == sizeof(struct in_addr)
+                && ::memcmp(RTA_DATA(retrta), address_.to_v4().to_bytes().data(), sizeof(struct in_addr)) == 0) {
+                return true;
+            } else if (address_.is_v6() && RTA_PAYLOAD(retrta) == sizeof(struct in6_addr)
+                       && ::memcmp(RTA_DATA(retrta), address_.to_v6().to_bytes().data(), sizeof(struct in6_addr)) == 0) {
+                return true;
             }
-            retrta = RTA_NEXT(retrta, length);
         }
+        retrta = RTA_NEXT(retrta, length);
+    }
 
     return false;
 }
