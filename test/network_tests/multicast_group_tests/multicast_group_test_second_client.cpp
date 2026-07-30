@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <algorithm>
 #include <iomanip>
 #include <limits>
 
@@ -89,8 +90,11 @@ TEST(MulticastGroupTest, SecondClientSubscribesToService) {
                 }
 
                 // Counting must begin when both the unicast channel and the multicast channel are ready to receive messages.
+                // The first notifications on each channel may not be in sync, so start counting one past whichever
+                // channel is currently furthest ahead. This prevents the initial offset from being
+                // counted as a message loss; the test should only fail if a message is lost after both channels are active.
                 if (unicast_payload != 0 && multicast_payload != 0 && counting_payload == std::numeric_limits<int>::max()) {
-                    counting_payload = current_payload + 1;
+                    counting_payload = std::max(unicast_payload, multicast_payload) + 1;
                 }
 
                 // The test performs specific validations on multicast messages.
