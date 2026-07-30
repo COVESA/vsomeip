@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -106,7 +107,9 @@ private:
 // Builds a minimal SOME/IP message. Any additional trailing bytes requested via
 // '_payload' are appended as payload after the 16 byte SOME/IP header.
 std::vector<byte_t> make_message(service_t _service, method_t _method, const std::vector<byte_t>& _payload = {}) {
-    std::vector<byte_t> data(VSOMEIP_FULL_HEADER_SIZE, 0x00);
+    // Sized up front instead of insert()-ing the payload: the reallocating
+    // insert trips a -Wstringop-overread false positive on GCC 11 (aarch64).
+    std::vector<byte_t> data(VSOMEIP_FULL_HEADER_SIZE + _payload.size(), 0x00);
 
     data[VSOMEIP_SERVICE_POS_MIN] = static_cast<byte_t>(_service >> 8);
     data[VSOMEIP_SERVICE_POS_MAX] = static_cast<byte_t>(_service & 0xff);
@@ -115,7 +118,7 @@ std::vector<byte_t> make_message(service_t _service, method_t _method, const std
     data[VSOMEIP_PROTOCOL_VERSION_POS] = 0x01;
     data[VSOMEIP_INTERFACE_VERSION_POS] = 0x01;
 
-    data.insert(data.end(), _payload.begin(), _payload.end());
+    std::copy(_payload.begin(), _payload.end(), data.begin() + VSOMEIP_FULL_HEADER_SIZE);
     return data;
 }
 
