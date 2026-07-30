@@ -29,4 +29,6 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool is_available_{false};
+    // Latched once a down-transition is observed, even if availability later bounces back.
+    bool became_unavailable_{false};
 };
