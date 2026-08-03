@@ -39,6 +39,7 @@ private:
     std::uint32_t max_message_size_;
     std::uint32_t current_message_size_;
     bool last_segment_received_;
+    bool header_received_;
 
     struct segment_t {
         segment_t(std::uint32_t _start, std::uint32_t _end) : start_(_start), end_(_end) { }

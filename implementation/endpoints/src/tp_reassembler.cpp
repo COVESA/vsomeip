@@ -28,7 +28,8 @@ tp_reassembler::tp_reassembler(std::uint32_t _max_message_size, boost::asio::io_
 std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(const byte_t* const _data, std::uint32_t _data_size,
                                                                      const boost::asio::ip::address& _address, std::uint16_t _port) {
     std::pair<bool, message_buffer_t> ret;
-    if (_data_size < VSOMEIP_FULL_HEADER_SIZE) {
+    // a SOME/IP-TP datagram must at least carry the SOME/IP header and the TP header
+    if (_data_size < VSOMEIP_FULL_HEADER_SIZE + VSOMEIP_TP_HEADER_SIZE) {
         return std::make_pair(false, message_buffer_t());
     }
 
