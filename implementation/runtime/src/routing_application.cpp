@@ -249,7 +249,7 @@ void routing_application::on_subscription([[maybe_unused]] service_t _service, [
 
 void routing_application::on_subscription_status([[maybe_unused]] service_t _service, [[maybe_unused]] instance_t _instance,
                                                  [[maybe_unused]] eventgroup_t _eventgroup, [[maybe_unused]] event_t _event,
-                                                 [[maybe_unused]] uint16_t _error) {
+                                                 [[maybe_unused]] subscription_outcome_e _outcome) {
     VSOMEIP_ERROR_P << "Not supposed to be called";
 }
 

@@ -36,6 +36,14 @@ enum class remote_subscription_state_e : uint8_t {
 
 typedef uint16_t remote_subscription_id_t;
 
+// NOTE: this is a user-visible value, see `application::register_subscription_status_handler`
+// TODO: ideally would be in the API, but it is incoherent to do so without also changing `register_subscription_status_handler` to a saner
+// definition
+enum class subscription_outcome_e : uint16_t {
+    OK = 0x00, // same as CommonAPI::CallStatus::SUCCESS
+    REJECTED = 0x07, // same as CommonAPI::CallStatus::SUBSCRIPTION_REFUSED
+};
+
 struct msg_statistic_t {
     uint32_t counter_;
     length_t avg_length_;

@@ -186,11 +186,10 @@ private:
                             remote_subscription_id_t _id);
 
     void update_subscription_state_and_notify(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                              uint16_t _error);
+                                              subscription_outcome_e _outcome);
 
-    void on_subscribe_nack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
-
-    void on_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+    void on_subscribe_outcome(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                              subscription_outcome_e _outcome);
 
     [[nodiscard]] bool cache_event_payload(const std::shared_ptr<message>& _message);
 

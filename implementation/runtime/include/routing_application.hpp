@@ -74,7 +74,7 @@ private:
                          const vsomeip_sec_client_t* _sec_client, const std::string& _env, bool _subscribed,
                          const std::function<void(bool)>& _accepted_cb) override;
     void on_subscription_status(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                uint16_t _error) override;
+                                subscription_outcome_e _outcome) override;
     void send(std::shared_ptr<message> _message) override;
     void on_offered_services_info(std::vector<std::pair<service_t, instance_t>>& _services) override;
     bool is_routing() const override;

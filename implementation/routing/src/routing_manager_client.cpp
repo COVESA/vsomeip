@@ -526,7 +526,7 @@ void routing_manager_client::subscribe(client_t _client, service_t _service, ins
         // Check/update subscription state
         if (found_eg != its_subscriptions.end()) {
             if (found_eg->second.state_ == subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED) {
-                host_->on_subscription_status(_service, _instance, _eventgroup, _event, 0 /* OK */);
+                host_->on_subscription_status(_service, _instance, _eventgroup, _event, subscription_outcome_e::OK);
                 // ACKNOWLEDGED: already subscribed, do not re-send
             } else if (found_eg->second.state_ == subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED) {
                 // A previous subscription was NACKed: retry it (re-enter IS_SUBSCRIBING and re-send).
@@ -1154,7 +1154,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
             if (protocol::subscribe_answer_data its_data;
                 protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
-                on_subscribe_nack(its_data.subscriber_, its_data.service_, its_data.instance_, its_data.eventgroup_, its_data.event_);
+                on_subscribe_outcome(its_data.subscriber_, its_data.service_, its_data.instance_, its_data.eventgroup_, its_data.event_,
+                                     subscription_outcome_e::REJECTED);
                 VSOMEIP_INFO << "SUBSCRIBE NACK(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "."
                              << hex4(its_data.instance_) << "." << hex4(its_data.eventgroup_) << "." << hex4(its_data.event_) << "]";
             } else {
@@ -1167,7 +1168,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
             if (protocol::subscribe_answer_data its_data;
                 protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
-                on_subscribe_ack(its_data.subscriber_, its_data.service_, its_data.instance_, its_data.eventgroup_, its_data.event_);
+                on_subscribe_outcome(its_data.subscriber_, its_data.service_, its_data.instance_, its_data.eventgroup_, its_data.event_,
+                                     subscription_outcome_e::OK);
                 VSOMEIP_INFO << "SUBSCRIBE ACK(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "." << hex4(its_data.instance_)
                              << "." << hex4(its_data.eventgroup_) << "." << hex4(its_data.event_) << "]";
             } else {
@@ -1548,12 +1550,13 @@ bool routing_manager_client::send_event_registrations(client_t _client, std::spa
 }
 
 void routing_manager_client::update_subscription_state_and_notify(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                                                  event_t _event, uint16_t _error) {
+                                                                  event_t _event, subscription_outcome_e _outcome) {
     bool entry_found = false;
     {
         std::scoped_lock its_lock{consumer_mutex_};
-        const subscription_state_e new_state =
-                _error ? subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED : subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED;
+        const subscription_state_e new_state = (_outcome == subscription_outcome_e::OK)
+                ? subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED
+                : subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED;
         auto update_event_entry = [&](const service_instance_t& si, event_t lookup_ev) {
             auto its_si = consumed_events_.find(si);
             if (its_si == consumed_events_.end()) {
@@ -1587,39 +1590,23 @@ void routing_manager_client::update_subscription_state_and_notify(service_t _ser
         }
     }
     if (entry_found) {
-        host_->on_subscription_status(_service, _instance, _eventgroup, _event, _error);
+        host_->on_subscription_status(_service, _instance, _eventgroup, _event, _outcome);
     }
 }
 
-void routing_manager_client::on_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                              event_t _event) {
+void routing_manager_client::on_subscribe_outcome(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                                  event_t _event, subscription_outcome_e _outcome) {
     (void)_client;
 
     if (_event == ANY_EVENT) {
         auto its_eventgroup = find_consumer_eventgroup(_service, _instance, _eventgroup);
         if (its_eventgroup) {
             for (const auto& its_event : its_eventgroup->get_events()) {
-                update_subscription_state_and_notify(_service, _instance, _eventgroup, its_event->get_event(), 0x0 /*OK*/);
+                update_subscription_state_and_notify(_service, _instance, _eventgroup, its_event->get_event(), _outcome);
             }
         }
     } else {
-        update_subscription_state_and_notify(_service, _instance, _eventgroup, _event, 0x0 /*OK*/);
-    }
-}
-
-void routing_manager_client::on_subscribe_nack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                               event_t _event) {
-    (void)_client;
-
-    if (_event == ANY_EVENT) {
-        auto its_eventgroup = find_consumer_eventgroup(_service, _instance, _eventgroup);
-        if (its_eventgroup) {
-            for (const auto& its_event : its_eventgroup->get_events()) {
-                update_subscription_state_and_notify(_service, _instance, _eventgroup, its_event->get_event(), 0x7 /*Rejected*/);
-            }
-        }
-    } else {
-        update_subscription_state_and_notify(_service, _instance, _eventgroup, _event, 0x7 /*Rejected*/);
+        update_subscription_state_and_notify(_service, _instance, _eventgroup, _event, _outcome);
     }
 }
 

@@ -134,7 +134,7 @@ public:
                                         const vsomeip_sec_client_t* _sec_client, const std::string& _env, bool _subscribed,
                                         const std::function<void(bool)>& _accepted_cb);
     VSOMEIP_EXPORT void on_subscription_status(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                               uint16_t _error);
+                                               subscription_outcome_e _outcome);
     VSOMEIP_EXPORT void register_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                              event_t _event, subscription_status_handler_t _handler, bool _is_selective);
     VSOMEIP_EXPORT void unregister_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
@@ -303,8 +303,6 @@ private:
     bool is_active_dispatcher(const std::thread::id& _id) const;
     void remove_elapsed_dispatchers(std::unique_lock<std::mutex>& _lock);
 
-    void deliver_subscription_state(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event, uint16_t _error);
-
     void print_blocking_call(const std::shared_ptr<sync_handler>& _handler);
 
     void watchdog_cbk(boost::system::error_code const& _error);
@@ -413,7 +411,7 @@ private:
 
     std::thread::id stop_caller_id_;
 
-    service_instance_map<std::map<eventgroup_t, std::map<event_t, std::pair<subscription_status_handler_t, bool>>>>
+    service_instance_map<std::map<eventgroup_t, std::map<event_t, std::pair<subscription_status_handler_t, bool /*is-selective/*/>>>>
             subscription_status_handlers_;
     std::mutex subscription_status_handlers_mutex_;
 

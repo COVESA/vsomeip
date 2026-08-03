@@ -942,14 +942,7 @@ void application_impl::unregister_subscription_handler(service_t _service, insta
 }
 
 void application_impl::on_subscription_status(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                              uint16_t _error) {
-
-    deliver_subscription_state(_service, _instance, _eventgroup, _event, _error);
-}
-
-void application_impl::deliver_subscription_state(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                                  uint16_t _error) {
-
+                                              subscription_outcome_e _outcome) {
     std::vector<subscription_status_handler_t> handlers;
     {
         std::scoped_lock its_lock{subscription_status_handlers_mutex_};
@@ -963,12 +956,14 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
 
             auto do_eventgroup = [&](auto& found_eg) {
                 if (auto found_event = found_eg->second.find(_event); found_event != found_eg->second.end()) {
-                    if (!_error || (_error && found_event->second.second)) {
+                    if (_outcome == subscription_outcome_e::OK
+                        || (_outcome == subscription_outcome_e::REJECTED && found_event->second.second /*is-selective*/)) {
                         handlers.push_back(found_event->second.first);
                     }
                 }
                 if (auto found_any_event = found_eg->second.find(ANY_EVENT); found_any_event != found_eg->second.end()) {
-                    if (!_error || (_error && found_any_event->second.second)) {
+                    if (_outcome == subscription_outcome_e::OK
+                        || (_outcome == subscription_outcome_e::REJECTED && found_any_event->second.second /*is-selective*/)) {
                         handlers.push_back(found_any_event->second.first);
                     }
                 }
@@ -990,8 +985,9 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
     {
         std::unique_lock handlers_lock(handlers_mutex_);
         for (auto& handler : handlers) {
-            auto its_sync_handler = std::make_shared<sync_handler>([handler, _service, _instance, _eventgroup, _event, _error]() {
-                handler(_service, _instance, _eventgroup, _event, _error);
+            auto its_sync_handler = std::make_shared<sync_handler>([handler, _service, _instance, _eventgroup, _event, _outcome]() {
+                // NOTE: unavoidable cast, the API takes a uint16_t..
+                handler(_service, _instance, _eventgroup, _event, static_cast<uint16_t>(_outcome));
             });
             its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
             its_sync_handler->service_id_ = _service;
