@@ -1,4 +1,0 @@
-# KNOWN ISSUE: Race on logger singleton destruction during shutdown.
-# Threads may still be logging while main thread destroys the static logger instance.
-# TODO: Fix by implementing proper lifetime management for the logger singleton.
-race:vsomeip_v3::logger::logger_impl::get

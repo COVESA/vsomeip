@@ -44,8 +44,8 @@ public:
     void log_to_file(std::string_view _msg);
 
 #ifdef USE_DLT
-    static DltContext& dlt_context();
     void log_to_dlt(level_e _level, std::string_view _msg);
+    DltContext dlt_context_{};
 #endif
 
 private:
