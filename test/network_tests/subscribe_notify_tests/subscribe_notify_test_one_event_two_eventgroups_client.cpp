@@ -112,8 +112,9 @@ public:
                     << _response->get_session() << "] = ";
         std::shared_ptr<vsomeip::payload> its_payload = _response->get_payload();
         its_message << "(" << std::dec << its_payload->get_length() << ") " << std::hex << std::setfill('0');
-        for (uint32_t i = 0; i < its_payload->get_length(); ++i)
+        for (uint32_t i = 0; i < its_payload->get_length(); ++i) {
             its_message << std::setw(2) << static_cast<int>(its_payload->get_data()[i]) << " ";
+        }
         VSOMEIP_DEBUG << its_message.str();
         ASSERT_EQ(info_.service_id, _response->get_service());
 
@@ -162,8 +163,7 @@ public:
         app_->send(its_request);
     }
 
-    void wait_on_condition(std::unique_lock<std::mutex>& _lock, bool* _predicate, std::condition_variable& _condition,
-                           std::uint32_t _timeout) {
+    void wait_on_condition(std::unique_lock<std::mutex>& _lock, bool* _predicate, std::condition_variable& _condition, uint32_t _timeout) {
         if (!_condition.wait_for(_lock, std::chrono::seconds(_timeout), [_predicate] { return !*_predicate; })) {
             ADD_FAILURE() << "Condition variable wasn't notified within time (" << _timeout << "sec)";
         }
@@ -215,7 +215,7 @@ public:
         received_events_.clear();
     }
 
-    void check_received_initial_events_number(std::set<std::pair<vsomeip::event_t, std::uint32_t>> _expected) {
+    void check_received_initial_events_number(std::set<std::pair<vsomeip::event_t, uint32_t>> _expected) {
         for (const auto& e : _expected) {
             auto event = number_received_events_.find(e.first);
             ASSERT_NE(number_received_events_.end(), event) << e.first;
@@ -234,7 +234,7 @@ public:
         number_received_events_.clear();
     }
 
-    void check_received_events_number(std::set<std::pair<vsomeip::event_t, std::uint32_t>> _expected) {
+    void check_received_events_number(std::set<std::pair<vsomeip::event_t, uint32_t>> _expected) {
         for (const auto& e : _expected) {
             auto event = number_received_events_.find(e.first);
             ASSERT_NE(number_received_events_.end(), event);
@@ -261,7 +261,7 @@ public:
             wait_for_initial_events(its_events_lock, events_condition_);
             check_received_events_payload(0x1);
 
-            std::set<std::pair<vsomeip::event_t, std::uint32_t>> its_expected;
+            std::set<std::pair<vsomeip::event_t, uint32_t>> its_expected;
             its_expected.insert({info_.event_id, 1});
             its_expected.insert({static_cast<vsomeip::event_t>(info_.event_id + 1), 1});
             // Initial event for the event which is member of both eventgroups has to be sent at least twice
@@ -341,7 +341,7 @@ private:
     std::condition_variable events_condition_;
 
     std::vector<std::shared_ptr<vsomeip::payload>> received_events_;
-    std::map<vsomeip::event_t, std::uint32_t> number_received_events_;
+    std::map<vsomeip::event_t, uint32_t> number_received_events_;
     std::thread run_thread_;
 };
 

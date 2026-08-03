@@ -22,7 +22,7 @@
 
 class payload_test_client {
 public:
-    payload_test_client(bool _use_tcp, bool _call_service_sync, std::uint32_t _sliding_window_size);
+    payload_test_client(bool _use_tcp, bool _call_service_sync, uint32_t _sliding_window_size);
     bool init();
     void start();
     void stop();
@@ -37,23 +37,23 @@ private:
     void send_messages_sync(std::unique_lock<std::mutex>& lk);
     void send_messages_async(std::unique_lock<std::mutex>& lk);
     void shutdown_service();
-    std::uint32_t get_max_allowed_payload();
+    uint32_t get_max_allowed_payload();
 
 private:
     std::shared_ptr<vsomeip::application> app_;
     std::shared_ptr<vsomeip::message> request_;
     bool call_service_sync_;
-    std::uint32_t sliding_window_size_;
+    uint32_t sliding_window_size_;
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
     bool is_available_;
-    const std::uint32_t number_of_messages_to_send_;
-    std::uint32_t number_of_sent_messages_;
-    std::uint32_t number_of_sent_messages_total_;
-    std::uint32_t number_of_acknowledged_messages_;
+    const uint32_t number_of_messages_to_send_;
+    uint32_t number_of_sent_messages_;
+    uint32_t number_of_sent_messages_total_;
+    uint32_t number_of_acknowledged_messages_;
 
-    std::uint32_t current_payload_size_;
+    uint32_t current_payload_size_;
 
     stop_watch watch_;
 

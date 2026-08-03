@@ -145,7 +145,7 @@ private:
         EXPECT_TRUE(client_subscribed_selective_);
         auto its_payload = vsomeip::runtime::get()->create_payload();
 
-        std::uint32_t i = 0;
+        uint32_t i = 0;
 
         for (; i < notifications_to_send_; i++) {
             its_payload->set_data(std::vector<vsomeip::byte_t>(i + 1, 0x55));
@@ -184,7 +184,7 @@ private:
         stop();
     }
 
-    bool subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
+    bool subscription_handler(vsomeip::client_t _client, uint32_t _uid, uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
         VSOMEIP_DEBUG << "Client 0x" << std::hex << std::setfill('0') << std::setw(4) << _client
@@ -193,7 +193,7 @@ private:
         return true;
     }
 
-    bool selective_subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
+    bool selective_subscription_handler(vsomeip::client_t _client, uint32_t _uid, uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
         VSOMEIP_DEBUG << "Client 0x" << std::hex << std::setfill('0') << std::setw(4) << _client
@@ -214,8 +214,8 @@ private:
     bool client_subscribed_ = false;
     bool client_subscribed_selective_ = false;
     vsomeip::client_t client_id_ = 0;
-    std::uint32_t messages_received_ = 0;
-    std::uint8_t notifications_to_send_ = 0;
+    uint32_t messages_received_ = 0;
+    uint8_t notifications_to_send_ = 0;
     std::mutex mutex_;
     std::condition_variable condition_;
     std::thread offer_thread_;

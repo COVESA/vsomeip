@@ -33,7 +33,7 @@ private:
     void unsubscribe_all();
     void stop_service();
 
-    bool compare_payload(const std::shared_ptr<vsomeip::payload>& _payload, std::size_t _index) const;
+    bool compare_payload(const std::shared_ptr<vsomeip::payload>& _payload, size_t _index) const;
 
 private:
     debounce_test_id_e test_id_;

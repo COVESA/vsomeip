@@ -222,8 +222,8 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool is_blocked_;
-    std::atomic<std::uint32_t> received_responses_;
-    std::atomic<std::uint32_t> received_errors_;
+    std::atomic<uint32_t> received_responses_;
+    std::atomic<uint32_t> received_errors_;
     std::thread runner_;
 };
 

@@ -66,7 +66,7 @@ enum class error_e : uint8_t {
     ERROR_UNKNOWN = 0xff
 };
 
-enum class routing_info_entry_type_e : std::uint8_t {
+enum class routing_info_entry_type_e : uint8_t {
     // RIE_ADD_CLIENT = 0x00,    (deprecated since 3.7.1)
     // RIE_DELETE_CLIENT = 0x01, (deprecated since 3.7.1)
     RIE_ADD_SERVICE_INSTANCE = 0x02,

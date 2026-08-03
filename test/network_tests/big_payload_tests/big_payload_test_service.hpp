@@ -40,9 +40,9 @@ private:
     bool blocked_;
     bool to_stop;
     big_payload_test::test_mode test_mode_;
-    std::uint32_t number_of_received_messages_;
+    uint32_t number_of_received_messages_;
     std::thread offer_thread_;
-    std::uint32_t expected_messages_;
+    uint32_t expected_messages_;
     vsomeip::service_t service_id_;
     std::queue<std::shared_ptr<vsomeip::message>> incoming_requests_;
 };

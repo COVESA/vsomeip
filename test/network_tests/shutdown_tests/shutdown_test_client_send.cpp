@@ -33,7 +33,7 @@ public:
         std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();
         std::vector<vsomeip::byte_t> its_payload_data;
 
-        for (std::uint32_t i = 0; i < shutdown_test::SHUTDOWN_NUMBER_MESSAGES; ++i) {
+        for (uint32_t i = 0; i < shutdown_test::SHUTDOWN_NUMBER_MESSAGES; ++i) {
             request_->set_service(shutdown_test::TEST_SERVICE_SERVICE_ID);
             request_->set_instance(shutdown_test::TEST_SERVICE_INSTANCE_ID);
             request_->set_method(shutdown_test::STOP_METHOD);
@@ -94,7 +94,7 @@ public:
         }
     }
 
-    static std::uint32_t size_buffer_;
+    static uint32_t size_buffer_;
     static bool is_tcp_;
 
 private:
@@ -118,7 +118,7 @@ TEST(someip_shutdown_test, send_messages_to_service_and_immediately_stop) {
     }
 }
 
-std::uint32_t shutdown_test_client::size_buffer_ = 0;
+uint32_t shutdown_test_client::size_buffer_ = 0;
 bool shutdown_test_client::is_tcp_ = false;
 
 #if defined(__linux__) || defined(__QNX__)

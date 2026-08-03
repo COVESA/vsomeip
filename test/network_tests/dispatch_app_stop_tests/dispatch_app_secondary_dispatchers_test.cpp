@@ -141,8 +141,8 @@ TEST(dispatch, max_dispatchers_limit_enforced) {
     // These synchronize test steps in the callbacks.
     std::mutex mutex;
     std::condition_variable condvar;
-    std::uint8_t active_callbacks{0};
-    std::uint8_t max_callbacks{0};
+    uint8_t active_callbacks{0};
+    uint8_t max_callbacks{0};
     bool unblock{false};
     bool callback_called{false};
 

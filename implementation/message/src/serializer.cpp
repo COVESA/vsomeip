@@ -11,7 +11,7 @@
 
 namespace vsomeip_v3 {
 
-serializer::serializer(std::uint32_t _buffer_shrink_threshold) :
+serializer::serializer(uint32_t _buffer_shrink_threshold) :
     data_(0), shrink_count_(0), buffer_shrink_threshold_(_buffer_shrink_threshold) { }
 
 serializer::~serializer() { }
@@ -71,11 +71,11 @@ const byte_t* serializer::get_data() const {
 }
 
 uint32_t serializer::get_capacity() const {
-    return static_cast<std::uint32_t>(data_.max_size());
+    return static_cast<uint32_t>(data_.max_size());
 }
 
 uint32_t serializer::get_size() const {
-    return static_cast<std::uint32_t>(data_.size());
+    return static_cast<uint32_t>(data_.size());
 }
 
 void serializer::set_data(byte_t* _data, uint32_t _capacity) {

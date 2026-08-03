@@ -37,7 +37,7 @@ TEST(MulticastGroupTest, ServiceOffersTheService) {
     // Register subscription handler to check if the clients are subscribed
     service_application->register_subscription_handler(
             SERVICE_ID_MULTICAST, INSTANCE_ID, EVENTGROUP_ID,
-            [&](vsomeip::client_t _client, std::uint32_t, std::uint32_t, const std::string&, bool _subscribed) {
+            [&](vsomeip::client_t _client, uint32_t, uint32_t, const std::string&, bool _subscribed) {
                 VSOMEIP_INFO << "Client: 0x" << std::setfill('0') << std::setw(4) << std::hex << _client
                              << ((_subscribed) ? " subscribed" : " unsubscribed");
                 _subscribed ? subscribed_clients++ : subscribed_clients--;

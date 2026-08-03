@@ -49,7 +49,7 @@ struct interface_manipulation_recreate : public base_fake_socket_fixture {
 TEST_F(interface_manipulation_recreate, no_spurious_availability_when_recreated_from_scratch) {
     common::iteration_log_capture log_capture;
 
-    for (std::size_t i = 0; i < 401; ++i) {
+    for (size_t i = 0; i < 401; ++i) {
         // Discard the previous iteration's captured output, so only this iteration's trace is dumped on failure.
         log_capture.begin_iteration();
         try {

@@ -79,8 +79,8 @@ instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
     return its_instance;
 }
 
-std::string make_buffer_dump(const std::string& _local, const std::string& _remote, std::size_t _offset, uint32_t _current_message_size,
-                             std::size_t _remaining_bytes, const byte_t* _pdu, std::size_t _pdu_size) {
+std::string make_buffer_dump(const std::string& _local, const std::string& _remote, size_t _offset, uint32_t _current_message_size,
+                             size_t _remaining_bytes, const byte_t* _pdu, size_t _pdu_size) {
     std::ostringstream oss;
     oss << " local: " << _local << " remote: " << _remote << " offset: " << _offset << " current_message_size: " << _current_message_size
         << " remaining_bytes: " << _remaining_bytes << " pdu: " << utility::dump(_pdu, _pdu_size);

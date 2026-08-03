@@ -67,9 +67,9 @@ public:
     void set_established(bool _established);
     void set_connected(bool _connected);
     virtual bool get_remote_address(boost::asio::ip::address& _address) const;
-    virtual std::uint16_t get_remote_port() const;
+    virtual uint16_t get_remote_port() const;
 
-    std::uint16_t get_local_port() const;
+    uint16_t get_local_port() const;
     virtual bool is_reliable() const = 0;
 
     size_t get_queue_size() const;
@@ -79,7 +79,7 @@ public:
     void connect_cbk(boost::system::error_code const& _error);
     void wait_connect_cbk(boost::system::error_code const& _error);
     void wait_connecting_cbk(boost::system::error_code const& _error);
-    virtual void send_cbk(boost::system::error_code const& _error, std::size_t _bytes, const message_buffer_ptr_t& _sent_msg);
+    virtual void send_cbk(boost::system::error_code const& _error, size_t _bytes, const message_buffer_ptr_t& _sent_msg);
     void flush_cbk(boost::system::error_code const& _error);
 
 public:
@@ -88,9 +88,9 @@ public:
     virtual void print_status() = 0;
 
 protected:
-    enum class cei_state_e : std::uint8_t { CLOSED, CONNECTING, CONNECTED, ESTABLISHED };
+    enum class cei_state_e : uint8_t { CLOSED, CONNECTING, CONNECTED, ESTABLISHED };
 
-    enum class connecting_timer_state_e : std::uint8_t { IN_PROGRESS, FINISH_SUCCESS, FINISH_ERROR };
+    enum class connecting_timer_state_e : uint8_t { IN_PROGRESS, FINISH_SUCCESS, FINISH_ERROR };
 
     std::pair<message_buffer_ptr_t, uint32_t> get_front();
     virtual void send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry) = 0;
@@ -102,13 +102,13 @@ protected:
     void start_connect_timer();
     void start_connecting_timer();
     bool check_message_size(uint32_t _size) const;
-    typename endpoint_impl<Protocol>::cms_ret_e segment_message(const std::uint8_t* const _data, std::uint32_t _size);
-    bool check_queue_limit(const uint8_t* _data, std::uint32_t _size) const;
+    typename endpoint_impl<Protocol>::cms_ret_e segment_message(const uint8_t* const _data, uint32_t _size);
+    bool check_queue_limit(const uint8_t* _data, uint32_t _size) const;
     // Bytes held in the batching stage (the current train_ plus all trains
     // parked in dispatched_trains_) that have not yet been moved to queue_.
     // Computed on demand and counted against queue_limit_ so pending trains
     // cannot grow memory unbounded during high-frequency sending.
-    std::size_t get_pending_train_size() const;
+    size_t get_pending_train_size() const;
     void queue_train(const std::shared_ptr<train>& _train);
     void update_last_departure();
     bool ensure_connected(const boost::system::error_code& _error);
@@ -125,7 +125,7 @@ protected:
     boost::asio::steady_timer connect_timer_;
     std::atomic<uint32_t> connect_timeout_;
     std::atomic<cei_state_e> state_;
-    std::atomic<std::uint32_t> reconnect_counter_;
+    std::atomic<uint32_t> reconnect_counter_;
     std::chrono::steady_clock::time_point reconnect_start_time_;
 
     std::mutex connecting_timer_mutex_;
@@ -142,7 +142,7 @@ protected:
     std::atomic<bool> has_last_departure_;
 
     std::deque<std::pair<message_buffer_ptr_t, uint32_t>> queue_;
-    std::size_t queue_size_;
+    size_t queue_size_;
 
     mutable std::recursive_mutex mutex_;
 
@@ -155,9 +155,9 @@ protected:
 private:
     virtual std::string get_remote_information() const = 0;
     virtual bool tp_segmentation_enabled(service_instance_t _si, method_t _method) const;
-    virtual std::uint32_t get_max_allowed_reconnects() const = 0;
+    virtual uint32_t get_max_allowed_reconnects() const = 0;
     virtual void max_allowed_reconnects_reached() = 0;
-    void send_segments(const tp::tp_split_messages_t& _segments, std::uint32_t _separation_time);
+    void send_segments(const tp::tp_split_messages_t& _segments, uint32_t _separation_time);
 
     void schedule_train();
 

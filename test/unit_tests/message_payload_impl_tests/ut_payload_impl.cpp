@@ -10,8 +10,8 @@
 #include "../../../implementation/message/include/serializer.hpp"
 
 namespace {
-const std::uint8_t array_size = 4;
-const std::uint32_t buffer_shrink_threshold = 1;
+const uint8_t array_size = 4;
+const uint32_t buffer_shrink_threshold = 1;
 const vsomeip_v3::byte_t byte1 = 1;
 const vsomeip_v3::byte_t byte2 = 2;
 const vsomeip_v3::byte_t byte3 = 3;
@@ -20,15 +20,15 @@ const vsomeip_v3::byte_t byte4 = 4;
 
 TEST(payload_impl_test, equalequal_operator) {
     // Create test data.
-    std::vector<std::uint8_t> data_vector_{byte1, byte2, byte3, byte4};
+    std::vector<uint8_t> data_vector_{byte1, byte2, byte3, byte4};
 
     vsomeip_v3::payload_impl its_payload_impl(data_vector_);
 
-    std::vector<std::uint8_t> data_vector2_{byte1, byte2, byte3, byte4};
+    std::vector<uint8_t> data_vector2_{byte1, byte2, byte3, byte4};
 
     vsomeip_v3::payload_impl its_similar_payload_impl(data_vector2_);
 
-    std::vector<std::uint8_t> data_vector3_{byte4, byte3, byte2, byte1};
+    std::vector<uint8_t> data_vector3_{byte4, byte3, byte2, byte1};
 
     vsomeip_v3::payload_impl its_different_payload_impl(data_vector3_);
 
@@ -41,7 +41,7 @@ TEST(payload_impl_test, set_data) {
     // Create test data.
     std::vector<vsomeip_v3::byte_t> data_vector_{byte1, byte2, byte3, byte4};
 
-    std::array<std::uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
+    std::array<uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
 
     vsomeip_v3::payload_impl its_payload_impl1;
     vsomeip_v3::payload_impl its_payload_impl2;
@@ -59,9 +59,9 @@ TEST(payload_impl_test, set_data) {
 
 TEST(payload_impl_test, constructors) {
     // Create test data.
-    std::vector<std::uint8_t> data_vector_{byte1, byte2, byte3, byte4};
+    std::vector<uint8_t> data_vector_{byte1, byte2, byte3, byte4};
 
-    std::array<std::uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
+    std::array<uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
 
     // Test Overloaded constructors.
     vsomeip_v3::payload_impl its_payload_impl1;
@@ -80,7 +80,7 @@ TEST(payload_impl_test, constructors) {
 
 TEST(payload_impl_test, get_length) {
     // Create test data.
-    std::array<std::uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
+    std::array<uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
 
     std::unique_ptr<vsomeip_v3::payload_impl> its_payload_impl(new vsomeip_v3::payload_impl(data_array_.data(), data_array_.size()));
 
@@ -90,7 +90,7 @@ TEST(payload_impl_test, get_length) {
 
 TEST(payload_impl_test, serialize) {
     // Create test data.
-    std::array<std::uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
+    std::array<uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
 
     std::unique_ptr<vsomeip_v3::payload_impl> its_payload_impl(new vsomeip_v3::payload_impl(data_array_.data(), data_array_.size()));
     vsomeip_v3::serializer its_serializer(buffer_shrink_threshold);
@@ -107,7 +107,7 @@ TEST(payload_impl_test, serialize) {
 
 TEST(payload_impl_test, deserialize) {
     // Create test data.
-    std::array<std::uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
+    std::array<uint8_t, array_size> data_array_{byte1, byte2, byte3, byte4};
 
     std::unique_ptr<vsomeip_v3::payload_impl> its_payload_impl(new vsomeip_v3::payload_impl());
     vsomeip_v3::deserializer its_deserializer(data_array_.data(), data_array_.size(), buffer_shrink_threshold);

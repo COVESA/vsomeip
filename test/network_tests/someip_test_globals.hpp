@@ -30,18 +30,18 @@ constexpr vsomeip::client_t TEST_CLIENT_CLIENT_ID = 0x1255;
 // Client external
 constexpr vsomeip::client_t TEST_CLIENT_EXTERNAL_CLIENT_ID = 0x1644;
 
-constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND = 10;
+constexpr uint32_t NUMBER_OF_MESSAGES_TO_SEND = 10;
 constexpr vsomeip::session_t TEST_INITIAL_SESSION_ID = 0x1;
 
-constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS = 50;
+constexpr uint32_t NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS = 50;
 constexpr vsomeip::byte_t PAYLOAD_TEST_DATA = 0xDD;
-constexpr std::uint32_t MAX_PAYLOADSIZE = 1024 * 128;
+constexpr uint32_t MAX_PAYLOADSIZE = 1024 * 128;
 // TR_SOMEIP_00061
-constexpr std::uint32_t MAX_PAYLOADSIZE_UDP = 1400;
+constexpr uint32_t MAX_PAYLOADSIZE_UDP = 1400;
 
-constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS = 32;
+constexpr uint32_t NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS = 32;
 
-constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS = 32;
+constexpr uint32_t NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS = 32;
 
-constexpr std::uint32_t NUMBER_OF_CLIENTS_TO_REQUEST_SHUTDOWN = 4;
+constexpr uint32_t NUMBER_OF_CLIENTS_TO_REQUEST_SHUTDOWN = 4;
 }

@@ -29,7 +29,7 @@ class cpu_load_test_service {
 public:
     cpu_load_test_service() :
         app_(vsomeip::runtime::get()->create_application("cpu_load_test_service")), is_registered_(false), blocked_(false),
-        number_of_received_messages_(0), number_of_received_messages_total_(0), load_measurer_(static_cast<std::uint32_t>(::getpid())),
+        number_of_received_messages_(0), number_of_received_messages_total_(0), load_measurer_(static_cast<uint32_t>(::getpid())),
         offer_thread_(std::bind(&cpu_load_test_service::run, this)) { }
 
     ~cpu_load_test_service() {
@@ -149,8 +149,8 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
-    std::uint32_t number_of_received_messages_;
-    std::uint32_t number_of_received_messages_total_;
+    uint32_t number_of_received_messages_;
+    uint32_t number_of_received_messages_total_;
     cpu_load_measurer load_measurer_;
     std::vector<double> results_;
     std::thread offer_thread_;

@@ -21,7 +21,7 @@ class local_endpoint;
  * Role a local connection serves. A peer (client_t) can ride two sockets at
  * once (one per role); a failure on one must only affect that role's state.
  **/
-enum class connection_role_e : std::uint8_t {
+enum class connection_role_e : uint8_t {
     // A connection WE opened towards a peer that offers a service we consume
     // (outbound consumer endpoint).
     consumer,

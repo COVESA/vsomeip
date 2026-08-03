@@ -149,7 +149,7 @@ public:
         EXPECT_EQ(its_cmp_data.size(), its_rcv_data.size());
         if (testmode_ == someip_tp_test::test_mode_e::OVERLAP) {
             if (number_notifications_of_slave_ == 0) { // ASCENDING with 2nd segment too big
-                for (std::uint32_t i = 0; i < 16; i++) {
+                for (uint32_t i = 0; i < 16; i++) {
                     its_cmp_data[2 * (someip_tp_test::max_segment_size - 160) + i] = 0xff;
                 }
             } else if (number_notifications_of_slave_ == 1) {
@@ -221,7 +221,7 @@ public:
                                                              + request_send_to_slave_->get_payload()->get_length());
         if (testmode_ == someip_tp_test::test_mode_e::OVERLAP) {
             if (number_responses_of_slave_ == 0) { // ASCENDING with 2nd segment too big
-                for (std::uint32_t i = 0; i < 16; i++) {
+                for (uint32_t i = 0; i < 16; i++) {
                     its_req_payload[2 * (someip_tp_test::max_segment_size - 160) + i] = 0xff;
                 }
             } else if (number_responses_of_slave_ == 1) {
@@ -245,10 +245,10 @@ public:
         }
     }
 
-    std::vector<vsomeip::byte_t> generate_payload(std::uint32_t _number_of_fragments, std::uint32_t _segment_size) {
+    std::vector<vsomeip::byte_t> generate_payload(uint32_t _number_of_fragments, uint32_t _segment_size) {
         std::vector<vsomeip::byte_t> its_data;
-        for (std::uint32_t i = 0; i < _number_of_fragments; i++) {
-            its_data.resize((i * _segment_size) + _segment_size, static_cast<std::uint8_t>(i));
+        for (uint32_t i = 0; i < _number_of_fragments; i++) {
+            its_data.resize((i * _segment_size) + _segment_size, static_cast<uint8_t>(i));
         }
         return its_data;
     }
@@ -282,7 +282,7 @@ public:
         condition_.wait(its_lock, [this] { return !wait_until_shutdown_method_called_; });
     }
 
-    void subscription_handler_async(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed,
+    void subscription_handler_async(vsomeip::client_t _client, uint32_t _uid, uint32_t _gid, bool _subscribed,
                                     const std::function<void(const bool)>& _cbk) {
         (void)_uid;
         (void)_gid;
@@ -307,13 +307,13 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     std::atomic<bool> wait_for_slave_subscription_;
-    std::atomic<std::uint32_t> number_notifications_of_slave_;
+    std::atomic<uint32_t> number_notifications_of_slave_;
     std::promise<bool> notify_method_called_;
     bool wait_for_slave_service_available_;
     bool wait_for_two_responses_of_slave_;
-    std::uint32_t number_responses_of_slave_;
+    uint32_t number_responses_of_slave_;
     bool wait_for_two_requests_of_slave_;
-    std::uint32_t number_requests_from_slave_;
+    uint32_t number_requests_from_slave_;
     bool wait_for_two_notifications_of_slave_;
     std::shared_ptr<vsomeip::message> request_send_to_slave_;
     std::thread start_thread_;

@@ -83,7 +83,7 @@ public:
         if (its_size == 0) {
             return *this;
         }
-        std::size_t const its_offset = buffer_.size();
+        size_t const its_offset = buffer_.size();
         buffer_.resize(its_offset + its_size);
         protocol::serialize(_command, buffer_.data() + its_offset);
         if (its_size > largest_command_) {
@@ -263,7 +263,7 @@ public:
     void trigger_error();
 
 public:
-    std::uint16_t get_local_port() const;
+    uint16_t get_local_port() const;
     boost::asio::ip::tcp::endpoint peer_endpoint() const;
 
     void register_cleanup_handler(const cleanup_handler_t& _handler);

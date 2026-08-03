@@ -9,7 +9,7 @@
 
 class cpu_load_measurer {
 public:
-    cpu_load_measurer(std::uint32_t _pid);
+    cpu_load_measurer(uint32_t _pid);
     virtual ~cpu_load_measurer();
     void start();
     void stop();
@@ -17,19 +17,19 @@ public:
     double get_cpu_load() const;
 
 private:
-    std::uint64_t read_proc_stat(std::uint64_t* _idle);
-    std::uint64_t read_proc_pid_stat();
+    uint64_t read_proc_stat(uint64_t* _idle);
+    uint64_t read_proc_pid_stat();
     bool read_clock_ticks();
 
 private:
-    std::uint32_t pid_;
-    std::uint64_t jiffies_complete_start_;
-    std::uint64_t jiffies_idle_start_;
-    std::uint64_t jiffies_complete_stop_;
-    std::uint64_t jiffies_idle_stop_;
-    std::uint64_t clock_ticks_;
-    std::uint64_t jiffies_passed_pid_start_;
-    std::uint64_t jiffies_passed_pid_stop_;
+    uint32_t pid_;
+    uint64_t jiffies_complete_start_;
+    uint64_t jiffies_idle_start_;
+    uint64_t jiffies_complete_stop_;
+    uint64_t jiffies_idle_stop_;
+    uint64_t clock_ticks_;
+    uint64_t jiffies_passed_pid_start_;
+    uint64_t jiffies_passed_pid_stop_;
     double cpu_load_pid_;
     double cpu_load_overall_;
     double cpu_load_pid_wo_idle_;

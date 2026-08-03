@@ -100,7 +100,7 @@ struct provider_event_test : ::testing::Test {
 
     static std::shared_ptr<debounce_filter_impl_t> make_filter(bool _on_change, int64_t _interval_ms = -1,
                                                                bool _on_change_resets_interval = false,
-                                                               std::map<std::size_t, byte_t> _ignore = {}) {
+                                                               std::map<size_t, byte_t> _ignore = {}) {
         auto filter = std::make_shared<debounce_filter_impl_t>();
         filter->on_change_ = _on_change;
         filter->interval_ = _interval_ms;

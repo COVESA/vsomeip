@@ -30,8 +30,8 @@ public:
     void stop() const;
 
     void set_routing_state(routing_state_e _routing_state) const;
-    bool update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
-                                      bool _magic_cookies_enabled, bool _offer) const;
+    bool update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable, bool _magic_cookies_enabled,
+                                      bool _offer) const;
 
 #ifndef VSOMEIP_DISABLE_SECURITY
     void update_security_policy_configuration(uint32_t _uid, uint32_t _gid, std::shared_ptr<policy> _policy,

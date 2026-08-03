@@ -48,5 +48,5 @@ private:
     std::deque<std::chrono::microseconds> undershot_debounce_times_;
     vsomeip::service_t service_id_;
     vsomeip::instance_t instance_id_;
-    std::uint32_t number_of_received_messages_;
+    uint32_t number_of_received_messages_;
 };

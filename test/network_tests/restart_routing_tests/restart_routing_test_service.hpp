@@ -31,8 +31,8 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool all_received_{false};
-    std::map<std::uint16_t, std::uint32_t> received_counter_;
-    std::uint32_t number_of_received_messages_{0};
+    std::map<uint16_t, uint32_t> received_counter_;
+    uint32_t number_of_received_messages_{0};
     std::thread runner_;
     std::thread starter_;
 };

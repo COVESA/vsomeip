@@ -37,8 +37,8 @@ private:
     std::condition_variable condition_;
     bool blocked_;
     bool is_available_;
-    std::uint32_t number_of_messages_to_send_;
-    std::uint32_t number_of_sent_messages_;
-    std::uint32_t number_of_acknowledged_messages_;
+    uint32_t number_of_messages_to_send_;
+    uint32_t number_of_sent_messages_;
+    uint32_t number_of_acknowledged_messages_;
     std::thread sender_;
 };

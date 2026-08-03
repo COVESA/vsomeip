@@ -89,7 +89,7 @@ public:
         auto its_payload = _message->get_payload();
         ASSERT_EQ(2u, its_payload->get_length());
         test_mode_ = static_cast<event_test::test_mode_e>(its_payload->get_data()[0]);
-        notifications_to_send_ = static_cast<std::uint32_t>(its_payload->get_data()[1]);
+        notifications_to_send_ = static_cast<uint32_t>(its_payload->get_data()[1]);
         std::scoped_lock its_lock(mutex_);
         wait_until_notify_method_called_ = false;
         condition_.notify_one();
@@ -121,7 +121,7 @@ public:
     void notify() {
         EXPECT_TRUE(client_subscribed_);
         auto its_payload = vsomeip::runtime::get()->create_payload();
-        for (std::uint32_t i = 0; i < notifications_to_send_; i++) {
+        for (uint32_t i = 0; i < notifications_to_send_; i++) {
             if (test_mode_ == event_test::test_mode_e::PAYLOAD_FIXED) {
                 its_payload->set_data(std::vector<vsomeip::byte_t>(event_test::payload_fixed_length, 0x44));
             } else if (test_mode_ == event_test::test_mode_e::PAYLOAD_DYNAMIC) {
@@ -131,7 +131,7 @@ public:
         }
     }
 
-    bool subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
+    bool subscription_handler(vsomeip::client_t _client, uint32_t _uid, uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
         VSOMEIP_INFO << "Client: 0x" << std::hex << _client << ((_subscribed) ? " subscribed" : "unsubscribed");
@@ -148,7 +148,7 @@ private:
     bool wait_until_notify_method_called_;
     bool wait_until_shutdown_method_called_;
     std::atomic<bool> client_subscribed_;
-    std::uint32_t notifications_to_send_;
+    uint32_t notifications_to_send_;
     std::mutex mutex_;
     std::condition_variable condition_;
     std::thread offer_thread_;

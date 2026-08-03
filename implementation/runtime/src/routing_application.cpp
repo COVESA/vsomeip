@@ -58,7 +58,7 @@ void routing_application::set_routing_state(routing_state_e _routing_state) cons
     routing_->set_routing_state(_routing_state);
 }
 
-bool routing_application::update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+bool routing_application::update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                        bool _magic_cookies_enabled, bool _offer) const {
     bool ret{false};
     if (_offer) {
@@ -99,7 +99,7 @@ void routing_application::set_sd_acceptance_required(const remote_info_t& _remot
             _remote.ip_.is_v4_ ? static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(_remote.ip_.address_.v4_))
                                : static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(_remote.ip_.address_.v6_)));
 
-    if (_remote.first_ == std::numeric_limits<std::uint16_t>::max() && _remote.last_ == 0) {
+    if (_remote.first_ == std::numeric_limits<uint16_t>::max() && _remote.last_ == 0) {
         // special case to (de)activate rules per IP
         configuration_->set_sd_acceptance_rules_active(its_address, _enable);
         return;
@@ -118,7 +118,7 @@ void routing_application::set_sd_acceptance_required(const remote_info_t& _remot
             _remote.ip_.is_v4_ ? static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(_remote.ip_.address_.v4_))
                                : static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(_remote.ip_.address_.v6_)));
 
-    if (_remote.first_ == std::numeric_limits<std::uint16_t>::max() && _remote.last_ == std::numeric_limits<std::uint16_t>::max()) {
+    if (_remote.first_ == std::numeric_limits<uint16_t>::max() && _remote.last_ == std::numeric_limits<uint16_t>::max()) {
         auto rules = configuration_->get_sd_acceptance_rules();
         auto it = rules.find(its_address);
         if (it != rules.end()) {

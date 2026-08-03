@@ -38,28 +38,28 @@ void memory_test_service::on_stop(const std::shared_ptr<vsomeip::message> /*&_me
 
 void memory_test_service::on_ack(const std::shared_ptr<vsomeip::message>& _message) {
     const auto its_payload = _message->get_payload();
-    if (!its_payload || its_payload->get_length() < sizeof(std::uint64_t)) {
+    if (!its_payload || its_payload->get_length() < sizeof(uint64_t)) {
         return;
     }
-    std::uint64_t received{0};
+    uint64_t received{0};
     // Host-order copy; the client wrote the counter with the same layout and
     // both run on the same architecture in CI (see send_ack()).
     std::memcpy(&received, its_payload->get_data(), sizeof(received));
 
     // Acks may arrive out of order over UDP; only ever move the high-water
     // mark forward.
-    std::uint64_t prev = acked_count_.load();
+    uint64_t prev = acked_count_.load();
     while (received > prev && !acked_count_.compare_exchange_weak(prev, received)) {
         // prev was reloaded by compare_exchange_weak; retry.
     }
 }
 
-void memory_test_service::wait_for_flow_control(std::uint64_t sent_) {
+void memory_test_service::wait_for_flow_control(uint64_t sent_) {
     auto last_progress = std::chrono::steady_clock::now();
-    std::uint64_t last_acked = acked_count_.load();
+    uint64_t last_acked = acked_count_.load();
 
     while (sent_ - acked_count_.load() >= FLOW_CONTROL_WINDOW) {
-        const std::uint64_t current_acked = acked_count_.load();
+        const uint64_t current_acked = acked_count_.load();
         if (current_acked != last_acked) {
             last_acked = current_acked;
             last_progress = std::chrono::steady_clock::now();
@@ -80,7 +80,7 @@ void memory_test_service::message_sender(std::atomic<bool>& stop_checking_) {
     its_payload->set_data(std::vector<uint8_t>(NOTIFY_PAYLOAD_SIZE, 20));
     its_payload2->set_data(std::vector<uint8_t>(NOTIFY_PAYLOAD_SIZE, 10));
 
-    std::uint64_t sent{0};
+    uint64_t sent{0};
     const auto deadline = std::chrono::steady_clock::now() + MESSAGE_SENDER_DURATION;
     while (std::chrono::steady_clock::now() < deadline) {
         wait_for_flow_control(sent);
@@ -138,8 +138,8 @@ TEST(memory_test, send_messages) {
 
     memory_test_service its_service("memory_test_service");
     std::atomic<bool> stop_checking{false};
-    std::vector<std::uint64_t> test_memory_array;
-    std::uint64_t baseline_rss{0};
+    std::vector<uint64_t> test_memory_array;
+    uint64_t baseline_rss{0};
 
     std::thread memory_checker_thread;
 

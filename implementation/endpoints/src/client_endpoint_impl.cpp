@@ -280,7 +280,7 @@ bool client_endpoint_impl<Protocol>::tp_segmentation_enabled(service_instance_t 
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::send_segments(const tp::tp_split_messages_t& _segments, std::uint32_t _separation_time) {
+void client_endpoint_impl<Protocol>::send_segments(const tp::tp_split_messages_t& _segments, uint32_t _separation_time) {
 
     auto its_now(std::chrono::steady_clock::now());
 
@@ -475,7 +475,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
 
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(boost::system::error_code const& _error) {
-    std::size_t operations_cancelled;
+    size_t operations_cancelled;
     {
         /* Need this for TCP endpoints for now because we have no
          direct control about the point in time the connect has finished */
@@ -524,7 +524,7 @@ void client_endpoint_impl<Protocol>::wait_connecting_cbk(boost::system::error_co
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _error, std::size_t _bytes,
+void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _error, size_t _bytes,
                                               const message_buffer_ptr_t& _sent_msg) {
 
     (void)_bytes;
@@ -655,9 +655,9 @@ void client_endpoint_impl<Protocol>::close_socket(bool _recreate_socket, bool _d
 #if defined(__linux__) || defined(__QNX__)
     boost::system::error_code its_error;
     if constexpr (std::is_same_v<Protocol, boost::asio::ip::tcp>) {
-        io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
+        io_control_operation<size_t> send_buffer_size_cmd(TIOCOUTQ);
 
-        std::uint32_t retry_count(0);
+        uint32_t retry_count(0);
         while (true) {
             {
                 std::scoped_lock its_lock(socket_mutex_); // Do not block this mutex while waiting, to let other operations finish
@@ -747,13 +747,13 @@ bool client_endpoint_impl<Protocol>::get_remote_address(boost::asio::ip::address
 }
 
 template<typename Protocol>
-std::uint16_t client_endpoint_impl<Protocol>::get_remote_port() const {
+uint16_t client_endpoint_impl<Protocol>::get_remote_port() const {
 
     return 0;
 }
 
 template<typename Protocol>
-std::uint16_t client_endpoint_impl<Protocol>::get_local_port() const {
+uint16_t client_endpoint_impl<Protocol>::get_local_port() const {
 
     return 0;
 }
@@ -777,13 +777,12 @@ void client_endpoint_impl<Protocol>::start_connecting_timer() {
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::check_message_size(std::uint32_t _size) const {
+bool client_endpoint_impl<Protocol>::check_message_size(uint32_t _size) const {
     return !(_size > endpoint_impl<Protocol>::max_message_size_);
 }
 
 template<typename Protocol>
-typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segment_message(const std::uint8_t* const _data,
-                                                                                            std::uint32_t _size) {
+typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segment_message(const uint8_t* const _data, uint32_t _size) {
 
     if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
         const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
@@ -792,8 +791,8 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segm
 
         if (its_instance != ANY_INSTANCE) {
             if (tp_segmentation_enabled({its_service, its_instance}, its_method)) {
-                std::uint16_t its_max_segment_length;
-                std::uint32_t its_separation_time;
+                uint16_t its_max_segment_length;
+                uint32_t its_separation_time;
                 this->configuration_->get_tp_configuration(its_service, its_instance, its_method, true, its_max_segment_length,
                                                            its_separation_time);
                 send_segments(tp::tp::tp_split_message(_data, _size, its_max_segment_length), its_separation_time);
@@ -807,14 +806,13 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segm
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std::uint32_t _size) const {
+bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, uint32_t _size) const {
 
     // Account for the memory already committed to outgoing traffic: both the
     // flushed output queue (queue_size_) and the batching stage still waiting to
     // be flushed (get_pending_train_size()).
-    const std::size_t its_pending_train_size = get_pending_train_size();
-    if (const std::size_t its_used_size = queue_size_ + its_pending_train_size;
-        endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
+    const size_t its_pending_train_size = get_pending_train_size();
+    if (const size_t its_used_size = queue_size_ + its_pending_train_size; endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
         && (its_used_size + _size > endpoint_impl<Protocol>::queue_limit_ || its_used_size + _size < _size)) { // overflow protection
         service_t its_service(0);
         method_t its_method(0);
@@ -857,9 +855,9 @@ void client_endpoint_impl<Protocol>::queue_train(const std::shared_ptr<train>& _
 }
 
 template<typename Protocol>
-std::size_t client_endpoint_impl<Protocol>::get_pending_train_size() const {
+size_t client_endpoint_impl<Protocol>::get_pending_train_size() const {
 
-    std::size_t its_size = (train_ && train_->buffer_) ? train_->buffer_->size() : 0;
+    size_t its_size = (train_ && train_->buffer_) ? train_->buffer_->size() : 0;
     for (const auto& [its_tp, its_trains] : dispatched_trains_) {
         for (const auto& its_train : its_trains) {
             if (its_train && its_train->buffer_) {

@@ -59,7 +59,7 @@ using vsomeip_v3::ANY_METHOD;
 using ::testing::HasSubstr;
 using ::testing::Not;
 
-constexpr std::uint16_t trace_header_size = 10; // VSOMEIP_TRACE_HEADER_SIZE
+constexpr uint16_t trace_header_size = 10; // VSOMEIP_TRACE_HEADER_SIZE
 const std::string default_channel_id{"TC"}; // VSOMEIP_TC_DEFAULT_CHANNEL_ID
 
 // RAII helper that redirects std::cout into an in-memory buffer for the
@@ -134,7 +134,7 @@ std::array<byte_t, trace_header_size> make_header(instance_t _instance) {
 // versus "header only" logging can be told apart in non-DLT builds.
 const std::string payload_marker_token = "de ad be ef";
 
-std::vector<byte_t> payload_with_marker(std::size_t _size) {
+std::vector<byte_t> payload_with_marker(size_t _size) {
     std::vector<byte_t> payload(_size, 0x00);
     if (_size >= 4) {
         payload[_size - 4] = 0xde;
@@ -205,8 +205,7 @@ protected:
     // Traces a message and returns whatever trace() wrote to std::cout.
     std::string trace(const std::array<byte_t, trace_header_size>& _header, const std::vector<byte_t>& _data) {
         cout_capture capture;
-        connector_->trace(_header.data(), static_cast<std::uint16_t>(_header.size()), _data.data(),
-                          static_cast<std::uint32_t>(_data.size()));
+        connector_->trace(_header.data(), static_cast<uint16_t>(_header.size()), _data.data(), static_cast<uint32_t>(_data.size()));
         return capture.str();
     }
 
@@ -535,9 +534,9 @@ TEST_F(connector_test, concurrent_trace_calls_are_race_free) {
                 std::this_thread::yield();
             }
             for (int i = 0; i < iterations; ++i) {
-                const auto& message = messages[static_cast<std::size_t>(i) % messages.size()];
-                connector_->trace(header.data(), static_cast<std::uint16_t>(header.size()), message.data(),
-                                  static_cast<std::uint32_t>(message.size()));
+                const auto& message = messages[static_cast<size_t>(i) % messages.size()];
+                connector_->trace(header.data(), static_cast<uint16_t>(header.size()), message.data(),
+                                  static_cast<uint32_t>(message.size()));
             }
         });
     }

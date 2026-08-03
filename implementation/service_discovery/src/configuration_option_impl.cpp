@@ -103,7 +103,7 @@ bool configuration_option_impl::deserialize(vsomeip_v3::deserializer* _from) {
 
         is_successful = is_successful && _from->deserialize(l_itemLength);
         if (l_itemLength > 0) {
-            is_successful = is_successful && _from->deserialize(l_item, static_cast<std::size_t>(l_itemLength));
+            is_successful = is_successful && _from->deserialize(l_item, static_cast<size_t>(l_itemLength));
 
             if (is_successful) {
                 size_t l_eqPos = l_item.find('='); // SWS_SD_00292

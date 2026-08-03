@@ -53,11 +53,11 @@ using vsomeip_v3::instance_t;
 using vsomeip_v3::method_t;
 using vsomeip_v3::service_t;
 
-constexpr std::uint16_t TRACE_HEADER_SIZE = 10; // VSOMEIP_TRACE_HEADER_SIZE
+constexpr uint16_t TRACE_HEADER_SIZE = 10; // VSOMEIP_TRACE_HEADER_SIZE
 
 // The connector clips the traced payload to this many bytes (see trace()), so a
 // ~100 KB input message is formatted up to this size only.
-constexpr std::size_t MAX_TRACED_PAYLOAD = 0xffff;
+constexpr size_t MAX_TRACED_PAYLOAD = 0xffff;
 
 // A discarding stream buffer. It is stateless, so redirecting std::cout into it
 // keeps concurrent logging cheap and free of contention of its own.
@@ -78,8 +78,8 @@ std::streambuf* g_saved_cout = nullptr;
 
 // Builds a SOME/IP message of the requested total size (at least the SOME/IP
 // header). The payload beyond the header is left zero-initialized.
-std::vector<byte_t> make_message(std::size_t _total_size, service_t _service, method_t _method) {
-    std::vector<byte_t> data(std::max<std::size_t>(_total_size, VSOMEIP_FULL_HEADER_SIZE), 0x00);
+std::vector<byte_t> make_message(size_t _total_size, service_t _service, method_t _method) {
+    std::vector<byte_t> data(std::max<size_t>(_total_size, VSOMEIP_FULL_HEADER_SIZE), 0x00);
 
     data[VSOMEIP_SERVICE_POS_MIN] = static_cast<byte_t>(_service >> 8);
     data[VSOMEIP_SERVICE_POS_MAX] = static_cast<byte_t>(_service & 0xff);
@@ -98,8 +98,8 @@ std::array<byte_t, TRACE_HEADER_SIZE> make_header(instance_t _instance) {
     return header;
 }
 
-std::size_t traced_bytes(std::size_t _message_size) {
-    return std::min<std::size_t>(_message_size, MAX_TRACED_PAYLOAD);
+size_t traced_bytes(size_t _message_size) {
+    return std::min<size_t>(_message_size, MAX_TRACED_PAYLOAD);
 }
 
 // Creates and enables a single shared connector with full-payload logging, so
@@ -143,8 +143,7 @@ void connector_teardown() {
 }
 
 void trace_once(const std::vector<byte_t>& _message) {
-    g_connector->trace(g_header.data(), static_cast<std::uint16_t>(g_header.size()), _message.data(),
-                       static_cast<std::uint32_t>(_message.size()));
+    g_connector->trace(g_header.data(), static_cast<uint16_t>(g_header.size()), _message.data(), static_cast<uint32_t>(_message.size()));
 }
 
 // ---------------------------------------------------------------------------
@@ -152,7 +151,7 @@ void trace_once(const std::vector<byte_t>& _message) {
 // allocation cost across the whole payload size range.
 // ---------------------------------------------------------------------------
 void BM_trace_by_size(benchmark::State& state) {
-    const auto message = make_message(static_cast<std::size_t>(state.range(0)), 0x1234, 0x5678);
+    const auto message = make_message(static_cast<size_t>(state.range(0)), 0x1234, 0x5678);
 
     connector_setup();
 
@@ -161,7 +160,7 @@ void BM_trace_by_size(benchmark::State& state) {
     }
 
     state.SetItemsProcessed(state.iterations());
-    state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(traced_bytes(message.size())));
+    state.SetBytesProcessed(state.iterations() * static_cast<int64_t>(traced_bytes(message.size())));
 
     connector_teardown();
 }
@@ -208,7 +207,7 @@ const std::vector<std::vector<byte_t>>& mixed_workload() {
         std::vector<std::vector<byte_t>> messages;
         messages.reserve(100);
         for (int i = 0; i < 100; ++i) {
-            std::size_t size = 64; // 90% small
+            size_t size = 64; // 90% small
             if (i >= 98) {
                 size = 102400; // 2% large (~100 KB)
             } else if (i >= 90) {
@@ -236,12 +235,12 @@ void BM_trace_mixed_concurrent(benchmark::State& state) {
 
     // Decorrelate the threads' starting points so they do not all hit the same
     // (large) message at the same time.
-    std::size_t index = static_cast<std::size_t>(state.thread_index());
-    std::int64_t bytes = 0;
+    size_t index = static_cast<size_t>(state.thread_index());
+    int64_t bytes = 0;
     for (auto _ : state) {
         const auto& message = workload[index % workload.size()];
         trace_once(message);
-        bytes += static_cast<std::int64_t>(traced_bytes(message.size()));
+        bytes += static_cast<int64_t>(traced_bytes(message.size()));
         ++index;
     }
 

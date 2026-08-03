@@ -37,7 +37,7 @@ public:
 
         // register availability handler for every possiblity of
         // ANY_SERVICE, ANY_INSTANCE, ANY_MAJOR, ANY_MINOR
-        for (std::uint32_t i = 0; i < 16; i++) {
+        for (uint32_t i = 0; i < 16; i++) {
             vsomeip::service_t its_service = (i & 0x8) ? service_info_.service_id : vsomeip::ANY_SERVICE;
             vsomeip::instance_t its_instance = (i & 0x4) ? service_info_.instance_id : vsomeip::ANY_INSTANCE;
             vsomeip::major_version_t its_major = (i & 0x2) ? service_info_.major_version : vsomeip::ANY_MAJOR;
@@ -47,15 +47,14 @@ public:
                                                           std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, i),
                                                 its_major, its_minor);
             VSOMEIP_DEBUG << "Registering: " << std::hex << std::setfill('0') << std::setw(4) << its_service << "." << std::setw(4)
-                          << its_instance << "." << std::setw(2) << (std::uint32_t)its_major << "." << std::setw(4) << its_minor << "."
-                          << i;
+                          << its_instance << "." << std::setw(2) << (uint32_t)its_major << "." << std::setw(4) << its_minor << "." << i;
         }
         app_->register_availability_handler(service_info_.service_id, service_info_.instance_id,
                                             std::bind(&application_test_client_availability::on_availability, this, std::placeholders::_1,
                                                       std::placeholders::_2, std::placeholders::_3, 16),
                                             service_info_.major_version, vsomeip::DEFAULT_MINOR);
         VSOMEIP_DEBUG << "Registering: " << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "." << std::setw(4)
-                      << service_info_.instance_id << "." << std::setw(2) << (std::uint32_t)service_info_.service_id << "." << std::setw(4)
+                      << service_info_.instance_id << "." << std::setw(2) << (uint32_t)service_info_.service_id << "." << std::setw(4)
                       << vsomeip::DEFAULT_MINOR << "." << 16;
         app_->request_service(service_info_.service_id, service_info_.instance_id);
         std::promise<bool> its_promise;
@@ -82,7 +81,7 @@ public:
         }
     }
 
-    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available, std::uint32_t _handler_index) {
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available, uint32_t _handler_index) {
         VSOMEIP_DEBUG << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance
                       << "] is " << (_is_available ? "available." : "NOT available.") << ". " << _handler_index;
         if (service_info_.service_id == _service && service_info_.instance_id == _instance) {
@@ -101,20 +100,19 @@ public:
                                    service_info_.minor_version)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        for (std::uint32_t i = 0; i < 16; i++) {
+        for (uint32_t i = 0; i < 16; i++) {
             vsomeip::service_t its_service = (i & 0x8) ? service_info_.service_id : vsomeip::ANY_SERVICE;
             vsomeip::instance_t its_instance = (i & 0x4) ? service_info_.instance_id : vsomeip::ANY_INSTANCE;
             vsomeip::major_version_t its_major = (i & 0x2) ? service_info_.major_version : vsomeip::ANY_MAJOR;
             vsomeip::minor_version_t its_minor = (i & 0x1) ? service_info_.minor_version : vsomeip::ANY_MINOR;
 
             VSOMEIP_DEBUG << "Calling is_available: " << std::hex << std::setfill('0') << std::setw(4) << its_service << "." << std::setw(4)
-                          << its_instance << "." << std::setw(2) << static_cast<std::uint32_t>(its_major) << "." << std::setw(4)
-                          << its_minor;
+                          << its_instance << "." << std::setw(2) << static_cast<uint32_t>(its_major) << "." << std::setw(4) << its_minor;
             EXPECT_TRUE(app_->is_available(its_service, its_instance, its_major, its_minor));
 
             VSOMEIP_DEBUG << "Calling are_available: " << std::hex << std::setfill('0') << std::setw(4) << its_service << "."
-                          << std::setw(4) << its_instance << "." << std::setw(2) << static_cast<std::uint32_t>(its_major) << "."
-                          << std::setw(4) << its_minor;
+                          << std::setw(4) << its_instance << "." << std::setw(2) << static_cast<uint32_t>(its_major) << "." << std::setw(4)
+                          << its_minor;
             vsomeip::application::available_t are_available;
             EXPECT_TRUE(app_->are_available(are_available, its_service, its_instance, its_major, its_minor));
             bool found(false);

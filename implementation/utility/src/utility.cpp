@@ -292,10 +292,10 @@ std::string utility::get_base_path(const std::string& _network) {
 client_t utility::request_client_id(const std::shared_ptr<configuration>& _config, std::string_view _name, client_t _client) {
     std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
-    static const std::uint16_t its_max_num_clients = get_max_client_number(_config);
+    static const uint16_t its_max_num_clients = get_max_client_number(_config);
 
-    static const std::uint16_t its_diagnosis_mask = _config->get_diagnosis_mask();
-    static const std::uint16_t its_client_mask = static_cast<std::uint16_t>(~its_diagnosis_mask);
+    static const uint16_t its_diagnosis_mask = _config->get_diagnosis_mask();
+    static const uint16_t its_client_mask = static_cast<uint16_t>(~its_diagnosis_mask);
     static const client_t its_masked_diagnosis_address =
             static_cast<client_t>((_config->get_diagnosis_address() << 8) & its_diagnosis_mask);
     static const client_t its_smallest_client = its_masked_diagnosis_address;
@@ -341,12 +341,12 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
     // restart at beginning of client range
     r->second.next_client_ = its_smallest_client;
 
-    std::uint16_t increase_count = 0;
+    uint16_t increase_count = 0;
     do {
-        r->second.next_client_ = (r->second.next_client_ & static_cast<std::uint16_t>(~its_client_mask)) // save diagnosis address bits
-                | (static_cast<std::uint16_t>((r->second.next_client_ // set all diagnosis address bits to one
-                                               | static_cast<std::uint16_t>(~its_client_mask))
-                                              + 1u) //  and add one to the result
+        r->second.next_client_ = (r->second.next_client_ & static_cast<uint16_t>(~its_client_mask)) // save diagnosis address bits
+                | (static_cast<uint16_t>((r->second.next_client_ // set all diagnosis address bits to one
+                                          | static_cast<uint16_t>(~its_client_mask))
+                                         + 1u) //  and add one to the result
                    & its_client_mask); // set the diagnosis address bits to zero again
         if (increase_count++ == its_max_num_clients) {
             VSOMEIP_ERROR_P << "No free client IDs left! Max amount of possible concurrent active vsomeip " << "applications reached ("
@@ -418,17 +418,17 @@ void utility::set_thread_niceness(int _nice) noexcept {
 #endif
 }
 
-std::uint16_t utility::get_max_client_number(const std::shared_ptr<configuration>& _config) {
-    std::uint16_t its_max_clients(0);
+uint16_t utility::get_max_client_number(const std::shared_ptr<configuration>& _config) {
+    uint16_t its_max_clients(0);
     const int bits_for_clients =
 #ifdef _WIN32
             __popcnt(
 #else
             __builtin_popcount(
 #endif
-                    static_cast<std::uint16_t>(~_config->get_diagnosis_mask()));
+                    static_cast<uint16_t>(~_config->get_diagnosis_mask()));
     for (int var = 0; var < bits_for_clients; ++var) {
-        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+        its_max_clients = static_cast<uint16_t>(its_max_clients | (1 << var));
     }
     return its_max_clients;
 }

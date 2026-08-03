@@ -251,7 +251,7 @@ bool routing_manager_client::offer_service(client_t _client, service_t _service,
     if (auto its_info = offered_services_.find(protocol::service_data{_service, _instance, _major, _minor}); its_info) {
         if (its_info->major_version_ != _major || its_info->minor_version_ != _minor) {
             VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): " << *its_info
-                            << " passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
+                            << " passed: " << static_cast<uint32_t>(_major) << ":" << _minor;
             return false;
         }
         return true; // we are already offering this service -> no need to do anything else!
@@ -934,7 +934,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                                                      << "] router connection superseded, discarding stale continuation.";
                                         return;
                                     }
-                                    std::uint32_t its_count(0);
+                                    uint32_t its_count(0);
                                     if (_subscription_accepted) {
                                         insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter,
                                                             VSOMEIP_ROUTING_CLIENT, its_lock);
@@ -1067,7 +1067,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                                              << " client connection superseded, discarding stale continuation.";
                                 return;
                             }
-                            std::uint32_t its_remote_subscriber_count(0);
+                            uint32_t its_remote_subscriber_count(0);
                             if (its_pending_id == PENDING_SUBSCRIPTION_ID) {
                                 // Local subscriber: withdraw subscription
                                 unsubscribe_base(its_client, its_service, its_instance, its_eventgroup, its_event, its_lock);
@@ -1749,7 +1749,7 @@ bool routing_manager_client::send_pending_commands(
 bool routing_manager_client::create_and_start_receiver([[maybe_unused]] std::scoped_lock<std::mutex> const& _lock, client_t _client) {
     auto create_receiver = [&](auto& _receiver, transport_protocol_e _protocol) {
         if (_receiver) {
-            std::uint16_t its_port = _receiver->get_local_port();
+            uint16_t its_port = _receiver->get_local_port();
             if (its_port != ILLEGAL_PORT && _protocol == transport_protocol_e::TCP) {
                 VSOMEIP_INFO << "Reusing local server endpoint @" << its_port << " endpoint: " << _receiver;
             }
@@ -2287,7 +2287,7 @@ bool routing_manager_client::prepare_sending(client_t _client, std::shared_ptr<m
             || (1 == client_side_logging_filter_.count(std::make_tuple(its_service, its_instance)))) {
             VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
                            << hex4(its_method) << ":" << hex4(its_session) << ":" << hex4(its_client) << "] " << "type=" << std::hex
-                           << static_cast<std::uint32_t>(its_message_type) << " thread=" << std::hex << std::this_thread::get_id();
+                           << static_cast<uint32_t>(its_message_type) << " thread=" << std::hex << std::this_thread::get_id();
         }
     }
     return true;

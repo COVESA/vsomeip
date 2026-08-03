@@ -204,8 +204,8 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
             }
         } else {
             VSOMEIP_INFO_P << instance_name_ << "Didn't find connection: " << _it->first.address().to_string() << ":"
-                           << static_cast<std::uint16_t>(_it->first.port()) << " dropping outstanding messages ("
-                           << _it->second.queue_.size() << ").";
+                           << static_cast<uint16_t>(_it->first.port()) << " dropping outstanding messages (" << _it->second.queue_.size()
+                           << ").";
 
             // Drop outstanding messages
             _it->second.queue_.clear();
@@ -449,7 +449,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, std::shar
     }
 }
 
-std::uint16_t tcp_server_endpoint_impl::get_local_port() const {
+uint16_t tcp_server_endpoint_impl::get_local_port() const {
 
     return local_.port();
 }
@@ -461,8 +461,8 @@ bool tcp_server_endpoint_impl::is_reliable() const {
 ///////////////////////////////////////////////////////////////////////////////
 // class tcp_service_impl::connection
 ///////////////////////////////////////////////////////////////////////////////
-tcp_server_endpoint_impl::connection::connection(const std::weak_ptr<tcp_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
-                                                 std::uint32_t _recv_buffer_size_initial, std::uint32_t _buffer_shrink_threshold,
+tcp_server_endpoint_impl::connection::connection(const std::weak_ptr<tcp_server_endpoint_impl>& _server, uint32_t _max_message_size,
+                                                 uint32_t _recv_buffer_size_initial, uint32_t _buffer_shrink_threshold,
                                                  bool _use_magic_cookies, boost::asio::io_context& _io,
                                                  std::chrono::milliseconds _send_timeout) :
     socket_(abstract_socket_factory::get()->create_tcp_socket(_io)), server_(_server), max_message_size_(_max_message_size),
@@ -494,10 +494,10 @@ tcp_server_endpoint_impl::connection::~connection() {
 }
 
 tcp_server_endpoint_impl::connection::ptr
-tcp_server_endpoint_impl::connection::create(const std::weak_ptr<tcp_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
-                                             std::uint32_t _buffer_shrink_threshold, bool _magic_cookies_enabled,
-                                             boost::asio::io_context& _io, std::chrono::milliseconds _send_timeout) {
-    const std::uint32_t its_initial_receveive_buffer_size = VSOMEIP_SOMEIP_HEADER_SIZE + 8 + MAGIC_COOKIE_SIZE + 8;
+tcp_server_endpoint_impl::connection::create(const std::weak_ptr<tcp_server_endpoint_impl>& _server, uint32_t _max_message_size,
+                                             uint32_t _buffer_shrink_threshold, bool _magic_cookies_enabled, boost::asio::io_context& _io,
+                                             std::chrono::milliseconds _send_timeout) {
+    const uint32_t its_initial_receveive_buffer_size = VSOMEIP_SOMEIP_HEADER_SIZE + 8 + MAGIC_COOKIE_SIZE + 8;
     return ptr(new connection(_server, _max_message_size, its_initial_receveive_buffer_size, _buffer_shrink_threshold,
                               _magic_cookies_enabled, _io, _send_timeout));
 }
@@ -517,7 +517,7 @@ void tcp_server_endpoint_impl::connection::start() {
 void tcp_server_endpoint_impl::connection::receive() {
     std::unique_lock its_lock(socket_mutex_);
     if (socket_->is_open()) {
-        const std::size_t its_capacity(recv_buffer_.capacity());
+        const size_t its_capacity(recv_buffer_.capacity());
         if (recv_buffer_size_ > its_capacity) {
             VSOMEIP_ERROR_P << "Received buffer size is greater than the buffer capacity! recv_buffer_size_: " << recv_buffer_size_
                             << " its_capacity: " << its_capacity;
@@ -533,7 +533,7 @@ void tcp_server_endpoint_impl::connection::receive() {
                     wait_until_sent(boost::asio::error::operation_aborted);
                     return;
                 }
-                const std::size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
+                const size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
                 if (its_capacity < its_required_capacity) {
                     // Make the resize to its_required_capacity
                     recv_buffer_.reserve(its_required_capacity);
@@ -615,7 +615,7 @@ bool tcp_server_endpoint_impl::connection::send_queued(const target_data_iterato
                                    its_session, std::chrono::steady_clock::now()),
                          // Capture its_buffer by value to guarantee the vector stays alive for the entire
                          // duration of the async write.
-                         [its_buffer, its_server, remote = _it->first](const boost::system::error_code& _error, std::size_t _bytes) {
+                         [its_buffer, its_server, remote = _it->first](const boost::system::error_code& _error, size_t _bytes) {
                              its_server->send_cbk(remote, _error, _bytes);
                          });
 
@@ -634,7 +634,7 @@ bool tcp_server_endpoint_impl::connection::is_magic_cookie(size_t _offset) const
     return (0 == std::memcmp(CLIENT_COOKIE, &recv_buffer_[_offset], sizeof(CLIENT_COOKIE)));
 }
 
-void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes) {
+void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code const& _error, size_t _bytes) {
     if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
         return;
@@ -787,9 +787,9 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                             return;
                         }
                     } else if (current_message_size > recv_buffer_size_) {
-                        missing_capacity_ = current_message_size - static_cast<std::uint32_t>(recv_buffer_size_);
+                        missing_capacity_ = current_message_size - static_cast<uint32_t>(recv_buffer_size_);
                     } else if (VSOMEIP_SOMEIP_HEADER_SIZE > recv_buffer_size_) {
-                        missing_capacity_ = VSOMEIP_SOMEIP_HEADER_SIZE - static_cast<std::uint32_t>(recv_buffer_size_);
+                        missing_capacity_ = VSOMEIP_SOMEIP_HEADER_SIZE - static_cast<uint32_t>(recv_buffer_size_);
                     } else if (use_magic_cookies_ && recv_buffer_size_ > 0) {
                         // no need to check for magic cookie here again: has_full_message
                         // would have been set to true if there was one present in the data
@@ -894,7 +894,7 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(const st
     its_message << instance_name_ << "Caught exception" << _e.what() << " local: " << get_address_port_local()
                 << " remote: " << get_address_port_remote() << " shutting down connection. Start of buffer: ";
 
-    for (std::size_t i = 0; i < recv_buffer_size_ && i < 16; i++) {
+    for (size_t i = 0; i < recv_buffer_size_ && i < 16; i++) {
         its_message << hex2(recv_buffer_[i]) << " ";
     }
 
@@ -906,15 +906,14 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(const st
     recv_buffer_.clear();
 }
 
-std::size_t tcp_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
+size_t tcp_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
     return recv_buffer_.capacity();
 }
 
-std::size_t tcp_server_endpoint_impl::connection::write_completion_condition(const boost::system::error_code& _error,
-                                                                             std::size_t _bytes_transferred, std::size_t _bytes_to_send,
-                                                                             service_t _service, method_t _method, client_t _client,
-                                                                             session_t _session,
-                                                                             const std::chrono::steady_clock::time_point _start) {
+size_t tcp_server_endpoint_impl::connection::write_completion_condition(const boost::system::error_code& _error, size_t _bytes_transferred,
+                                                                        size_t _bytes_to_send, service_t _service, method_t _method,
+                                                                        client_t _client, session_t _session,
+                                                                        const std::chrono::steady_clock::time_point _start) {
     if (_error) {
         VSOMEIP_ERROR_P << instance_name_ << _error.message() << "(" << _error.value() << ") bytes transferred: " << _bytes_transferred
                         << " bytes to sent: " << _bytes_to_send << " remote:" << get_address_port_remote() << " (" << hex4(_client)
@@ -969,9 +968,9 @@ void tcp_server_endpoint_impl::print_status() {
 
     VSOMEIP_INFO_P << instance_name_ << local_.port() << " connections: " << its_connections.size() << " targets: " << targets_.size();
     for (const auto& c : its_connections) {
-        std::size_t its_data_size(0);
-        std::size_t its_queue_size(0);
-        std::size_t its_recv_size(0);
+        size_t its_data_size(0);
+        size_t its_queue_size(0);
+        size_t its_recv_size(0);
         {
             std::unique_lock c_s_lock(c.second->get_socket_lock());
             its_recv_size = c.second->get_recv_buffer_capacity();

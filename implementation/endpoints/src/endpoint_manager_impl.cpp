@@ -203,14 +203,14 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
                     _reliable_known = true;
                 } else {
                     VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
-                                      << static_cast<std::uint32_t>(_major) << "." << _minor
+                                      << static_cast<uint32_t>(_major) << "." << _minor
                                       << "] with different endpoint: " << _reliable_address.to_string() << ":" << _reliable_port << ":"
                                       << its_definition->is_reliable() << ", dropping the offer";
                     _drop_offer = true;
                 }
             } else {
                 VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
-                                  << static_cast<std::uint32_t>(_major) << "." << _minor
+                                  << static_cast<uint32_t>(_major) << "." << _minor
                                   << "] with different endpoint: " << _reliable_address.to_string() << ":" << _reliable_port
                                   << ", dropping the offer";
                 _drop_offer = true;
@@ -223,14 +223,14 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
                     _unreliable_known = true;
                 } else {
                     VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
-                                      << static_cast<std::uint32_t>(_major) << "." << _minor
+                                      << static_cast<uint32_t>(_major) << "." << _minor
                                       << "] with different endpoint: " << _unreliable_address.to_string() << ":" << _unreliable_port << ":"
                                       << its_definition->is_reliable() << ", dropping the offer";
                     _drop_offer = true;
                 }
             } else {
                 VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
-                                  << static_cast<std::uint32_t>(_major) << "." << _minor
+                                  << static_cast<uint32_t>(_major) << "." << _minor
                                   << "] with different endpoint: " << _unreliable_address.to_string() << ":" << _unreliable_port
                                   << ", dropping the offer";
                 _drop_offer = true;
@@ -615,7 +615,7 @@ void endpoint_manager_impl::print_status() const {
             its_server_endpoints = server_endpoints_;
         }
         VSOMEIP_INFO << "status start remote client endpoints:";
-        std::uint32_t num_remote_client_endpoints(0);
+        uint32_t num_remote_client_endpoints(0);
         // normal endpoints
         for (const auto& its_address : its_client_endpoints) {
             for (const auto& its_port : its_address.second) {
@@ -630,7 +630,7 @@ void endpoint_manager_impl::print_status() const {
         VSOMEIP_INFO << "status end remote client endpoints: " << num_remote_client_endpoints;
 
         VSOMEIP_INFO << "status start server endpoints:";
-        std::uint32_t num_server_endpoints(1);
+        uint32_t num_server_endpoints(1);
 
         // server endpoints
         for (const auto& p : its_server_endpoints) {
@@ -950,7 +950,7 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _en
 }
 
 bool endpoint_manager_impl::on_bind_error(std::shared_ptr<boardnet_endpoint> _endpoint, const boost::asio::ip::address& _remote_address,
-                                          std::uint16_t _remote_port, uint16_t& _local_port) {
+                                          uint16_t _remote_port, uint16_t& _local_port) {
 
     std::scoped_lock its_ep_lock{endpoint_mutex_};
     for (auto& [its_si, its_reliability_map] : remote_services_) {

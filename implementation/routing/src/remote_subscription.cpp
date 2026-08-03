@@ -257,11 +257,11 @@ void remote_subscription::set_parent(const std::shared_ptr<remote_subscription>&
     parent_ = _parent;
 }
 
-std::uint32_t remote_subscription::get_answers() const {
+uint32_t remote_subscription::get_answers() const {
     return answers_;
 }
 
-void remote_subscription::set_answers(const std::uint32_t _answers) {
+void remote_subscription::set_answers(const uint32_t _answers) {
     answers_ = _answers;
 }
 

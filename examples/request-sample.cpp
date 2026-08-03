@@ -48,8 +48,9 @@ public:
 
         std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();
         std::vector<vsomeip::byte_t> its_payload_data;
-        for (std::size_t i = 0; i < 10; ++i)
+        for (size_t i = 0; i < 10; ++i) {
             its_payload_data.push_back(vsomeip::byte_t(i % 256));
+        }
         its_payload->set_data(its_payload_data);
         request_->set_payload(its_payload);
 
@@ -105,8 +106,9 @@ public:
         std::cout << "Received a response from Service [" << std::hex << std::setfill('0') << std::setw(4) << _response->get_service()
                   << "." << std::setw(4) << _response->get_instance() << "] to Client/Session [" << std::setw(4) << _response->get_client()
                   << "/" << std::setw(4) << _response->get_session() << "]" << std::endl;
-        if (is_available_)
+        if (is_available_) {
             send();
+        }
     }
 
     void send() {

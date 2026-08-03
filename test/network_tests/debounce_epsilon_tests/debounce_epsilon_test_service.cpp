@@ -58,7 +58,7 @@ TEST(debounce_filter_tests, server_sends_notifications) {
 
     // Cyclicly send a notification with payloads of increasing value until we receive a shutdown
     // request from the client.
-    std::uint8_t payload = 1;
+    uint8_t payload = 1;
     auto future = shutdown.get_future();
     for (;;) {
         // Update and send notification.

@@ -44,7 +44,7 @@ std::shared_ptr<application> runtime_impl::create_application(const std::string&
 
 std::shared_ptr<application> runtime_impl::create_application(const std::string& _name, const std::string& _path) {
     std::scoped_lock its_lock{applications_mutex_};
-    static std::uint32_t postfix_id = 0;
+    static uint32_t postfix_id = 0;
     std::string its_name = _name;
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {

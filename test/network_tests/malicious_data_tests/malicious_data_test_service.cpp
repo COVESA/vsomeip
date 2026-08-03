@@ -103,7 +103,7 @@ public:
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(service_info_.event_id, _message->get_method());
-        EXPECT_EQ(std::uint32_t(0x7F), _message->get_length());
+        EXPECT_EQ(uint32_t(0x7F), _message->get_length());
         received_events_++;
     }
 
@@ -111,7 +111,7 @@ public:
         EXPECT_EQ(static_cast<vsomeip::service_t>(service_info_.service_id + 1u), _message->get_service());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(vsomeip::method_t(0x1), _message->get_method());
-        EXPECT_EQ(std::uint32_t(0x7F), _message->get_length());
+        EXPECT_EQ(uint32_t(0x7F), _message->get_length());
         received_methodcalls_++;
     }
 
@@ -134,8 +134,8 @@ private:
 
     bool wait_until_registered_;
     bool wait_until_shutdown_method_called_;
-    std::uint32_t received_events_;
-    std::uint32_t received_methodcalls_;
+    uint32_t received_events_;
+    uint32_t received_methodcalls_;
     std::mutex mutex_;
     std::condition_variable condition_;
     std::thread offer_thread_;

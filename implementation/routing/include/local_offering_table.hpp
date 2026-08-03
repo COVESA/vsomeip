@@ -33,7 +33,7 @@ public:
         bool operator==(const entry&) const = default;
 
         friend std::ostream& operator<<(std::ostream& _os, const entry& _entry) {
-            return _os << "[" << _entry.service << "." << _entry.instance << "." << static_cast<std::uint32_t>(_entry.major) << "."
+            return _os << "[" << _entry.service << "." << _entry.instance << "." << static_cast<uint32_t>(_entry.major) << "."
                        << _entry.minor << " client=" << _entry.client << "]";
         }
     };

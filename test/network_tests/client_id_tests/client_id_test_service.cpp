@@ -135,14 +135,13 @@ public:
     }
 
     bool all_responses_and_requests_received() {
-        const bool responses =
-                std::all_of(other_services_received_response_.cbegin(), other_services_received_response_.cend(),
-                            [](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t>::value_type& v) {
-                                return v.second == client_id_test::messages_to_send;
-                            });
+        const bool responses = std::all_of(other_services_received_response_.cbegin(), other_services_received_response_.cend(),
+                                           [](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, uint32_t>::value_type& v) {
+                                               return v.second == client_id_test::messages_to_send;
+                                           });
         const bool requests = other_services_received_request_.size() == client_id_test::expected_request_clients
                 && std::all_of(other_services_received_request_.cbegin(), other_services_received_request_.cend(),
-                               [](const std::map<vsomeip::client_t, std::uint32_t>::value_type& v) {
+                               [](const std::map<vsomeip::client_t, uint32_t>::value_type& v) {
                                    return v.second == client_id_test::messages_to_send;
                                });
         return (responses && requests);
@@ -208,8 +207,8 @@ private:
     client_id_test::service_info service_info_;
     std::shared_ptr<vsomeip::application> app_;
     std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool> other_services_available_;
-    std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t> other_services_received_response_;
-    std::map<vsomeip::client_t, std::uint32_t> other_services_received_request_;
+    std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, uint32_t> other_services_received_response_;
+    std::map<vsomeip::client_t, uint32_t> other_services_received_request_;
 
     bool blocked_;
     bool all_services_available_;

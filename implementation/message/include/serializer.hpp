@@ -16,7 +16,7 @@ class serializable;
 
 class VSOMEIP_IMPORT_EXPORT serializer {
 public:
-    serializer(std::uint32_t _buffer_shrink_threshold);
+    serializer(uint32_t _buffer_shrink_threshold);
     virtual ~serializer();
 
     bool serialize(const serializable* _from);
@@ -41,8 +41,8 @@ private:
 #pragma warning(disable : 4251)
 #endif
     std::vector<byte_t> data_;
-    std::uint32_t shrink_count_;
-    std::uint32_t buffer_shrink_threshold_;
+    uint32_t shrink_count_;
+    uint32_t buffer_shrink_threshold_;
 #ifdef _WIN32
 #pragma warning(pop)
 #endif

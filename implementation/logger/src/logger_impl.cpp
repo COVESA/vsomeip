@@ -117,7 +117,7 @@ void logger_impl::log_to_dlt(level_e _level, std::string_view _msg) {
 #elif defined(DLT_SIZED_CSTRING)
     // Some versions of libdlt provide support for sized strings, which is more optimal than
     // DLT_LOG_STRING as it saves a call to strlen().
-    DLT_LOG(dlt_context_, its_level, DLT_SIZED_CSTRING(_msg.data(), static_cast<std::uint16_t>(_msg.size())));
+    DLT_LOG(dlt_context_, its_level, DLT_SIZED_CSTRING(_msg.data(), static_cast<uint16_t>(_msg.size())));
 #else
     // Fallback to legacy log macro
     DLT_LOG_STRING(dlt_context_, its_level, _msg.data());

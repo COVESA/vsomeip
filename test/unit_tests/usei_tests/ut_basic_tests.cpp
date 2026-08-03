@@ -77,7 +77,7 @@ struct usei_fixture : public ::testing::Test {
         context_.reset();
     }
 
-    void send(const boost::asio::ip::udp::endpoint& target, const std::byte* buffer, std::size_t len) {
+    void send(const boost::asio::ip::udp::endpoint& target, const std::byte* buffer, size_t len) {
         struct sockaddr_in target_address { };
 
         target_address.sin_family = AF_INET;

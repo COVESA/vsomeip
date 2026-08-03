@@ -689,7 +689,7 @@ vsomeip_sec_client_t local_endpoint::get_sec_client() const {
     return peer_data_.sec_client_;
 }
 
-std::uint16_t local_endpoint::get_local_port() const {
+uint16_t local_endpoint::get_local_port() const {
     return socket_->own_port();
 }
 boost::asio::ip::tcp::endpoint local_endpoint::peer_endpoint() const {

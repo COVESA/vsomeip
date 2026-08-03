@@ -51,17 +51,17 @@ TEST(dispatch_app_stop, multiple_global) {
 
     auto cv = std::make_shared<std::condition_variable>();
     auto mt = std::make_shared<std::mutex>();
-    auto registered = std::make_shared<std::size_t>(0);
+    auto registered = std::make_shared<size_t>(0);
 
     auto thread_assign_cv = std::make_shared<std::condition_variable>();
     auto thread_assign_mt = std::make_shared<std::mutex>();
     auto thread_assign_gate = std::make_shared<bool>(false);
 
-    constexpr std::size_t app_count = 3;
+    constexpr size_t app_count = 3;
     const std::string app_name_prefix = "dispatch_app_multiple_global";
     std::array<std::string, app_count> app_names{};
 
-    for (std::size_t i = 0; i < app_names.size(); ++i) {
+    for (size_t i = 0; i < app_names.size(); ++i) {
         app_names[i] = app_name_prefix + "_" + std::to_string(i);
     }
 
@@ -74,21 +74,21 @@ TEST(dispatch_app_stop, multiple_global) {
      * multiple near-identical configuration files in the repository.
      */
 
-    for (std::size_t i = 0; i < app_names.size(); ++i) {
+    for (size_t i = 0; i < app_names.size(); ++i) {
         ASSERT_EQ(create_config(app_names[i]), 0);
     }
 
     std::array<std::thread, app_names.size()> threads{};
 
     // Create and initialize all applications.
-    for (std::size_t i = 0; i < app_names.size(); ++i) {
+    for (size_t i = 0; i < app_names.size(); ++i) {
         apps[i] = nullptr;
         apps[i] = vsomeip_v3::runtime::get()->create_application(app_names[i]);
         apps[i]->init();
     }
 
     // Register shutdown handler for each globally owned application.
-    for (std::size_t i = 0; i < apps.size(); ++i) {
+    for (size_t i = 0; i < apps.size(); ++i) {
         auto app = apps[i];
 
         app->register_state_handler([app, &threads, i, cv, mt, registered, thread_assign_cv, thread_assign_mt,
@@ -131,7 +131,7 @@ TEST(dispatch_app_stop, multiple_global) {
     }
 
     // Start all applications in separate threads.
-    for (std::size_t i = 0; i < apps.size(); ++i) {
+    for (size_t i = 0; i < apps.size(); ++i) {
         threads[i] = std::thread([app = apps[i]] { app->start(); });
     }
     {

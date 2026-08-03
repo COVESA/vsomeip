@@ -36,7 +36,7 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
-    std::uint32_t number_received_messages_local_;
-    std::uint32_t number_received_messages_external_;
+    uint32_t number_received_messages_local_;
+    uint32_t number_received_messages_external_;
     std::thread offer_thread_;
 };

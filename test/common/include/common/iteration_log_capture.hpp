@@ -68,7 +68,7 @@ private:
     protected:
         std::streamsize xsputn(char const* s, std::streamsize n) override {
             std::lock_guard<std::mutex> lock(mutex_);
-            data_.append(s, static_cast<std::size_t>(n));
+            data_.append(s, static_cast<size_t>(n));
             return n;
         }
 

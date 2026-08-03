@@ -143,7 +143,7 @@ std::shared_ptr<vsomeip::configuration> load_config(std::string key, std::string
 
 void check_file(const std::string& _config_file, const std::string& _expected_unicast_address, bool _expected_has_console,
                 bool _expected_has_file, bool _expected_has_dlt, uint32_t _expected_version_logging_interval,
-                std::size_t _expected_global_request_debounce_time, uint32_t _expected_application_max_dispatcher,
+                size_t _expected_global_request_debounce_time, uint32_t _expected_application_max_dispatcher,
                 uint32_t _expected_application_max_dispatch_time, uint32_t _expected_application_threads,
                 uint32_t _expected_application_request_debounce_time, const std::string& _expected_logfile,
                 const std::string& _expected_loglevel, const std::string& _expected_unicast_address_1234_0022,
@@ -171,8 +171,9 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
     if (its_plugin) {
         auto its_configuration_plugin = std::dynamic_pointer_cast<vsomeip::configuration_plugin>(its_plugin);
-        if (its_configuration_plugin)
+        if (its_configuration_plugin) {
             its_configuration = its_configuration_plugin->get_configuration(EXPECTED_ROUTING_MANAGER_HOST, "");
+        }
     }
 
     // 2. Did we get a configuration object?
@@ -222,7 +223,7 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     bool has_dlt = its_configuration->has_dlt_log();
     std::string logfile = its_configuration->get_logfile();
     vsomeip::logger::level_e loglevel = its_configuration->get_loglevel();
-    std::uint32_t version_logging_interval = its_configuration->get_version_log_interval(EXPECTED_ROUTING_MANAGER_HOST, true);
+    uint32_t version_logging_interval = its_configuration->get_version_log_interval(EXPECTED_ROUTING_MANAGER_HOST, true);
 
     EXPECT_TRUE(check<bool>(has_console, _expected_has_console, "HAS CONSOLE"));
     EXPECT_TRUE(check<bool>(has_file, _expected_has_file, "HAS FILE"));
@@ -319,20 +320,19 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     }
 
     // Request debounce time (global)
-    std::size_t its_global_request_debounce_time = its_configuration->get_request_debounce_time("AN UNKNOWN APPLICATION");
-    EXPECT_TRUE(
-            check<std::size_t>(its_global_request_debounce_time, _expected_global_request_debounce_time, "GLOBAL REQUEST DEBOUNCE TIME"));
+    size_t its_global_request_debounce_time = its_configuration->get_request_debounce_time("AN UNKNOWN APPLICATION");
+    EXPECT_TRUE(check<size_t>(its_global_request_debounce_time, _expected_global_request_debounce_time, "GLOBAL REQUEST DEBOUNCE TIME"));
 
     // Applications
-    std::size_t max_dispatchers = its_configuration->get_max_dispatchers(EXPECTED_ROUTING_MANAGER_HOST);
-    std::size_t max_dispatch_time = its_configuration->get_max_dispatch_time(EXPECTED_ROUTING_MANAGER_HOST);
-    std::size_t io_threads = its_configuration->get_io_thread_count(EXPECTED_ROUTING_MANAGER_HOST);
-    std::size_t request_time = its_configuration->get_request_debounce_time(EXPECTED_ROUTING_MANAGER_HOST);
+    size_t max_dispatchers = its_configuration->get_max_dispatchers(EXPECTED_ROUTING_MANAGER_HOST);
+    size_t max_dispatch_time = its_configuration->get_max_dispatch_time(EXPECTED_ROUTING_MANAGER_HOST);
+    size_t io_threads = its_configuration->get_io_thread_count(EXPECTED_ROUTING_MANAGER_HOST);
+    size_t request_time = its_configuration->get_request_debounce_time(EXPECTED_ROUTING_MANAGER_HOST);
 
-    EXPECT_TRUE(check<std::size_t>(max_dispatchers, _expected_application_max_dispatcher, "MAX DISPATCHERS"));
-    EXPECT_TRUE(check<std::size_t>(max_dispatch_time, _expected_application_max_dispatch_time, "MAX DISPATCH TIME"));
-    EXPECT_TRUE(check<std::size_t>(io_threads, _expected_application_threads, "IO THREADS"));
-    EXPECT_TRUE(check<std::size_t>(request_time, _expected_application_request_debounce_time, "REQUEST DEBOUNCE TIME"));
+    EXPECT_TRUE(check<size_t>(max_dispatchers, _expected_application_max_dispatcher, "MAX DISPATCHERS"));
+    EXPECT_TRUE(check<size_t>(max_dispatch_time, _expected_application_max_dispatch_time, "MAX DISPATCH TIME"));
+    EXPECT_TRUE(check<size_t>(io_threads, _expected_application_threads, "IO THREADS"));
+    EXPECT_TRUE(check<size_t>(request_time, _expected_application_request_debounce_time, "REQUEST DEBOUNCE TIME"));
 
     EXPECT_EQ(0x9933, its_configuration->get_id("other_application"));
 
@@ -340,8 +340,9 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     EXPECT_EQ(1u, its_plugins.size());
     for (const auto& plugin : its_plugins) {
         EXPECT_EQ(vsomeip::plugin_type_e::APPLICATION_PLUGIN, plugin.first);
-        for (const auto& its_library : plugin.second)
+        for (const auto& its_library : plugin.second) {
             EXPECT_EQ(std::string("libtestlibraryname.so." + std::to_string(VSOMEIP_APPLICATION_PLUGIN_VERSION)), its_library);
+        }
     }
     EXPECT_EQ(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, its_plugin->get_plugin_type());
     EXPECT_EQ("vsomeip-configuration-plugin", its_plugin->get_plugin_name());
@@ -427,7 +428,7 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     std::map<bool, std::set<uint16_t>> used_ports;
     used_ports[true].insert(0x11);
     used_ports[false].insert(0x10);
-    std::uint16_t port_to_use(0x0);
+    uint16_t port_to_use(0x0);
     EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x1, vsomeip::ILLEGAL_PORT, true, used_ports, port_to_use));
     EXPECT_EQ(0x10, port_to_use);
     EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x1, vsomeip::ILLEGAL_PORT, false, used_ports, port_to_use));
@@ -466,7 +467,7 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     // payload sizes
     // use 17000 instead of 1500 as configured max-local-payload size will be
     // increased to bigger max-reliable-payload-size
-    std::uint32_t max_local_message_size(17000u + 16u + vsomeip::protocol::SEND_COMMAND_HEADER_SIZE);
+    uint32_t max_local_message_size(17000u + 16u + vsomeip::protocol::SEND_COMMAND_HEADER_SIZE);
     EXPECT_EQ(max_local_message_size, its_configuration->get_max_message_size_local());
     EXPECT_EQ(11u, its_configuration->get_buffer_shrink_threshold());
     EXPECT_EQ(14999u + 16u, its_configuration->get_max_message_size_reliable("10.10.10.10", 7777));

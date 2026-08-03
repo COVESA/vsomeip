@@ -103,7 +103,7 @@ bool e2e_provider_impl::is_checked(e2exf::data_identifier_t id) const {
     return custom_checkers_.count(id) > 0;
 }
 
-std::size_t e2e_provider_impl::get_protection_base(e2exf::data_identifier_t id) const {
+size_t e2e_provider_impl::get_protection_base(e2exf::data_identifier_t id) const {
     const auto found_base = custom_bases_.find(id);
     if (found_base != custom_bases_.end()) {
         return found_base->second;

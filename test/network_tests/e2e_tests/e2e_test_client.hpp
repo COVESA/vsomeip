@@ -44,6 +44,6 @@ private:
 
     std::thread sender_;
 
-    std::atomic<std::uint32_t> received_responses_;
-    std::atomic<std::uint32_t> received_allowed_events_;
+    std::atomic<uint32_t> received_responses_;
+    std::atomic<uint32_t> received_allowed_events_;
 };

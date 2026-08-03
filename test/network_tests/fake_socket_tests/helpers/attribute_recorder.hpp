@@ -88,11 +88,11 @@ public:
      * Use this instead of wait_for_last when the same value is expected to be recorded more than once and
      * a previously recorded, identical value would otherwise satisfy wait_for_last immediately.
      */
-    [[nodiscard]] bool wait_for_count(Value const& _value, std::size_t _count,
+    [[nodiscard]] bool wait_for_count(Value const& _value, size_t _count,
                                       std::chrono::milliseconds timeout = common::scaled_timeout(std::chrono::seconds(3))) {
         return wait_for(
                 [&_value, _count](auto const& record) {
-                    return static_cast<std::size_t>(std::count(record.begin(), record.end(), _value)) >= _count;
+                    return static_cast<size_t>(std::count(record.begin(), record.end(), _value)) >= _count;
                 },
                 timeout);
     }

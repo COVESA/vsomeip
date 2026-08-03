@@ -22,11 +22,11 @@
 namespace vsomeip_v3 {
 namespace tp {
 
-tp_reassembler::tp_reassembler(std::uint32_t _max_message_size, boost::asio::io_context& _io) :
+tp_reassembler::tp_reassembler(uint32_t _max_message_size, boost::asio::io_context& _io) :
     max_message_size_(_max_message_size), cleanup_timer_running_(false), cleanup_timer_(_io) { }
 
-std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(const byte_t* const _data, std::uint32_t _data_size,
-                                                                     const boost::asio::ip::address& _address, std::uint16_t _port) {
+std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(const byte_t* const _data, uint32_t _data_size,
+                                                                     const boost::asio::ip::address& _address, uint16_t _port) {
     std::pair<bool, message_buffer_t> ret;
     // a SOME/IP-TP datagram must at least carry the SOME/IP header and the TP header
     if (_data_size < VSOMEIP_FULL_HEADER_SIZE + VSOMEIP_TP_HEADER_SIZE) {
@@ -42,10 +42,9 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(const byte_
     const interface_version_t its_interface_version = _data[VSOMEIP_INTERFACE_VERSION_POS];
     const message_type_e its_msg_type = tp::tp_flag_unset(_data[VSOMEIP_MESSAGE_TYPE_POS]);
 
-    const std::uint64_t its_tp_message_id =
-            ((static_cast<std::uint64_t>(its_service) << 48) | (static_cast<std::uint64_t>(its_method) << 32)
-             | (static_cast<std::uint64_t>(its_client) << 16) | (static_cast<std::uint64_t>(its_interface_version) << 8)
-             | (static_cast<std::uint64_t>(its_msg_type)));
+    const uint64_t its_tp_message_id = ((static_cast<uint64_t>(its_service) << 48) | (static_cast<uint64_t>(its_method) << 32)
+                                        | (static_cast<uint64_t>(its_client) << 16) | (static_cast<uint64_t>(its_interface_version) << 8)
+                                        | (static_cast<uint64_t>(its_msg_type)));
 
     std::scoped_lock its_lock(mutex_);
     ret.first = false;

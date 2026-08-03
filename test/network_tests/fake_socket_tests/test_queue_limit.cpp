@@ -32,8 +32,8 @@ std::string const ecu_two_server_name_{"ecu_two_server"};
 // "endpoint-queue-limit-external" (4096 in ecu_two_queue_limited.json) so that, once
 // sending is stalled, the limit is reached and later notifications are dropped while
 // still pending in the batching stage.
-constexpr std::size_t kBurstCount{100};
-constexpr std::size_t kPayloadSize{512};
+constexpr size_t kBurstCount{100};
+constexpr size_t kPayloadSize{512};
 } // namespace
 
 struct test_queue_limit_helper : public base_fake_socket_fixture {
@@ -85,11 +85,11 @@ struct test_queue_limit_helper : public base_fake_socket_fixture {
 
     // Sends kBurstCount distinct notifications while the sender is stalled, then
     // releases the socket. Returns how many the client ultimately received.
-    std::size_t stalled_burst_and_count() {
+    size_t stalled_burst_and_count() {
         // Stall only the data endpoint (subscription over SD has already completed).
         EXPECT_TRUE(delay_boardnet_sending(ecu_two_data_ep_, true));
 
-        for (std::size_t i = 0; i < kBurstCount; ++i) {
+        for (size_t i = 0; i < kBurstCount; ++i) {
             std::vector<unsigned char> payload(kPayloadSize, static_cast<unsigned char>(i));
             ecu_two_server_->send_event(offered_event_, payload);
         }
@@ -98,7 +98,7 @@ struct test_queue_limit_helper : public base_fake_socket_fixture {
         EXPECT_TRUE(delay_boardnet_sending(ecu_two_data_ep_, false));
 
         // Let the surviving notifications arrive, then read the recorded count.
-        std::size_t received{0};
+        size_t received{0};
         (void)ecu_one_client_->message_record_.wait_for(
                 [&](auto const& record) {
                     received = record.size();
@@ -133,7 +133,7 @@ TEST_F(test_queue_limit_helper, pending_trains_over_limit_cause_drops) {
     start_all_apps("ecu_two_queue_limited.json");
     offer_and_subscribe();
 
-    const std::size_t received = stalled_burst_and_count();
+    const size_t received = stalled_burst_and_count();
 
     // Some notifications get through, but not the full burst: the queue limit
     // dropped the ones that would have exceeded queue_size_ + pending_train_size_.

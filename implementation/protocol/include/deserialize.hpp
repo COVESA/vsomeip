@@ -23,7 +23,7 @@
 
 namespace vsomeip_v3::protocol {
 
-uint32_t deserialize(std::map<std::size_t, byte_t>& _out, unsigned char const* _mem, uint32_t _size);
+uint32_t deserialize(std::map<size_t, byte_t>& _out, unsigned char const* _mem, uint32_t _size);
 uint32_t deserialize(std::shared_ptr<debounce_filter_impl_t>& _out, unsigned char const* _mem, uint32_t _size);
 uint32_t deserialize(std::vector<std::pair<uid_t, gid_t>>& _out, unsigned char const* _mem, uint32_t _size);
 
@@ -240,7 +240,7 @@ inline uint32_t deserialize(subscribe_data& _out, unsigned char const* _mem, uin
     return parse(_mem, _size, _out.service_, _out.instance_, _out.eventgroup_, _out.major_, _out.event_, _out.pending_id_);
 }
 
-inline uint32_t deserialize(std::map<std::size_t, byte_t>& _out, unsigned char const* _mem, uint32_t _size) {
+inline uint32_t deserialize(std::map<size_t, byte_t>& _out, unsigned char const* _mem, uint32_t _size) {
     uint32_t its_offset = 0;
     size_t its_key;
     byte_t its_value;

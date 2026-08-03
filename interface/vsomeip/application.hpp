@@ -858,7 +858,7 @@ public:
      * \param _magic_cookies_enabled Flag to enable magic cookies
      * \param _offer Offer the service or stop offering it remotely
      */
-    virtual bool update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+    virtual bool update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                               bool _magic_cookies_enabled, bool _offer) = 0;
 
     /**

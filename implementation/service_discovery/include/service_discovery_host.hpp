@@ -69,9 +69,9 @@ public:
     virtual std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable) = 0;
 
     virtual void expire_subscriptions(const boost::asio::ip::address& _address) = 0;
-    virtual void expire_subscriptions(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) = 0;
+    virtual void expire_subscriptions(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) = 0;
     virtual void expire_services(const boost::asio::ip::address& _address) = 0;
-    virtual void expire_services(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) = 0;
+    virtual void expire_services(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) = 0;
 
     virtual void on_remote_subscribe(std::shared_ptr<remote_subscription>& _subscription,
                                      const remote_subscription_callback_t& _callback) = 0;

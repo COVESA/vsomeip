@@ -31,7 +31,7 @@ TEST(CyclicEventTest, ClientReceivesMultipleEvents) {
             [runtime, application, &notification_count](const std::shared_ptr<vsomeip::message> /* message */) {
                 VSOMEIP_INFO << "Received event notification.";
 
-                constexpr std::uint8_t MIN_NOTIFICATION_COUNT = 3;
+                constexpr uint8_t MIN_NOTIFICATION_COUNT = 3;
                 if ((notification_count += 1) != MIN_NOTIFICATION_COUNT) {
                     return;
                 }

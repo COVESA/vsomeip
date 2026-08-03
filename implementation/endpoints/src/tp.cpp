@@ -21,7 +21,7 @@
 namespace vsomeip_v3 {
 namespace tp {
 
-tp_split_messages_t tp::tp_split_message(const std::uint8_t* const _data, std::uint32_t _size, std::uint16_t _max_segment_length) {
+tp_split_messages_t tp::tp_split_message(const uint8_t* const _data, uint32_t _size, uint16_t _max_segment_length) {
 
     tp_split_messages_t split_messages;
 
@@ -65,7 +65,7 @@ tp_split_messages_t tp::tp_split_message(const std::uint8_t* const _data, std::u
     return split_messages;
 }
 
-const std::uint16_t tp::tp_max_segment_length_;
+const uint16_t tp::tp_max_segment_length_;
 
 } // namespace tp
 } // namespace vsomeip_v3

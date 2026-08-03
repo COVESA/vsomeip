@@ -27,7 +27,7 @@
 class initial_event_test_client {
 public:
     initial_event_test_client(int _client_number, std::array<initial_event_test::service_info, 7> _service_infos,
-                              bool _subscribe_on_available, std::uint32_t _events_to_subscribe, bool _dont_exit, bool _subscribe_only_one,
+                              bool _subscribe_on_available, uint32_t _events_to_subscribe, bool _dont_exit, bool _subscribe_only_one,
                               vsomeip::reliability_type_e _reliability_type, bool _client_subscribes_twice) :
         client_number_(_client_number), service_infos_(_service_infos), app_(vsomeip::runtime::get()->create_application()),
         wait_for_stop_(true), second_subscribe_started_(false), second_subscribe_completed_(false), all_services_are_available_(false),
@@ -56,7 +56,7 @@ public:
 
             std::set<vsomeip::eventgroup_t> its_eventgroups;
             its_eventgroups.insert(i.eventgroup_id);
-            for (std::uint32_t j = 0; j < events_to_subscribe_; j++) {
+            for (uint32_t j = 0; j < events_to_subscribe_; j++) {
                 app_->request_event(i.service_id, i.instance_id, static_cast<vsomeip::event_t>(i.event_id + j), its_eventgroups,
                                     vsomeip::event_type_e::ET_FIELD, reliability_type_);
             }
@@ -70,7 +70,7 @@ public:
                     other_services_received_notification_[std::make_pair(i.service_id, i.event_id)] = 0;
                 } else if (events_to_subscribe_ > 1) {
                     if (!subscribe_only_one_) {
-                        for (std::uint32_t j = 0; j < events_to_subscribe_; j++) {
+                        for (uint32_t j = 0; j < events_to_subscribe_; j++) {
                             app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::DEFAULT_MAJOR,
                                             static_cast<vsomeip::event_t>(i.event_id + j));
                             other_services_received_notification_[std::make_pair(i.service_id, i.event_id + j)] = 0;
@@ -82,7 +82,7 @@ public:
                     }
                 }
             } else {
-                for (std::uint32_t j = 0; j < events_to_subscribe_; j++) {
+                for (uint32_t j = 0; j < events_to_subscribe_; j++) {
                     other_services_received_notification_[std::make_pair(i.service_id, i.event_id + j)] = 0;
                 }
             }
@@ -160,7 +160,7 @@ public:
                     if (events_to_subscribe_ == 1) {
                         app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::DEFAULT_MAJOR);
                     } else if (events_to_subscribe_ > 1) {
-                        for (std::uint32_t j = 0; j < events_to_subscribe_; j++) {
+                        for (uint32_t j = 0; j < events_to_subscribe_; j++) {
                             app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::DEFAULT_MAJOR,
                                             static_cast<vsomeip::event_t>(i.event_id + j));
                         }
@@ -172,7 +172,7 @@ public:
 
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
         if (_message->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
-            std::uint32_t its_notification_count(0);
+            uint32_t its_notification_count(0);
 
             {
                 std::scoped_lock its_lock(state_mutex_);
@@ -222,7 +222,7 @@ public:
                                 app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::DEFAULT_MAJOR);
                             } else if (events_to_subscribe_ > 1) {
                                 if (!subscribe_only_one_) {
-                                    for (std::uint32_t j = 0; j < events_to_subscribe_; j++) {
+                                    for (uint32_t j = 0; j < events_to_subscribe_; j++) {
                                         app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::DEFAULT_MAJOR,
                                                         static_cast<vsomeip::event_t>(i.event_id + j));
                                     }
@@ -254,9 +254,9 @@ public:
         }
     }
 
-    bool all_notifications_received_locked(std::uint32_t _required_notifications) {
+    bool all_notifications_received_locked(uint32_t _required_notifications) {
         return std::all_of(other_services_received_notification_.cbegin(), other_services_received_notification_.cend(),
-                           [&](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t>::value_type& v) {
+                           [&](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, uint32_t>::value_type& v) {
                                bool result;
                                // NOTE: can receive multiple initial notifications; see ff0d2ae2
                                if (v.second >= _required_notifications) {
@@ -326,7 +326,7 @@ private:
     std::shared_ptr<vsomeip::application> app_;
     std::mutex state_mutex_;
     std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool> other_services_available_;
-    std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t> other_services_received_notification_;
+    std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, uint32_t> other_services_received_notification_;
 
     bool wait_for_stop_;
     bool second_subscribe_started_;
@@ -335,7 +335,7 @@ private:
     bool subscribed_;
 
     bool subscribe_on_available_;
-    std::uint32_t events_to_subscribe_;
+    uint32_t events_to_subscribe_;
     bool dont_exit_;
     bool subscribe_only_one_;
 
@@ -349,7 +349,7 @@ private:
 static int client_number;
 static bool use_same_service_id;
 static bool subscribe_on_available;
-static std::uint32_t subscribe_multiple_events;
+static uint32_t subscribe_multiple_events;
 static bool dont_exit;
 static bool subscribe_only_one;
 static bool client_subscribes_twice;

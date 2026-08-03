@@ -47,7 +47,7 @@ public:
 
     bool get_default_target(service_t, endpoint_type&) const;
 
-    std::uint16_t get_local_port() const;
+    uint16_t get_local_port() const;
     bool is_reliable() const;
     bool is_local() const;
 
@@ -63,8 +63,8 @@ private:
     public:
         typedef std::shared_ptr<connection> ptr;
 
-        static ptr create(const std::weak_ptr<tcp_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
-                          std::uint32_t _buffer_shrink_threshold, bool _use_magic_cookies, boost::asio::io_context& _io,
+        static ptr create(const std::weak_ptr<tcp_server_endpoint_impl>& _server, uint32_t _max_message_size,
+                          uint32_t _buffer_shrink_threshold, bool _use_magic_cookies, boost::asio::io_context& _io,
                           std::chrono::milliseconds _send_timeout);
 
         ~connection();
@@ -80,21 +80,21 @@ private:
 
         void set_remote_info(const endpoint_type& _remote);
         std::string get_address_port_remote() const;
-        std::size_t get_recv_buffer_capacity() const;
+        size_t get_recv_buffer_capacity() const;
 
     private:
-        connection(const std::weak_ptr<tcp_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
-                   std::uint32_t _recv_buffer_size_initial, std::uint32_t _buffer_shrink_threshold, bool _use_magic_cookies,
-                   boost::asio::io_context& _io, std::chrono::milliseconds _send_timeout);
+        connection(const std::weak_ptr<tcp_server_endpoint_impl>& _server, uint32_t _max_message_size, uint32_t _recv_buffer_size_initial,
+                   uint32_t _buffer_shrink_threshold, bool _use_magic_cookies, boost::asio::io_context& _io,
+                   std::chrono::milliseconds _send_timeout);
         bool send_magic_cookie(message_buffer_ptr_t& _buffer);
         bool is_magic_cookie(size_t _offset) const;
-        void receive_cbk(boost::system::error_code const& _error, std::size_t _bytes);
+        void receive_cbk(boost::system::error_code const& _error, size_t _bytes);
         void calculate_shrink_count();
         std::string get_address_port_local() const;
         void handle_recv_buffer_exception(const std::exception& _e);
-        std::size_t write_completion_condition(const boost::system::error_code& _error, std::size_t _bytes_transferred,
-                                               std::size_t _bytes_to_send, service_t _service, method_t _method, client_t _client,
-                                               session_t _session, const std::chrono::steady_clock::time_point _start);
+        size_t write_completion_condition(const boost::system::error_code& _error, size_t _bytes_transferred, size_t _bytes_to_send,
+                                          service_t _service, method_t _method, client_t _client, session_t _session,
+                                          const std::chrono::steady_clock::time_point _start);
         void stop_and_remove_connection();
         void wait_until_sent(const boost::system::error_code& _error);
 
@@ -107,13 +107,13 @@ private:
 
         message_buffer_t recv_buffer_;
         size_t recv_buffer_size_;
-        std::uint32_t missing_capacity_;
-        std::uint32_t shrink_count_;
-        const std::uint32_t buffer_shrink_threshold_;
+        uint32_t missing_capacity_;
+        uint32_t shrink_count_;
+        const uint32_t buffer_shrink_threshold_;
 
         endpoint_type remote_;
         boost::asio::ip::address remote_address_;
-        std::uint16_t remote_port_;
+        uint16_t remote_port_;
 
         // magic cookie state; both are modified under `socket_mutex_`
         bool use_magic_cookies_ = false;
@@ -133,7 +133,7 @@ private:
     std::mutex connections_mutex_;
     typedef std::map<endpoint_type, connection::ptr> connections_t;
     connections_t connections_;
-    const std::uint32_t buffer_shrink_threshold_;
+    const uint32_t buffer_shrink_threshold_;
     const std::chrono::milliseconds send_timeout_;
 
     std::string instance_name_;

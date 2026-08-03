@@ -65,9 +65,9 @@ public:
 #ifndef VSOMEIP_DISABLE_SECURITY
     VSOMEIP_EXPORT void lazy_load_security(const std::string& _client_host);
 #endif // !VSOMEIP_DISABLE_SECURITY
-    VSOMEIP_EXPORT bool remote_offer_info_add(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+    VSOMEIP_EXPORT bool remote_offer_info_add(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                               bool _magic_cookies_enabled);
-    VSOMEIP_EXPORT bool remote_offer_info_remove(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+    VSOMEIP_EXPORT bool remote_offer_info_remove(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                  bool _magic_cookies_enabled, bool* _still_offered_remote);
 
     VSOMEIP_EXPORT const std::string& get_network() const;
@@ -79,7 +79,7 @@ public:
     VSOMEIP_EXPORT unsigned short get_prefix() const;
     VSOMEIP_EXPORT const std::string& get_device() const;
     VSOMEIP_EXPORT unsigned short get_diagnosis_address() const;
-    VSOMEIP_EXPORT std::uint16_t get_diagnosis_mask() const;
+    VSOMEIP_EXPORT uint16_t get_diagnosis_mask() const;
     VSOMEIP_EXPORT bool is_v4() const;
     VSOMEIP_EXPORT bool is_v6() const;
 
@@ -95,10 +95,10 @@ public:
     VSOMEIP_EXPORT bool has_enabled_magic_cookies(const std::string& _address, uint16_t _port) const;
     VSOMEIP_EXPORT uint16_t get_unreliable_port(service_t _service, instance_t _instance) const;
 
-    VSOMEIP_EXPORT void get_configured_timing_requests(service_t _service, const std::string& _ip_target, std::uint16_t _port_target,
+    VSOMEIP_EXPORT void get_configured_timing_requests(service_t _service, const std::string& _ip_target, uint16_t _port_target,
                                                        method_t _method, std::chrono::nanoseconds* _debounce_time,
                                                        std::chrono::nanoseconds* _max_retention_time) const;
-    VSOMEIP_EXPORT void get_configured_timing_responses(service_t _service, const std::string& _ip_service, std::uint16_t _port_service,
+    VSOMEIP_EXPORT void get_configured_timing_responses(service_t _service, const std::string& _ip_service, uint16_t _port_service,
                                                         method_t _method, std::chrono::nanoseconds* _debounce_time,
                                                         std::chrono::nanoseconds* _max_retention_time) const;
 
@@ -122,11 +122,11 @@ public:
     VSOMEIP_EXPORT client_t get_id(const std::string& _name) const;
     VSOMEIP_EXPORT bool is_configured_client_id(client_t _id) const;
 
-    VSOMEIP_EXPORT std::size_t get_max_dispatchers(const std::string& _name) const;
-    VSOMEIP_EXPORT std::size_t get_max_dispatch_time(const std::string& _name) const;
-    VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string& _name) const;
+    VSOMEIP_EXPORT size_t get_max_dispatchers(const std::string& _name) const;
+    VSOMEIP_EXPORT size_t get_max_dispatch_time(const std::string& _name) const;
+    VSOMEIP_EXPORT size_t get_io_thread_count(const std::string& _name) const;
     VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string& _name) const;
-    VSOMEIP_EXPORT std::size_t get_request_debounce_time(const std::string& _name) const;
+    VSOMEIP_EXPORT size_t get_request_debounce_time(const std::string& _name) const;
     VSOMEIP_EXPORT bool has_session_handling(const std::string& _name) const;
 
     VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t>> get_remote_services() const;
@@ -140,10 +140,10 @@ public:
                                                     std::chrono::milliseconds& _cycle, bool& _change_resets_cycle,
                                                     bool& _update_on_change_) const;
 
-    VSOMEIP_EXPORT std::uint32_t get_max_message_size_local() const;
-    VSOMEIP_EXPORT std::uint32_t get_max_message_size_reliable(const std::string& _address, std::uint16_t _port) const;
-    VSOMEIP_EXPORT std::uint32_t get_max_message_size_unreliable() const;
-    VSOMEIP_EXPORT std::uint32_t get_buffer_shrink_threshold() const;
+    VSOMEIP_EXPORT uint32_t get_max_message_size_local() const;
+    VSOMEIP_EXPORT uint32_t get_max_message_size_reliable(const std::string& _address, uint16_t _port) const;
+    VSOMEIP_EXPORT uint32_t get_max_message_size_unreliable() const;
+    VSOMEIP_EXPORT uint32_t get_buffer_shrink_threshold() const;
 
     VSOMEIP_EXPORT bool supports_selective_broadcasts(const boost::asio::ip::address& _address) const;
 
@@ -177,16 +177,16 @@ public:
     VSOMEIP_EXPORT int32_t get_sd_cyclic_offer_delay() const;
     VSOMEIP_EXPORT int32_t get_sd_request_response_delay() const;
     VSOMEIP_EXPORT uint8_t get_sd_find_initial_debounce_reps() const;
-    VSOMEIP_EXPORT std::uint32_t get_sd_find_initial_debounce_time() const;
-    VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
-    VSOMEIP_EXPORT std::uint32_t get_sd_find_debounce_time() const;
+    VSOMEIP_EXPORT uint32_t get_sd_find_initial_debounce_time() const;
+    VSOMEIP_EXPORT uint32_t get_sd_offer_debounce_time() const;
+    VSOMEIP_EXPORT uint32_t get_sd_find_debounce_time() const;
     VSOMEIP_EXPORT bool get_sd_wait_route_netlink_notification() const;
     VSOMEIP_EXPORT uint32_t get_sd_stop_offer_watchdog_time() const override;
     VSOMEIP_EXPORT uint32_t get_sd_offers_watchdog_time() const override;
     // Trace configuration
     VSOMEIP_EXPORT std::shared_ptr<cfg::trace> get_trace() const;
 
-    VSOMEIP_EXPORT std::uint32_t get_permissions_uds() const;
+    VSOMEIP_EXPORT uint32_t get_permissions_uds() const;
 
     VSOMEIP_EXPORT bool check_routing_credentials(client_t _client, const vsomeip_sec_client_t* _sec_client) const;
 
@@ -213,7 +213,7 @@ public:
     VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(const std::string& _name, service_t _service, instance_t _instance,
                                                                         event_t _event) const;
 
-    VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(const std::string& _address, std::uint16_t _port) const;
+    VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(const std::string& _address, uint16_t _port) const;
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit_local() const;
 
     VSOMEIP_EXPORT uint32_t get_local_tcp_user_timeout() const;
@@ -225,12 +225,12 @@ public:
     VSOMEIP_EXPORT uint32_t get_external_tcp_keepintvl() const;
     VSOMEIP_EXPORT uint32_t get_external_tcp_keepcnt() const;
 
-    VSOMEIP_EXPORT std::uint32_t get_max_tcp_restart_aborts() const;
-    VSOMEIP_EXPORT std::uint32_t get_max_tcp_connect_time() const;
+    VSOMEIP_EXPORT uint32_t get_max_tcp_restart_aborts() const;
+    VSOMEIP_EXPORT uint32_t get_max_tcp_connect_time() const;
 
     VSOMEIP_EXPORT bool is_protected_device(const boost::asio::ip::address& _address) const;
-    VSOMEIP_EXPORT bool is_protected_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const;
-    VSOMEIP_EXPORT bool is_secure_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const;
+    VSOMEIP_EXPORT bool is_protected_port(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) const;
+    VSOMEIP_EXPORT bool is_secure_port(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) const;
 
     VSOMEIP_EXPORT void set_sd_acceptance_rule(const boost::asio::ip::address& _address, port_range_t _port_range, port_type_e _type,
                                                const std::string& _path, bool _reliable, bool _enable, bool _default);
@@ -245,7 +245,7 @@ public:
     VSOMEIP_EXPORT bool is_tp_client(service_t _service, instance_t _instance, method_t _method) const;
     VSOMEIP_EXPORT bool is_tp_service(service_t _service, instance_t _instance, method_t _method) const;
     VSOMEIP_EXPORT void get_tp_configuration(service_t _service, instance_t _instance, method_t _method, bool _is_client,
-                                             std::uint16_t& _max_segment_length, std::uint32_t& _separation_time) const;
+                                             uint16_t& _max_segment_length, uint32_t& _separation_time) const;
 
     VSOMEIP_EXPORT bool log_statistics() const;
     VSOMEIP_EXPORT uint32_t get_statistics_interval() const;
@@ -358,7 +358,7 @@ private:
                               std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t>>& _debounces);
     void load_event_debounce(const boost::property_tree::ptree& _tree,
                              std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t>>& _debounces);
-    void load_event_debounce_ignore(const boost::property_tree::ptree& _tree, std::map<std::size_t, byte_t>& _ignore);
+    void load_event_debounce_ignore(const boost::property_tree::ptree& _tree, std::map<size_t, byte_t>& _ignore);
     void load_acceptances(const configuration_element& _element);
     void load_acceptance_data(const boost::property_tree::ptree& _tree);
     void load_activation_file_path(std::set<std::string>& _path, const boost::property_tree::ptree& _tree);
@@ -373,7 +373,7 @@ private:
     std::shared_ptr<client> find_client(service_instance_t _si) const;
     std::shared_ptr<service> find_service(service_instance_t _si) const;
     std::shared_ptr<service> find_service_unlocked(service_instance_t _si) const;
-    std::shared_ptr<service> find_service(service_t _service, const std::string& _address, std::uint16_t _port) const;
+    std::shared_ptr<service> find_service(service_t _service, const std::string& _address, uint16_t _port) const;
     std::shared_ptr<eventgroup> find_eventgroup(service_instance_t _si, eventgroup_t _eventgroup) const;
     bool find_port(uint16_t& _port, uint16_t _remote, bool _reliable, std::map<bool, std::set<uint16_t>>& _used_client_ports) const;
     bool find_specific_port(uint16_t& _port, service_t _service, instance_t _instance, bool _reliable,
@@ -440,7 +440,7 @@ protected:
     service_instance_map<std::shared_ptr<service>> services_;
 
     std::map<std::string, // IP
-             std::map<std::uint16_t, // port
+             std::map<uint16_t, // port
                       std::map<service_t, std::shared_ptr<service>>>>
             services_by_ip_port_;
 
@@ -464,22 +464,22 @@ protected:
     ttl_t sd_ttl_;
     int32_t sd_cyclic_offer_delay_;
     int32_t sd_request_response_delay_;
-    std::uint32_t sd_offer_debounce_time_;
-    std::uint32_t sd_find_debounce_time_;
+    uint32_t sd_offer_debounce_time_;
+    uint32_t sd_find_debounce_time_;
     uint8_t sd_find_initial_debounce_reps_;
-    std::uint32_t sd_find_initial_debounce_time_;
+    uint32_t sd_find_initial_debounce_time_;
     bool sd_wait_route_netlink_notification_;
     uint32_t sd_stop_offer_watchdog_time_;
     uint32_t sd_offers_watchdog_time_;
 
     std::map<std::string, std::set<uint16_t>> magic_cookies_;
 
-    std::map<std::string, std::map<std::uint16_t, std::uint32_t>> message_sizes_;
-    std::uint32_t max_configured_message_size_;
-    std::uint32_t max_local_message_size_;
-    std::uint32_t max_reliable_message_size_;
-    std::uint32_t max_unreliable_message_size_;
-    std::uint32_t buffer_shrink_threshold_;
+    std::map<std::string, std::map<uint16_t, uint32_t>> message_sizes_;
+    uint32_t max_configured_message_size_;
+    uint32_t max_local_message_size_;
+    uint32_t max_reliable_message_size_;
+    uint32_t max_unreliable_message_size_;
+    uint32_t buffer_shrink_threshold_;
 
     std::shared_ptr<trace> trace_;
 
@@ -548,7 +548,7 @@ protected:
     };
 
     bool is_configured_[ET_MAX];
-    std::uint32_t permissions_uds_;
+    uint32_t permissions_uds_;
 
     std::string network_;
     std::string configuration_path_;
@@ -566,7 +566,7 @@ protected:
 
     debounce_configuration_t debounces_;
 
-    std::map<std::string, std::map<std::uint16_t, endpoint_queue_limit_t>> endpoint_queue_limits_;
+    std::map<std::string, std::map<uint16_t, endpoint_queue_limit_t>> endpoint_queue_limits_;
     endpoint_queue_limit_t endpoint_queue_limit_external_;
     endpoint_queue_limit_t endpoint_queue_limit_local_;
 
@@ -620,10 +620,10 @@ protected:
 
     routing_state_e initial_routing_state_;
 
-    std::size_t request_debounce_time_;
+    size_t request_debounce_time_;
 
-    std::size_t default_max_dispatch_time_;
-    std::size_t default_max_dispatchers_;
+    size_t default_max_dispatch_time_;
+    size_t default_max_dispatchers_;
 };
 
 } // namespace cfg

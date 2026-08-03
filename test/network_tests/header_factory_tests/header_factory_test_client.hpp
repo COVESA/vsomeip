@@ -26,7 +26,7 @@ private:
     std::shared_ptr<vsomeip::application> app_;
     std::shared_ptr<vsomeip::message> request_;
     std::mutex sync_mtx_;
-    std::uint32_t number_of_messages_to_send_;
-    std::uint32_t number_of_acknowledged_messages_;
+    uint32_t number_of_messages_to_send_;
+    uint32_t number_of_acknowledged_messages_;
     std::set<vsomeip::session_t> received_sessions_;
 };

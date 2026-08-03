@@ -24,7 +24,6 @@ struct service_info service_slave = {0x6767, 0x1, 0x6767, 0x8001, 0x1, 0x6701, 0
 
 enum test_mode_e { IN_SEQUENCE, MIXED, INCOMPLETE, DUPLICATE, OVERLAP, OVERLAP_FRONT_BACK };
 
-const std::uint32_t number_of_fragments = 6;
-const std::uint32_t max_segment_size = 1392;
-
+const uint32_t number_of_fragments = 6;
+const uint32_t max_segment_size = 1392;
 }

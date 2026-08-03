@@ -23,6 +23,6 @@ public:
 private:
     std::shared_ptr<vsomeip::application> app_;
     std::mutex sync_mtx_;
-    std::uint32_t number_of_received_messages_;
+    uint32_t number_of_received_messages_;
     std::set<vsomeip::session_t> received_sessions_;
 };

@@ -23,7 +23,7 @@ void memory_test_client::on_availability(vsomeip::service_t service_, vsomeip::i
 void memory_test_client::on_message(const std::shared_ptr<vsomeip::message>& message_) {
     if (MEMORY_SERVICE == message_->get_service() && message_->get_method() <= MEMORY_EVENT + TEST_EVENT_NUMBER
         && message_->get_method() >= MEMORY_EVENT) {
-        std::uint64_t count{0};
+        uint64_t count{0};
         {
             std::scoped_lock lk(event_counter_mutex);
             received_messages_counter++;
@@ -40,7 +40,7 @@ void memory_test_client::on_message(const std::shared_ptr<vsomeip::message>& mes
     }
 }
 
-void memory_test_client::send_ack(std::uint64_t received_count_) {
+void memory_test_client::send_ack(uint64_t received_count_) {
     auto its_runtime = vsomeip::runtime::get();
     auto its_message = its_runtime->create_request(false);
     its_message->set_service(MEMORY_SERVICE);
@@ -129,7 +129,7 @@ void memory_test_client::send_request(std::atomic<bool>& stop_checking_) {
             stop_watchdog = true;
         }
     }
-    std::uint64_t final_count{0};
+    uint64_t final_count{0};
     {
         std::scoped_lock lk(event_counter_mutex);
         final_count = received_messages_counter;
@@ -146,7 +146,7 @@ void memory_test_client::stop_service() {
     auto its_message = vsomeip_utilities::create_standard_vsip_request(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_STOP_METHOD, MEMORY_MAJOR,
                                                                        vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
     _app->send(its_message);
-    std::uint64_t count{0};
+    uint64_t count{0};
     {
         std::scoped_lock lk(event_counter_mutex);
         count = received_messages_counter;
@@ -178,7 +178,7 @@ TEST(memory_tests, receive_messages) {
     memory_test_client memory_test_client("memory_tests_client", events_to_subscribe);
 
     std::atomic<bool> stop_checking{false};
-    std::vector<std::uint64_t> test_memory_array;
+    std::vector<uint64_t> test_memory_array;
 
     // 1. Measure load until stop_checking is triggered
     std::thread memory_checker_thread([&stop_checking, &test_memory_array] { check_memory(test_memory_array, stop_checking); });

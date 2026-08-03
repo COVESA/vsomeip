@@ -96,7 +96,7 @@ public:
                 || _code == return_code_e::E_NOT_REACHABLE || _code == return_code_e::E_TIMEOUT
                 || _code == return_code_e::E_WRONG_PROTOCOL_VERSION || _code == return_code_e::E_WRONG_INTERFACE_VERSION
                 || _code == return_code_e::E_MALFORMED_MESSAGE || _code == return_code_e::E_WRONG_MESSAGE_TYPE
-                || (static_cast<std::uint8_t>(_code) >= 0x20 && static_cast<std::uint8_t>(_code) <= 0x5E));
+                || (static_cast<uint8_t>(_code) >= 0x20 && static_cast<uint8_t>(_code) <= 0x5E));
     }
 
     static inline bool compare(const vsomeip_sec_client_t& _lhs, const vsomeip_sec_client_t& _rhs) {
@@ -143,7 +143,7 @@ private:
     };
 
 private:
-    static std::uint16_t get_max_client_number(const std::shared_ptr<configuration>& _config);
+    static uint16_t get_max_client_number(const std::shared_ptr<configuration>& _config);
 
     static std::mutex& get_utility_mutex();
     static std::map<std::string, data_t>& get_utility_data();

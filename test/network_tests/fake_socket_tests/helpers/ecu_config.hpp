@@ -19,7 +19,7 @@ namespace vsomeip_v3::testing {
 struct application_config {
     std::string name_;
     std::optional<client_t> id_;
-    std::optional<std::size_t> threads_ = std::nullopt;
+    std::optional<size_t> threads_ = std::nullopt;
 };
 struct event_config {
     vsomeip::event_t event_id_{};
@@ -60,8 +60,8 @@ struct client_port_config {
 };
 
 struct service_discovery_config {
-    std::uint32_t initial_delay_min_{10};
-    std::uint32_t initial_delay_max_{100};
+    uint32_t initial_delay_min_{10};
+    uint32_t initial_delay_max_{100};
 };
 
 struct ecu_config {
@@ -73,7 +73,7 @@ struct ecu_config {
 
     ecu_config& add_interface(std::vector<interface> offered, vsomeip::port_t base_port = 30501);
 
-    ecu_config& with_initial_delay(std::uint32_t min, std::uint32_t max);
+    ecu_config& with_initial_delay(uint32_t min, uint32_t max);
 
     std::vector<application_config> apps_;
     std::vector<service_config> services_;

@@ -686,7 +686,7 @@ void application_impl::send(std::shared_ptr<message> _message) {
         VSOMEIP_INFO_P << "(" << hex4(client_) << "): [" << hex4(_message->get_service()) << "." << hex4(_message->get_instance()) << "."
                        << hex4(_message->get_method()) << ":" << hex4(is_request ? session_ : _message->get_session()) << ":"
                        << hex4(is_request ? client_.load() : _message->get_client()) << "] "
-                       << "type=" << static_cast<std::uint32_t>(_message->get_message_type()) << " thread=" << std::this_thread::get_id();
+                       << "type=" << static_cast<uint32_t>(_message->get_message_type()) << " thread=" << std::this_thread::get_id();
     }
     if (routing_) {
         // in case of requests set the request-id (client-id|session-id)
@@ -731,7 +731,7 @@ void application_impl::warn_late_registration(const char* _what, service_t _serv
                     << "; register handlers first.";
 }
 
-void application_impl::warn_late_registration(const char* _what, service_t _service, instance_t _instance, std::uint16_t _sub_id,
+void application_impl::warn_late_registration(const char* _what, service_t _service, instance_t _instance, uint16_t _sub_id,
                                               const char* _context) const {
     VSOMEIP_ERROR_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_sub_id) << "] registered after "
                     << _context << "; register handlers first.";
@@ -742,8 +742,7 @@ void application_impl::warn_duplicate_registration(const char* _what, service_t 
                       << "] registered more than once; the previous handler is replaced.";
 }
 
-void application_impl::warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance,
-                                                   std::uint16_t _sub_id) const {
+void application_impl::warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, uint16_t _sub_id) const {
     VSOMEIP_WARNING_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_sub_id)
                       << "] registered more than once; the previous handler is replaced.";
 }
@@ -1248,7 +1247,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         auto find_matching_handler = [&](availability_major_minor_t& _av_ma_mi_it) {
             auto found_major = _av_ma_mi_it.find(_major);
             if (found_major != _av_ma_mi_it.end()) {
-                for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
+                for (int32_t mi = static_cast<int32_t>(_minor); mi >= 0; mi--) {
                     auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
                     if (found_minor != found_major->second.end()) {
                         if (get_availability_state(found_minor->second.second, _service, _instance, _major, _minor) != _state) {
@@ -1267,7 +1266,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
             }
             found_major = _av_ma_mi_it.find(ANY_MAJOR);
             if (found_major != _av_ma_mi_it.end()) {
-                for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
+                for (int32_t mi = static_cast<int32_t>(_minor); mi >= 0; mi--) {
                     auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
                     if (found_minor != found_major->second.end()) {
                         if (get_availability_state(found_minor->second.second, _service, _instance, _major, _minor) != _state) {
@@ -1317,7 +1316,7 @@ void application_impl::reset_availability_state(service_t _service, instance_t _
     auto reset_availability_states = [this, _service, _instance, _major, _minor](availability_major_minor_t& _av_ma_mi_it) {
         auto found_major = _av_ma_mi_it.find(_major);
         if (found_major != _av_ma_mi_it.end()) {
-            for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
+            for (int32_t mi = static_cast<int32_t>(_minor); mi >= 0; mi--) {
                 auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
                 if (found_minor != found_major->second.end()) {
                     set_availability_state(found_minor->second.second, _service, _instance, _major, _minor,
@@ -1332,7 +1331,7 @@ void application_impl::reset_availability_state(service_t _service, instance_t _
         }
         found_major = _av_ma_mi_it.find(ANY_MAJOR);
         if (found_major != _av_ma_mi_it.end()) {
-            for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
+            for (int32_t mi = static_cast<int32_t>(_minor); mi >= 0; mi--) {
                 auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
                 if (found_minor != found_major->second.end()) {
                     set_availability_state(found_minor->second.second, _service, _instance, _major, _minor,
@@ -1637,7 +1636,7 @@ void application_impl::invoke_handler(std::unique_lock<std::mutex>& _lock, std::
         VSOMEIP_INFO << "Invoking handler: (" << hex4(client_) << "): [" << hex4(its_sync_handler->service_id_) << "."
                      << hex4(its_sync_handler->instance_id_) << "." << hex4(its_sync_handler->method_id_) << ":"
                      << hex4(its_sync_handler->session_id_) << "] "
-                     << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_) << " thread=" << std::hex << its_id;
+                     << "type=" << static_cast<uint32_t>(its_sync_handler->handler_type_) << " thread=" << std::hex << its_id;
     }
 
     running_dispatchers_.insert(its_id);
@@ -1984,7 +1983,7 @@ void application_impl::register_routing_state_handler(const routing_state_handle
     }
 }
 
-bool application_impl::update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+bool application_impl::update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                     bool _magic_cookies_enabled, bool _offer) {
     bool ret = false;
     if (!routing_app_) {

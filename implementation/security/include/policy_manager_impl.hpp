@@ -31,7 +31,7 @@ class VSOMEIP_IMPORT_EXPORT policy_manager_impl
 #endif // !VSOMEIP_DISABLE_SECURITY
 {
 public:
-    enum class policy_loaded_e : std::uint8_t {
+    enum class policy_loaded_e : uint8_t {
         POLICY_PATH_FOUND_AND_LOADED = 0x0,
         POLICY_PATH_FOUND_AND_NOT_LOADED = 0x1,
         POLICY_PATH_INEXISTENT = 0x2

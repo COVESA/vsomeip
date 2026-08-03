@@ -37,6 +37,6 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
-    std::uint32_t number_of_received_messages_;
+    uint32_t number_of_received_messages_;
     std::thread offer_thread_;
 };

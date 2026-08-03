@@ -72,7 +72,7 @@ ecu_config& ecu_config::add_interface(std::vector<interface> offered, vsomeip::p
     return *this;
 }
 
-ecu_config& ecu_config::with_initial_delay(std::uint32_t min, std::uint32_t max) {
+ecu_config& ecu_config::with_initial_delay(uint32_t min, uint32_t max) {
     service_discovery_.initial_delay_min_ = min;
     service_discovery_.initial_delay_max_ = max;
     return *this;
@@ -155,7 +155,7 @@ void to_json(std::ostringstream& o, const service_config& svc) {
 template<typename T>
 void write_array(std::ostringstream& o, const std::vector<T>& items) {
     o << "[";
-    for (std::size_t i = 0; i < items.size(); ++i) {
+    for (size_t i = 0; i < items.size(); ++i) {
         o << " ";
         to_json(o, items[i]);
         if (i + 1 < items.size()) {

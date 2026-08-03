@@ -11,7 +11,7 @@
 
 namespace {
 // Arbitrary array size, will depends on the policy itself.
-const std::uint32_t array_size = 82;
+const uint32_t array_size = 82;
 
 // Credentials.
 const vsomeip_v3::byte_t uid_byte1 = 0x01;
@@ -122,8 +122,8 @@ std::array<vsomeip_v3::byte_t, 4> uint32_array_uid_{uid_byte1, uid_byte2, uid_by
 std::array<vsomeip_v3::byte_t, 4> uint32_array_gid_{gid_byte1, gid_byte2, gid_byte3, gid_byte4};
 
 // Create uint32_t from bytes.
-const std::uint32_t uid = vsomeip_v3::bithelper::read_uint32_be(uint32_array_uid_.data());
-const std::uint32_t gid = vsomeip_v3::bithelper::read_uint32_be(uint32_array_gid_.data());
+const uint32_t uid = vsomeip_v3::bithelper::read_uint32_be(uint32_array_uid_.data());
+const uint32_t gid = vsomeip_v3::bithelper::read_uint32_be(uint32_array_gid_.data());
 }
 
 TEST(security_policy_test, deserialize) {
@@ -218,7 +218,7 @@ TEST(security_policy_test, deserialize) {
                                                            instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_.data();
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     // Test method.
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
@@ -239,11 +239,11 @@ TEST(security_policy_test, deserialize) {
     std::array<vsomeip_v3::byte_t, 2> uint16_array_request_method_id_low_{method_id_low_byte1, method_id_low_byte2};
     std::array<vsomeip_v3::byte_t, 2> uint16_array_request_method_id_high_{method_id_high_byte1, method_id_high_byte2};
 
-    std::uint16_t request_service = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_service_.data());
-    std::uint16_t request_instance_low = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_instance_low_.data());
-    std::uint16_t request_instance_high = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_instance_high_.data());
-    std::uint16_t request_method_low = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_method_id_low_.data());
-    std::uint16_t request_method_high = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_method_id_high_.data());
+    uint16_t request_service = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_service_.data());
+    uint16_t request_instance_low = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_instance_low_.data());
+    uint16_t request_instance_high = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_instance_high_.data());
+    uint16_t request_method_low = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_method_id_low_.data());
+    uint16_t request_method_high = vsomeip_v3::bithelper::read_uint16_be(uint16_array_request_method_id_high_.data());
 
     // Check if method high and low were deserialized correctly by private method deserialize_u16
     auto deserialized_service_set =
@@ -268,11 +268,11 @@ TEST(security_policy_test, deserialize) {
     std::array<vsomeip_v3::byte_t, 2> uint16_array_offer_instance2_low_{instance2_id_low_byte1, instance2_id_low_byte2};
     std::array<vsomeip_v3::byte_t, 2> uint16_array_offer_instance2_high_{instance2_id_low_byte1, instance2_id_low_byte2};
 
-    std::uint16_t offer_service = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_service_.data());
-    std::uint16_t offer_instance_low = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_instance_low_.data());
-    std::uint16_t offer_instance_high = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_instance_high_.data());
-    std::uint16_t offer_instance2_low = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_instance2_low_.data());
-    std::uint16_t offer_instance2_high = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_instance2_high_.data());
+    uint16_t offer_service = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_service_.data());
+    uint16_t offer_instance_low = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_instance_low_.data());
+    uint16_t offer_instance_high = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_instance_high_.data());
+    uint16_t offer_instance2_low = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_instance2_low_.data());
+    uint16_t offer_instance2_high = vsomeip_v3::bithelper::read_uint16_be(uint16_array_offer_instance2_high_.data());
 
     // Check if method high and low were deserialized correctly by private method deserialize_u16
     auto deserialized_offer_service_set =
@@ -289,8 +289,8 @@ TEST(security_policy_test, deserialize) {
     ASSERT_NE(++it, deserialized_offer_service_set->second.end());
 
     // Check low and high are equal.
-    std::uint16_t offer_instance2_deserialized_lower = it->lower();
-    std::uint16_t offer_instance2_deserialized_upper = it->upper();
+    uint16_t offer_instance2_deserialized_lower = it->lower();
+    uint16_t offer_instance2_deserialized_upper = it->upper();
     ASSERT_EQ(offer_instance2_deserialized_lower, offer_instance2_deserialized_upper);
     ASSERT_EQ(offer_instance2_deserialized_lower, offer_instance2_low);
     ASSERT_EQ(offer_instance2_deserialized_lower, offer_instance2_high);
@@ -301,7 +301,7 @@ TEST(security_policy_test, serialize) {
 
     // Create an array of policy with type 2 instance and methods for requests_
     // Create a 54 length array.
-    const std::uint32_t resized_array_size = 54;
+    const uint32_t resized_array_size = 54;
     std::array<vsomeip_v3::byte_t, resized_array_size> byte_array_{
             uid_byte1,
             uid_byte2,
@@ -373,7 +373,7 @@ TEST(security_policy_test, serialize) {
 
     // Fill policy with data.
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_.data();
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
 
     // Create a vector to receive the results of the serialization.
@@ -387,7 +387,7 @@ TEST(security_policy_test, serialize) {
     ASSERT_EQ(byte_vector.size(), resized_array_size);
 
     // Check bytes.
-    for (std::uint32_t i = 0; i < byte_vector.size(); i++) {
+    for (uint32_t i = 0; i < byte_vector.size(); i++) {
         ASSERT_EQ(byte_vector.at(i), byte_array_[i]);
     }
 }
@@ -483,12 +483,12 @@ TEST(security_policy_test, get_uid_gid) {
                                                            instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_.data();
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
 
     // Create uint32_t to receive the value from the test method.
-    std::uint32_t deserialized_uid;
-    std::uint32_t deserialized_gid;
+    uint32_t deserialized_uid;
+    uint32_t deserialized_gid;
 
 // Test method, and compare them to the created uid and gid.
 #ifndef __QNX__
@@ -589,12 +589,12 @@ TEST(security_policy_test, deserialize_uid_gid) {
                                                            instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_.data();
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
 
     // Create uint32_t to receive the value from the test method.
-    std::uint32_t deserialized_uid;
-    std::uint32_t deserialized_gid;
+    uint32_t deserialized_uid;
+    uint32_t deserialized_gid;
 
     // Resetting the pointers.
     data_ptr_ = byte_array_.data();

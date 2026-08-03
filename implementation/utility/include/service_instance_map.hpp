@@ -55,8 +55,8 @@ using versioned_service_instance_map = std::unordered_map<versioned_service_inst
 namespace std {
 template<>
 struct hash<vsomeip_v3::service_instance_t> {
-    std::size_t operator()(const vsomeip_v3::service_instance_t& k) const {
-        std::size_t seed = 0;
+    size_t operator()(const vsomeip_v3::service_instance_t& k) const {
+        size_t seed = 0;
         boost::hash_combine(seed, k.service);
         boost::hash_combine(seed, k.instance);
         return seed;
@@ -65,8 +65,8 @@ struct hash<vsomeip_v3::service_instance_t> {
 
 template<>
 struct hash<vsomeip_v3::versioned_service_instance_t> {
-    std::size_t operator()(const vsomeip_v3::versioned_service_instance_t& k) const {
-        std::size_t seed = 0;
+    size_t operator()(const vsomeip_v3::versioned_service_instance_t& k) const {
+        size_t seed = 0;
         boost::hash_combine(seed, k.service);
         boost::hash_combine(seed, k.instance);
         boost::hash_combine(seed, k.major);

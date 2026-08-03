@@ -194,8 +194,8 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
 
-    const std::uint8_t number_events_to_send_;
-    std::atomic<std::uint32_t> number_events_received_;
+    const uint8_t number_events_to_send_;
+    std::atomic<uint32_t> number_events_received_;
     std::thread send_thread_;
 };
 

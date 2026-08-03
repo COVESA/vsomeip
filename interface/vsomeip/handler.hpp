@@ -75,8 +75,8 @@ struct ip_address_t {
 
 struct remote_info_t {
     ip_address_t ip_;
-    std::uint16_t first_;
-    std::uint16_t last_;
+    uint16_t first_;
+    uint16_t last_;
     bool is_range_;
     bool is_reliable_;
 
@@ -87,8 +87,8 @@ struct remote_info_t {
 };
 
 struct message_acceptance_t {
-    std::uint32_t remote_address_;
-    std::uint16_t local_port_;
+    uint32_t remote_address_;
+    uint16_t local_port_;
     bool is_local_;
     service_t service_;
     instance_t instance_;

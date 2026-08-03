@@ -142,9 +142,8 @@ public:
 
     void on_notification(client_t _client, service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _notify_one);
 
-    bool offer_service_remotely(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable, bool _magic_cookies_enabled);
-    bool stop_offer_service_remotely(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
-                                     bool _magic_cookies_enabled);
+    bool offer_service_remotely(service_t _service, instance_t _instance, uint16_t _port, bool _reliable, bool _magic_cookies_enabled);
+    bool stop_offer_service_remotely(service_t _service, instance_t _instance, uint16_t _port, bool _reliable, bool _magic_cookies_enabled);
 
     // interface "service_discovery_host"
     services_t get_offered_services() const;
@@ -169,10 +168,10 @@ public:
     void on_remote_unsubscribe(std::shared_ptr<remote_subscription>& _subscription);
 
     void expire_subscriptions(const boost::asio::ip::address& _address);
-    void expire_subscriptions(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable);
+    void expire_subscriptions(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable);
     void expire_subscriptions(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable);
     void expire_services(const boost::asio::ip::address& _address);
-    void expire_services(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable);
+    void expire_services(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable);
     void expire_services(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable);
 
     std::chrono::steady_clock::time_point expire_subscriptions(bool _force);
@@ -193,7 +192,7 @@ public:
                              const std::shared_ptr<endpoint_definition>& _subscriber);
 
     void send_error(return_code_e _return_code, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
-                    boardnet_endpoint* const _receiver, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
+                    boardnet_endpoint* const _receiver, const boost::asio::ip::address& _remote_address, uint16_t _remote_port);
     void service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                     const std::shared_ptr<boardnet_endpoint>& _endpoint);
     void service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);

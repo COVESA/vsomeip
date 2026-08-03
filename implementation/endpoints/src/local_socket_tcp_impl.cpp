@@ -51,7 +51,7 @@ void local_socket_tcp_impl::stop(bool _force) {
     VSOMEIP_INFO_P << name_ << ", force: " << (_force ? "true" : "false");
 #if defined(__linux__) || defined(__QNX__)
     boost::system::error_code its_error;
-    io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
+    io_control_operation<size_t> send_buffer_size_cmd(TIOCOUTQ);
 
     uint32_t retry_count(0);
     while (true) {

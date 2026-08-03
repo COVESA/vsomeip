@@ -54,11 +54,11 @@ constexpr auto MESSAGE_SENDER_DURATION = std::chrono::seconds(90);
 // endpoint-queue-limit (so the queue never fills and nothing is dropped) and
 // the 15% MEMORY_LOAD_LIMIT headroom over the ~43 MB steady-state floor
 // (~6.6 MB), so a full window on its own cannot trip the memory assertion.
-constexpr std::uint64_t FLOW_CONTROL_WINDOW = 1000;
+constexpr uint64_t FLOW_CONTROL_WINDOW = 1000;
 // The client sends one cumulative acknowledgement every ACK_INTERVAL received
 // messages. Kept well below the window so the service gets several updates per
 // window and the pipe stays full.
-constexpr std::uint64_t ACK_INTERVAL = 100;
+constexpr uint64_t ACK_INTERVAL = 100;
 // While waiting for the window to open, give up (and send anyway) only if the
 // acknowledged count makes no progress at all for this long -- i.e. the
 // consumer is genuinely gone rather than merely slow -- so lost UDP acks can
@@ -81,16 +81,16 @@ constexpr double MEMORY_LOAD_LIMIT = 1.15; // meaning 15% limit above the steady
 
 // Reads the resident set size of the current process from /proc/self/statm,
 // returning it in KiB (0 on error).
-inline std::uint64_t read_rss_kib() {
-    static const std::uint64_t page_kib = static_cast<std::uint64_t>(getpagesize() / 1024);
+inline uint64_t read_rss_kib() {
+    static const uint64_t page_kib = static_cast<uint64_t>(getpagesize() / 1024);
 
     std::FILE* its_file = std::fopen("/proc/self/statm", "r");
     if (!its_file) {
         VSOMEIP_ERROR << "read_rss_kib: couldn't open /proc/self/statm: errno " << errno;
         return 0;
     }
-    std::uint64_t its_size(0);
-    std::uint64_t its_rsssize(0);
+    uint64_t its_size(0);
+    uint64_t its_rsssize(0);
     if (std::fscanf(its_file, "%lu %lu", &its_size, &its_rsssize) != 2) {
         VSOMEIP_ERROR << "read_rss_kib: error reading /proc/self/statm: errno " << errno;
         its_rsssize = 0;
@@ -100,10 +100,10 @@ inline std::uint64_t read_rss_kib() {
 }
 
 // Samples RSS into test_memory_ every MEMORY_CHECKER_INTERVAL until stop_checking_.
-inline void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& stop_checking_) {
+inline void check_memory(std::vector<uint64_t>& test_memory_, std::atomic<bool>& stop_checking_) {
     while (!stop_checking_) {
         std::this_thread::sleep_for(MEMORY_CHECKER_INTERVAL);
-        const std::uint64_t its_rss = read_rss_kib();
+        const uint64_t its_rss = read_rss_kib();
         if (its_rss == 0) {
             // read_rss_kib() already logged the failure. Skip the sample so a
             // transient /proc read error cannot pollute the steady-state floor
@@ -122,10 +122,10 @@ inline void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<b
 // "during operation". A genuine leak still trips this, because it keeps
 // climbing above the floor over the run. The pre-traffic baseline is logged
 // only for reference.
-inline void evaluate_memory(const std::vector<std::uint64_t>& test_memory_, std::uint64_t baseline_kib_) {
+inline void evaluate_memory(const std::vector<uint64_t>& test_memory_, uint64_t baseline_kib_) {
     ASSERT_FALSE(test_memory_.empty()) << "no memory samples were collected";
 
-    const std::uint64_t peak = *std::max_element(test_memory_.begin(), test_memory_.end());
+    const uint64_t peak = *std::max_element(test_memory_.begin(), test_memory_.end());
 
     // The first sample is taken ~MEMORY_CHECKER_INTERVAL after traffic starts and
     // can land mid warm-up ramp, reading below the true steady state. Exclude it
@@ -133,7 +133,7 @@ inline void evaluate_memory(const std::vector<std::uint64_t>& test_memory_, std:
     // floor reflects settled memory rather than a transient ramp reading. This
     // can only relax the limit, never tighten it, so it adds no false positives.
     const auto floor_begin = test_memory_.size() > 1 ? std::next(test_memory_.begin()) : test_memory_.begin();
-    const std::uint64_t steady_state = *std::min_element(floor_begin, test_memory_.end());
+    const uint64_t steady_state = *std::min_element(floor_begin, test_memory_.end());
     const double limit = static_cast<double>(steady_state) * MEMORY_LOAD_LIMIT;
 
     VSOMEIP_INFO << "memory evaluation: pre-traffic baseline " << baseline_kib_ << " KiB, steady-state floor " << steady_state

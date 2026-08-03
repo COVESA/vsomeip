@@ -30,7 +30,7 @@ public:
     VSOMEIP_EXPORT bool is_protected(e2exf::data_identifier_t id) const override;
     VSOMEIP_EXPORT bool is_checked(e2exf::data_identifier_t id) const override;
 
-    VSOMEIP_EXPORT std::size_t get_protection_base(e2exf::data_identifier_t _id) const override;
+    VSOMEIP_EXPORT size_t get_protection_base(e2exf::data_identifier_t _id) const override;
 
     VSOMEIP_EXPORT void protect(e2exf::data_identifier_t id, e2e_buffer& _buffer, instance_t _instance) override;
     VSOMEIP_EXPORT void check(e2exf::data_identifier_t id, const e2e_buffer& _buffer, instance_t _instance,
@@ -39,7 +39,7 @@ public:
 private:
     std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::protector>> custom_protectors_;
     std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::checker>> custom_checkers_;
-    std::map<e2exf::data_identifier_t, std::size_t> custom_bases_;
+    std::map<e2exf::data_identifier_t, size_t> custom_bases_;
 
     template<typename config_t>
     config_t make_e2e_profile_config(const std::shared_ptr<cfg::e2e>& config);

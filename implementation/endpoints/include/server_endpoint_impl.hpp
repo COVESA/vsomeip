@@ -50,7 +50,7 @@ public:
         bool has_last_departure_;
 
         std::deque<std::pair<message_buffer_ptr_t, uint32_t>> queue_;
-        std::size_t queue_size_;
+        size_t queue_size_;
 
         bool is_sending_;
         boost::asio::steady_timer sent_timer_;
@@ -86,11 +86,11 @@ public:
     size_t get_queue_size() const;
 
     virtual bool is_reliable() const = 0;
-    virtual std::uint16_t get_local_port() const = 0;
+    virtual uint16_t get_local_port() const = 0;
 
 public:
     void connect_cbk(boost::system::error_code const& _error);
-    void send_cbk(const endpoint_type _key, boost::system::error_code const& _error, std::size_t _bytes);
+    void send_cbk(const endpoint_type _key, boost::system::error_code const& _error, size_t _bytes);
     void flush_cbk(endpoint_type _key, const boost::system::error_code& _error_code);
 
 protected:
@@ -105,17 +105,16 @@ protected:
 
     virtual void print_status() = 0;
 
-    bool check_message_size(std::uint32_t _size) const;
+    bool check_message_size(uint32_t _size) const;
     // The caller must hold the `mutex_` lock
-    typename endpoint_impl<Protocol>::cms_ret_e segment_message(const std::uint8_t* const _data, std::uint32_t _size,
-                                                                const endpoint_type& _target);
+    typename endpoint_impl<Protocol>::cms_ret_e segment_message(const uint8_t* const _data, uint32_t _size, const endpoint_type& _target);
     // The caller must hold the `mutex_` lock
-    bool check_queue_limit(const uint8_t* _data, std::uint32_t _size, endpoint_data_type& _endpoint_data) const;
+    bool check_queue_limit(const uint8_t* _data, uint32_t _size, endpoint_data_type& _endpoint_data) const;
     // The caller must hold the `mutex_` lock
     bool queue_train(const target_data_iterator_type _it, const std::shared_ptr<train>& _train);
 
     // The caller must hold the `mutex_` lock
-    void send_segments(const tp::tp_split_messages_t& _segments, std::uint32_t _separation_time, const endpoint_type& _target);
+    void send_segments(const tp::tp_split_messages_t& _segments, uint32_t _separation_time, const endpoint_type& _target);
 
     // The caller must hold the `mutex_` lock
     target_data_iterator_type find_or_create_target_unlocked(endpoint_type _target);
@@ -156,7 +155,7 @@ private:
     // Computed on demand and counted against queue_limit_ so pending trains
     // cannot grow memory unbounded during high-frequency sending.
     // The caller must hold the `mutex_` lock
-    std::size_t get_pending_train_size(const endpoint_data_type& _data) const;
+    size_t get_pending_train_size(const endpoint_data_type& _data) const;
 
     // Mapping of client ids to remote endpoints used to send responses to the correct targets.
     std::unordered_map<clients_key_t, endpoint_type> clients_to_target_;

@@ -40,7 +40,7 @@ public:
         app_->register_message_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,
                                        std::bind(&offer_test_big_sd_msg_service::on_shutdown_method_called, this, std::placeholders::_1));
 
-        for (std::uint16_t s = 1; s <= offer_test::big_msg_number_services; s++) {
+        for (uint16_t s = 1; s <= offer_test::big_msg_number_services; s++) {
             app_->offer_event(s, 0x1, offer_test::big_msg_event_id, {offer_test::big_msg_eventgroup_id}, vsomeip::event_type_e::ET_EVENT,
                               std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
             app_->offer_service(s, 0x1, 0x1, 0x1);

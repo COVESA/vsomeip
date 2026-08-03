@@ -42,8 +42,8 @@ private:
 
     std::thread sender_;
 
-    std::atomic<std::uint32_t> received_responses_;
-    std::atomic<std::uint32_t> received_allowed_events_;
+    std::atomic<uint32_t> received_responses_;
+    std::atomic<uint32_t> received_allowed_events_;
 
     bool test_external_communication_;
     bool is_remote_client_allowed_;

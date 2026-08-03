@@ -71,8 +71,9 @@ public:
 
         std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();
         std::vector<vsomeip::byte_t> its_payload_data;
-        for (std::size_t i = 0; i < 120; ++i)
+        for (size_t i = 0; i < 120; ++i) {
             its_payload_data.push_back(static_cast<vsomeip::byte_t>(i % 256));
+        }
         its_payload->set_data(its_payload_data);
         its_response->set_payload(its_payload);
 
@@ -106,10 +107,11 @@ public:
             app_->stop();
         } else {
             while (true) {
-                if (is_offer)
+                if (is_offer) {
                     offer();
-                else
+                } else {
                     stop_offer();
+                }
                 std::this_thread::sleep_for(std::chrono::milliseconds(10000));
                 is_offer = !is_offer;
             }

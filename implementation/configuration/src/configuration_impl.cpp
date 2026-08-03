@@ -384,7 +384,7 @@ bool configuration_impl::check_routing_credentials(client_t _client, const vsome
     return (_client != get_id(routing_.host_.name_) || VSOMEIP_SEC_OK == security_->authenticate_router(_sec_client));
 }
 
-bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                bool _magic_cookies_enabled) {
     bool ret = false;
     if (!is_loaded_) {
@@ -422,7 +422,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
     return ret;
 }
 
-bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                   bool _magic_cookies_enabled, bool* _still_offered_remote) {
     (void)_port;
     (void)_magic_cookies_enabled;
@@ -911,12 +911,12 @@ bool configuration_impl::load_applications(const configuration_element& _element
 void configuration_impl::load_application_data(const boost::property_tree::ptree& _tree, const std::string& _file_name) {
     std::string its_name("");
     client_t its_id(VSOMEIP_CLIENT_UNSET);
-    std::size_t its_max_dispatchers(VSOMEIP_DEFAULT_MAX_DISPATCHERS);
-    std::size_t its_max_dispatch_time(VSOMEIP_DEFAULT_MAX_DISPATCH_TIME);
-    std::size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
+    size_t its_max_dispatchers(VSOMEIP_DEFAULT_MAX_DISPATCHERS);
+    size_t its_max_dispatch_time(VSOMEIP_DEFAULT_MAX_DISPATCH_TIME);
+    size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
     uint32_t its_log_status_interval(VSOMEIP_DEFAULT_LOG_STATUS);
     uint32_t its_log_version_interval(VSOMEIP_DEFAULT_LOG_NETWORK);
-    std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
+    size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
     std::map<plugin_type_e, std::set<std::string>> plugins;
     int its_io_thread_nice_level(VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL);
     debounce_configuration_t its_debounces;
@@ -1117,7 +1117,7 @@ void configuration_impl::load_tracing(const configuration_element& _element) {
                 } else {
                     bool its_parsed(false);
                     try {
-                        std::size_t its_pos(0);
+                        size_t its_pos(0);
                         const unsigned long its_threshold = std::stoul(its_value, &its_pos, 10);
                         // Reject negatives (stoul silently wraps them), trailing
                         // garbage and values that don't fit in uint32_t - a
@@ -1605,10 +1605,10 @@ void configuration_impl::load_diagnosis_address(const configuration_element& _el
             is_configured_[ET_DIAGNOSIS_MASK] = true;
         }
         if (is_configured_[ET_DIAGNOSIS] && is_configured_[ET_DIAGNOSIS_MASK]
-            && (static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) != static_cast<std::uint16_t>(diagnosis_ << 8)) {
+            && (static_cast<uint16_t>(diagnosis_ << 8) & diagnosis_mask_) != static_cast<uint16_t>(diagnosis_ << 8)) {
             VSOMEIP_WARNING << "Diagnosis mask masks bits of diagnosis prefix! Client IDs will start at 0x"
-                            << hex4(static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
-                            << hex4(static_cast<std::uint16_t>(diagnosis_ << 8));
+                            << hex4(static_cast<uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
+                            << hex4(static_cast<uint16_t>(diagnosis_ << 8));
         }
     } catch (...) {
         // intentionally left empty
@@ -1710,8 +1710,8 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     int tmp;
                     its_converter << its_value;
                     its_converter >> tmp;
-                    sd_repetitions_max_ = (tmp > std::numeric_limits<std::uint8_t>::max()) ? std::numeric_limits<std::uint8_t>::max()
-                                                                                           : static_cast<std::uint8_t>(tmp);
+                    sd_repetitions_max_ =
+                            (tmp > std::numeric_limits<uint8_t>::max()) ? std::numeric_limits<uint8_t>::max() : static_cast<uint8_t>(tmp);
                     is_configured_[ET_SERVICE_DISCOVERY_REPETITION_MAX] = true;
                 }
             } else if (its_key == "ttl") {
@@ -1754,11 +1754,11 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     int tmp;
                     its_converter << its_value;
                     its_converter >> tmp;
-                    if (tmp == static_cast<std::uint8_t>(tmp)) {
-                        sd_find_initial_debounce_reps_ = static_cast<std::uint8_t>(tmp);
+                    if (tmp == static_cast<uint8_t>(tmp)) {
+                        sd_find_initial_debounce_reps_ = static_cast<uint8_t>(tmp);
                     } else {
                         VSOMEIP_WARNING << "Invalid value for service_discovery.find_initial_debounce_reps: " << tmp;
-                        sd_find_initial_debounce_reps_ = std::numeric_limits<std::uint8_t>::max();
+                        sd_find_initial_debounce_reps_ = std::numeric_limits<uint8_t>::max();
                     }
                     is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS] = true;
                 }
@@ -1813,8 +1813,8 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     int tmp;
                     its_converter << its_value;
                     its_converter >> tmp;
-                    max_remote_subscribers_ = (tmp > std::numeric_limits<std::uint8_t>::max()) ? std::numeric_limits<std::uint8_t>::max()
-                                                                                               : static_cast<std::uint8_t>(tmp);
+                    max_remote_subscribers_ =
+                            (tmp > std::numeric_limits<uint8_t>::max()) ? std::numeric_limits<uint8_t>::max() : static_cast<uint8_t>(tmp);
                     if (max_remote_subscribers_ == 0) {
                         VSOMEIP_WARNING << "max_remote_subscribers_ = 0 is not allowed. Using default ("
                                         << VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS << ")";
@@ -2132,9 +2132,8 @@ void configuration_impl::load_eventgroup(std::shared_ptr<service>& _service, con
                 int its_threshold(0);
                 its_converter << std::dec << its_value;
                 its_converter >> std::dec >> its_threshold;
-                its_eventgroup->threshold_ = (its_threshold > std::numeric_limits<std::uint8_t>::max())
-                        ? std::numeric_limits<std::uint8_t>::max()
-                        : static_cast<uint8_t>(its_threshold);
+                its_eventgroup->threshold_ = (its_threshold > std::numeric_limits<uint8_t>::max()) ? std::numeric_limits<uint8_t>::max()
+                                                                                                   : static_cast<uint8_t>(its_threshold);
             } else if (its_key == "events") {
                 for (auto k = j->second.begin(); k != j->second.end(); ++k) {
                     // Reset the shared converter: after the first extraction it is
@@ -2417,7 +2416,7 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
                 const std::string size_str(_element.tree_.get_child(s).data());
                 try {
                     // add 16 Byte for the SOME/IP header
-                    const auto its_size = static_cast<std::uint32_t>(std::stoul(size_str.c_str(), NULL, 10) + 16);
+                    const auto its_size = static_cast<uint32_t>(std::stoul(size_str.c_str(), NULL, 10) + 16);
                     if (s == max_local_payload_size) {
                         max_local_message_size_ = its_size;
                     } else if (s == max_reliable_payload_size) {
@@ -2435,7 +2434,7 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
             auto bst = _element.tree_.get_child(buffer_shrink_threshold);
             std::string s(bst.data());
             try {
-                buffer_shrink_threshold_ = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
+                buffer_shrink_threshold_ = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10));
             } catch (const std::exception& e) {
                 VSOMEIP_ERROR_P << buffer_shrink_threshold << " " << e.what();
             }
@@ -2457,15 +2456,15 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
                         continue;
                     }
 
-                    std::uint16_t its_port = ILLEGAL_PORT;
-                    std::uint32_t its_message_size = 0;
+                    uint16_t its_port = ILLEGAL_PORT;
+                    uint32_t its_message_size = 0;
 
                     try {
                         std::string p(j->second.get_child(port).data());
-                        its_port = static_cast<std::uint16_t>(std::stoul(p.c_str(), NULL, 10));
+                        its_port = static_cast<uint16_t>(std::stoul(p.c_str(), NULL, 10));
                         std::string s(j->second.get_child(max_payload_size).data());
                         // add 16 Byte for the SOME/IP header
-                        its_message_size = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10) + 16);
+                        its_message_size = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10) + 16);
                     } catch (const std::exception& e) {
                         VSOMEIP_ERROR_P << e.what();
                     }
@@ -2788,7 +2787,7 @@ uint16_t configuration_impl::get_unreliable_port(service_t _service, instance_t 
     return its_unreliable;
 }
 
-void configuration_impl::get_configured_timing_requests(service_t _service, const std::string& _ip_target, std::uint16_t _port_target,
+void configuration_impl::get_configured_timing_requests(service_t _service, const std::string& _ip_target, uint16_t _port_target,
                                                         method_t _method, std::chrono::nanoseconds* _debounce_time,
                                                         std::chrono::nanoseconds* _max_retention_time) const {
 
@@ -2809,7 +2808,7 @@ void configuration_impl::get_configured_timing_requests(service_t _service, cons
     *_max_retention_time = npdu_default_max_retention_requ_;
 }
 
-void configuration_impl::get_configured_timing_responses(service_t _service, const std::string& _ip_service, std::uint16_t _port_service,
+void configuration_impl::get_configured_timing_responses(service_t _service, const std::string& _ip_service, uint16_t _port_service,
                                                          method_t _method, std::chrono::nanoseconds* _debounce_time,
                                                          std::chrono::nanoseconds* _max_retention_time) const {
     if (_debounce_time == nullptr || _max_retention_time == nullptr) {
@@ -2992,7 +2991,7 @@ uint32_t configuration_impl::get_status_log_interval(const std::string& _name, b
     }
 }
 
-std::size_t configuration_impl::get_request_debounce_time(const std::string& _name) const {
+size_t configuration_impl::get_request_debounce_time(const std::string& _name) const {
     size_t its_request_debounce_time{request_debounce_time_};
 
     auto found_application = applications_.find(_name);
@@ -3003,8 +3002,8 @@ std::size_t configuration_impl::get_request_debounce_time(const std::string& _na
     return its_request_debounce_time;
 }
 
-std::size_t configuration_impl::get_io_thread_count(const std::string& _name) const {
-    std::size_t its_io_thread_count = VSOMEIP_DEFAULT_IO_THREAD_COUNT;
+size_t configuration_impl::get_io_thread_count(const std::string& _name) const {
+    size_t its_io_thread_count = VSOMEIP_DEFAULT_IO_THREAD_COUNT;
 
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -3025,7 +3024,7 @@ int configuration_impl::get_io_thread_nice_level(const std::string& _name) const
     return its_io_thread_nice_level;
 }
 
-std::size_t configuration_impl::get_max_dispatchers(const std::string& _name) const {
+size_t configuration_impl::get_max_dispatchers(const std::string& _name) const {
     size_t its_max_dispatchers{default_max_dispatchers_};
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -3034,7 +3033,7 @@ std::size_t configuration_impl::get_max_dispatchers(const std::string& _name) co
     return its_max_dispatchers;
 }
 
-std::size_t configuration_impl::get_max_dispatch_time(const std::string& _name) const {
+size_t configuration_impl::get_max_dispatch_time(const std::string& _name) const {
     size_t its_max_dispatch_time{default_max_dispatch_time_};
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -3326,7 +3325,7 @@ std::shared_ptr<service> configuration_impl::find_service_unlocked(service_insta
     return std::shared_ptr<service>();
 }
 
-std::shared_ptr<service> configuration_impl::find_service(service_t _service, const std::string& _address, std::uint16_t _port) const {
+std::shared_ptr<service> configuration_impl::find_service(service_t _service, const std::string& _address, uint16_t _port) const {
 
     std::shared_ptr<service> its_service;
 
@@ -3355,7 +3354,7 @@ std::shared_ptr<eventgroup> configuration_impl::find_eventgroup(service_instance
     return its_eventgroup;
 }
 
-std::uint32_t configuration_impl::get_max_message_size_local() const {
+uint32_t configuration_impl::get_max_message_size_local() const {
     if (max_local_message_size_ == 0 && VSOMEIP_MAX_LOCAL_MESSAGE_SIZE == 0 && VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) {
         return DEFAULT_MAX_MESSAGE_SIZE;
     }
@@ -3373,10 +3372,10 @@ std::uint32_t configuration_impl::get_max_message_size_local() const {
 
     // add sizes of the the routing_manager_proxy's messages
     // to the routing_manager stub
-    return std::uint32_t(its_max_message_size + protocol::SEND_COMMAND_HEADER_SIZE);
+    return uint32_t(its_max_message_size + protocol::SEND_COMMAND_HEADER_SIZE);
 }
 
-std::uint32_t configuration_impl::get_max_message_size_reliable(const std::string& _address, std::uint16_t _port) const {
+uint32_t configuration_impl::get_max_message_size_reliable(const std::string& _address, uint16_t _port) const {
     const auto its_address = message_sizes_.find(_address);
     if (its_address != message_sizes_.end()) {
         const auto its_port = its_address->second.find(_port);
@@ -3389,11 +3388,11 @@ std::uint32_t configuration_impl::get_max_message_size_reliable(const std::strin
             : max_reliable_message_size_;
 }
 
-std::uint32_t configuration_impl::get_max_message_size_unreliable() const {
+uint32_t configuration_impl::get_max_message_size_unreliable() const {
     return (max_unreliable_message_size_ == 0) ? DEFAULT_MAX_MESSAGE_SIZE : max_unreliable_message_size_;
 }
 
-std::uint32_t configuration_impl::get_buffer_shrink_threshold() const {
+uint32_t configuration_impl::get_buffer_shrink_threshold() const {
     return buffer_shrink_threshold_;
 }
 
@@ -3472,15 +3471,15 @@ uint8_t configuration_impl::get_sd_find_initial_debounce_reps() const {
     return sd_find_initial_debounce_reps_;
 }
 
-std::uint32_t configuration_impl::get_sd_find_initial_debounce_time() const {
+uint32_t configuration_impl::get_sd_find_initial_debounce_time() const {
     return sd_find_initial_debounce_time_;
 }
 
-std::uint32_t configuration_impl::get_sd_offer_debounce_time() const {
+uint32_t configuration_impl::get_sd_offer_debounce_time() const {
     return sd_offer_debounce_time_;
 }
 
-std::uint32_t configuration_impl::get_sd_find_debounce_time() const {
+uint32_t configuration_impl::get_sd_find_debounce_time() const {
     return sd_find_debounce_time_;
 }
 
@@ -3501,7 +3500,7 @@ std::shared_ptr<cfg::trace> configuration_impl::get_trace() const {
     return trace_;
 }
 
-std::uint32_t configuration_impl::get_permissions_uds() const {
+uint32_t configuration_impl::get_permissions_uds() const {
     return permissions_uds_;
 }
 
@@ -3659,7 +3658,7 @@ configuration::ttl_map_t configuration_impl::get_ttl_factor_subscribes() const {
     return ttl_factors_subscriptions_;
 }
 
-configuration::endpoint_queue_limit_t configuration_impl::get_endpoint_queue_limit(const std::string& _address, std::uint16_t _port) const {
+configuration::endpoint_queue_limit_t configuration_impl::get_endpoint_queue_limit(const std::string& _address, uint16_t _port) const {
     auto found_address = endpoint_queue_limits_.find(_address);
     if (found_address != endpoint_queue_limits_.end()) {
         auto found_port = found_address->second.find(_port);
@@ -3732,14 +3731,14 @@ void configuration_impl::load_endpoint_queue_sizes(const configuration_element& 
                             continue;
                         }
 
-                        std::uint16_t its_port = ILLEGAL_PORT;
-                        std::uint32_t its_queue_size_limit = 0;
+                        uint16_t its_port = ILLEGAL_PORT;
+                        uint32_t its_queue_size_limit = 0;
 
                         try {
                             std::string p(j.second.get_child(port).data());
-                            its_port = static_cast<std::uint16_t>(std::stoul(p.c_str(), NULL, 10));
+                            its_port = static_cast<uint16_t>(std::stoul(p.c_str(), NULL, 10));
                             std::string s(j.second.get_child(queue_size_limit).data());
-                            its_queue_size_limit = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
+                            its_queue_size_limit = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10));
                         } catch (const std::exception& e) {
                             VSOMEIP_ERROR_P << e.what();
                         }
@@ -3866,8 +3865,8 @@ void configuration_impl::load_event_debounce(const boost::property_tree::ptree& 
     }
 }
 
-void configuration_impl::load_event_debounce_ignore(const boost::property_tree::ptree& _tree, std::map<std::size_t, byte_t>& _ignore) {
-    std::size_t its_ignored;
+void configuration_impl::load_event_debounce_ignore(const boost::property_tree::ptree& _tree, std::map<size_t, byte_t>& _ignore) {
+    size_t its_ignored;
     byte_t its_mask;
     std::stringstream its_converter;
 
@@ -3938,7 +3937,7 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
 
         boost::asio::ip::address its_address;
         std::set<std::string> its_paths;
-        std::map<bool, std::pair<boost::icl::interval_set<std::uint16_t>, boost::icl::interval_set<std::uint16_t>>> its_ports;
+        std::map<bool, std::pair<boost::icl::interval_set<uint16_t>, boost::icl::interval_set<uint16_t>>> its_ports;
         bool has_optional, has_secure, is_reliable;
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
@@ -3957,8 +3956,8 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
 
                 for (const auto& p : i->second) {
                     if (p.second.size()) { // range
-                        std::uint16_t its_first(0);
-                        std::uint16_t its_last(0);
+                        uint16_t its_first(0);
+                        uint16_t its_last(0);
                         port_type_e its_type(port_type_e::PT_OPTIONAL);
 
                         for (const auto& range : p.second) {
@@ -3966,7 +3965,7 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
                             const std::string its_value_inner(range.second.data());
                             if (its_key_inner == "first" || its_key_inner == "last" || its_key_inner == "port") {
                                 its_converter << std::dec << its_value_inner;
-                                std::uint16_t its_port_value(0);
+                                uint16_t its_port_value(0);
                                 its_converter >> its_port_value;
                                 its_converter.str("");
                                 its_converter.clear();
@@ -3992,13 +3991,13 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
                                 has_optional = true;
                                 if (its_first != 0 && its_last != 0) {
                                     its_ports.operator[](is_reliable)
-                                            .first.insert(boost::icl::interval<std::uint16_t>::closed(its_first, its_last));
+                                            .first.insert(boost::icl::interval<uint16_t>::closed(its_first, its_last));
                                 }
                             } else {
                                 has_secure = true;
                                 if (its_first != 0 && its_last != 0) {
                                     its_ports.operator[](is_reliable)
-                                            .second.insert(boost::icl::interval<std::uint16_t>::closed(its_first, its_last));
+                                            .second.insert(boost::icl::interval<uint16_t>::closed(its_first, its_last));
                                 }
                             }
                         }
@@ -4007,9 +4006,9 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
 
                 // If optional was not set, use default!
                 if (!has_optional) {
-                    const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
-                    const auto its_optional_client_spare = boost::icl::interval<std::uint16_t>::closed(30898, 30998);
-                    const auto its_optional_server = boost::icl::interval<std::uint16_t>::closed(30501, 30599);
+                    const auto its_optional_client = boost::icl::interval<uint16_t>::closed(30491, 30499);
+                    const auto its_optional_client_spare = boost::icl::interval<uint16_t>::closed(30898, 30998);
+                    const auto its_optional_server = boost::icl::interval<uint16_t>::closed(30501, 30599);
 
                     its_ports.operator[](is_reliable).first.insert(its_optional_client);
                     its_ports.operator[](is_reliable).first.insert(its_optional_client_spare);
@@ -4018,9 +4017,9 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
 
                 // If secure was not set, use default!
                 if (!has_secure) {
-                    const auto its_secure_client = boost::icl::interval<std::uint16_t>::closed(32491, 32499);
-                    const auto its_secure_client_spare = boost::icl::interval<std::uint16_t>::closed(32898, 32998);
-                    const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
+                    const auto its_secure_client = boost::icl::interval<uint16_t>::closed(32491, 32499);
+                    const auto its_secure_client_spare = boost::icl::interval<uint16_t>::closed(32898, 32998);
+                    const auto its_secure_server = boost::icl::interval<uint16_t>::closed(32501, 32599);
 
                     its_ports.operator[](is_reliable).second.insert(its_secure_client);
                     its_ports.operator[](is_reliable).second.insert(its_secure_client_spare);
@@ -4110,7 +4109,7 @@ bool configuration_impl::load_npdu_debounce_times_for_service(const std::shared_
                 std::chrono::nanoseconds its_retention_time(npdu_default_max_retention_requ_);
                 for (const auto& j : i.second) {
                     const std::string& key = j.first;
-                    const std::uint64_t value = std::strtoull(j.second.data().c_str(), NULL, 10) * 1000000;
+                    const uint64_t value = std::strtoull(j.second.data().c_str(), NULL, 10) * 1000000;
                     if (key == dtime) {
                         its_debounce_time = std::chrono::nanoseconds(value);
                     } else if (key == rtime) {
@@ -4172,17 +4171,17 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
 
                             // Segment length must be multiple of 16
                             // Ensure this by subtracting the rest
-                            auto its_rest = std::uint16_t(its_max_segment_length % 16);
+                            auto its_rest = uint16_t(its_max_segment_length % 16);
                             if (its_rest != 0) {
                                 VSOMEIP_WARNING << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected "
                                                 << its_max_segment_length << " to " << its_max_segment_length - its_rest;
 
-                                its_max_segment_length = std::uint16_t(its_max_segment_length - its_rest);
+                                its_max_segment_length = uint16_t(its_max_segment_length - its_rest);
                             }
                         } else if (its_data.first == "separation-time") {
                             its_converter << std::dec << its_value_inner;
                             its_converter >> its_separation_time;
-                            its_separation_time *= std::uint32_t(1000);
+                            its_separation_time *= uint32_t(1000);
                         }
                     }
                     its_converter.str("");
@@ -4408,7 +4407,7 @@ void configuration_impl::load_tcp_restart_settings(const configuration_element& 
                 auto mpsl = _element.tree_.get_child(tcp_restart_aborts_max);
                 std::string s(mpsl.data());
                 try {
-                    tcp_restart_aborts_max_ = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
+                    tcp_restart_aborts_max_ = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10));
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR_P << tcp_restart_aborts_max << " " << e.what();
                 }
@@ -4422,7 +4421,7 @@ void configuration_impl::load_tcp_restart_settings(const configuration_element& 
                 auto mpsl = _element.tree_.get_child(tcp_connect_time_max);
                 std::string s(mpsl.data());
                 try {
-                    tcp_connect_time_max_ = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
+                    tcp_connect_time_max_ = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10));
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR_P << tcp_connect_time_max << " " << e.what();
                 }
@@ -4433,11 +4432,11 @@ void configuration_impl::load_tcp_restart_settings(const configuration_element& 
     }
 }
 
-std::uint32_t configuration_impl::get_max_tcp_restart_aborts() const {
+uint32_t configuration_impl::get_max_tcp_restart_aborts() const {
     return tcp_restart_aborts_max_;
 }
 
-std::uint32_t configuration_impl::get_max_tcp_connect_time() const {
+uint32_t configuration_impl::get_max_tcp_connect_time() const {
     return tcp_connect_time_max_;
 }
 
@@ -4446,7 +4445,7 @@ bool configuration_impl::is_protected_device(const boost::asio::ip::address& _ad
     return (sd_acceptance_rules_active_.count(_address) > 0);
 }
 
-bool configuration_impl::is_protected_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const {
+bool configuration_impl::is_protected_port(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) const {
 
     bool is_required(is_protected_device(_address));
 
@@ -4459,7 +4458,7 @@ bool configuration_impl::is_protected_port(const boost::asio::ip::address& _addr
     if (found_address != sd_acceptance_rules_.end()) {
         const auto found_reliability = found_address->second.second.find(_reliable);
         if (found_reliability != found_address->second.second.end()) {
-            const auto its_range = boost::icl::interval<std::uint16_t>::closed(_port, _port);
+            const auto its_range = boost::icl::interval<uint16_t>::closed(_port, _port);
 
             bool is_optional = (found_reliability->second.first.find(its_range) != found_reliability->second.first.end());
 
@@ -4472,7 +4471,7 @@ bool configuration_impl::is_protected_port(const boost::asio::ip::address& _addr
     return is_required;
 }
 
-bool configuration_impl::is_secure_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const {
+bool configuration_impl::is_secure_port(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) const {
 
     bool is_secure(false);
 
@@ -4481,7 +4480,7 @@ bool configuration_impl::is_secure_port(const boost::asio::ip::address& _address
     if (found_address != sd_acceptance_rules_.end()) {
         const auto found_reliability = found_address->second.second.find(_reliable);
         if (found_reliability != found_address->second.second.end()) {
-            const auto its_range = boost::icl::interval<std::uint16_t>::closed(_port, _port);
+            const auto its_range = boost::icl::interval<uint16_t>::closed(_port, _port);
             return (found_reliability->second.second.find(its_range) != found_reliability->second.second.end());
         }
     }
@@ -4497,13 +4496,13 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
 
     std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
 
-    const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
-    const auto its_optional_client_spare = boost::icl::interval<std::uint16_t>::closed(30898, 30998);
-    const auto its_optional_server = boost::icl::interval<std::uint16_t>::closed(30501, 30599);
+    const auto its_optional_client = boost::icl::interval<uint16_t>::closed(30491, 30499);
+    const auto its_optional_client_spare = boost::icl::interval<uint16_t>::closed(30898, 30998);
+    const auto its_optional_server = boost::icl::interval<uint16_t>::closed(30501, 30599);
 
-    const auto its_secure_client = boost::icl::interval<std::uint16_t>::closed(32491, 32499);
-    const auto its_secure_client_spare = boost::icl::interval<std::uint16_t>::closed(32898, 32998);
-    const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
+    const auto its_secure_client = boost::icl::interval<uint16_t>::closed(32491, 32499);
+    const auto its_secure_client_spare = boost::icl::interval<uint16_t>::closed(32898, 32998);
+    const auto its_secure_server = boost::icl::interval<uint16_t>::closed(32501, 32599);
 
     const bool rules_active = (sd_acceptance_rules_active_.count(_address) > 0);
 
@@ -4551,11 +4550,11 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
                 }
             }
         } else if (_enable) {
-            boost::icl::interval_set<std::uint16_t> its_optional_default;
+            boost::icl::interval_set<uint16_t> its_optional_default;
             its_optional_default.add(its_optional_client);
             its_optional_default.add(its_optional_client_spare);
             its_optional_default.add(its_optional_server);
-            boost::icl::interval_set<std::uint16_t> its_secure_default;
+            boost::icl::interval_set<uint16_t> its_secure_default;
             its_secure_default.add(its_secure_client);
             its_secure_default.add(its_secure_client_spare);
             its_secure_default.add(its_secure_server);
@@ -4571,11 +4570,11 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
                          << found_reliability_inner->second.second;
         }
     } else if (_enable) {
-        boost::icl::interval_set<std::uint16_t> its_optional_default;
+        boost::icl::interval_set<uint16_t> its_optional_default;
         its_optional_default.add(its_optional_client);
         its_optional_default.add(its_optional_client_spare);
         its_optional_default.add(its_optional_server);
-        boost::icl::interval_set<std::uint16_t> its_secure_default;
+        boost::icl::interval_set<uint16_t> its_secure_default;
         its_secure_default.add(its_secure_client);
         its_secure_default.add(its_secure_client_spare);
         its_secure_default.add(its_secure_server);
@@ -4586,7 +4585,7 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
         sd_acceptance_rules_.emplace(std::make_pair(
                 _address,
                 std::make_pair(its_path,
-                               std::map<bool, std::pair<boost::icl::interval_set<std::uint16_t>, boost::icl::interval_set<std::uint16_t>>>(
+                               std::map<bool, std::pair<boost::icl::interval_set<uint16_t>, boost::icl::interval_set<uint16_t>>>(
                                        {{_reliable, std::make_pair(its_optional_default, its_secure_default)}}))));
         if (!rules_active) {
             sd_acceptance_rules_active_.insert(_address);
@@ -4653,7 +4652,7 @@ bool configuration_impl::is_tp_service(service_t _service, instance_t _instance,
 }
 
 void configuration_impl::get_tp_configuration(service_t _service, instance_t _instance, method_t _method, bool _is_client,
-                                              std::uint16_t& _max_segment_length, std::uint32_t& _separation_time) const {
+                                              uint16_t& _max_segment_length, uint32_t& _separation_time) const {
 
     if (auto its_info = find_service({_service, _instance}); its_info) {
         if (_is_client) {

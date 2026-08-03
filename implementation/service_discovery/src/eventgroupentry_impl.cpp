@@ -103,7 +103,7 @@ bool eventgroupentry_impl::matches(const eventgroupentry_impl& _other, const mes
         // read out ip options of current and _other
         std::vector<std::shared_ptr<ip_option_impl>> its_options_current;
         std::vector<std::shared_ptr<ip_option_impl>> its_options_other;
-        const std::size_t its_options_size = _options.size();
+        const size_t its_options_size = _options.size();
         for (const auto option_run : {0, 1}) {
             for (const auto option_index : options_[option_run]) {
                 if (its_options_size > option_index) {

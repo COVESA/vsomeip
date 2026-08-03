@@ -60,9 +60,9 @@ public:
      */
     virtual void lazy_load_security(const std::string& _client_host) = 0;
 #endif // !VSOMEIP_DISABLE_SECURITY
-    virtual bool remote_offer_info_add(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+    virtual bool remote_offer_info_add(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                        bool _magic_cookies_enabled) = 0;
-    virtual bool remote_offer_info_remove(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+    virtual bool remote_offer_info_remove(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                           bool _magic_cookies_enabled, bool* _still_offered_remote) = 0;
 
     virtual const std::string& get_network() const = 0;
@@ -98,10 +98,10 @@ public:
     virtual bool has_enabled_magic_cookies(const std::string& _address, uint16_t _port) const = 0;
     virtual uint16_t get_unreliable_port(service_t _service, instance_t _instance) const = 0;
 
-    virtual void get_configured_timing_requests(service_t _service, const std::string& _ip_target, std::uint16_t _port_target,
-                                                method_t _method, std::chrono::nanoseconds* _debounce_time,
+    virtual void get_configured_timing_requests(service_t _service, const std::string& _ip_target, uint16_t _port_target, method_t _method,
+                                                std::chrono::nanoseconds* _debounce_time,
                                                 std::chrono::nanoseconds* _max_retention_time) const = 0;
-    virtual void get_configured_timing_responses(service_t _service, const std::string& _ip_service, std::uint16_t _port_service,
+    virtual void get_configured_timing_responses(service_t _service, const std::string& _ip_service, uint16_t _port_service,
                                                  method_t _method, std::chrono::nanoseconds* _debounce_time,
                                                  std::chrono::nanoseconds* _max_retention_time) const = 0;
 
@@ -123,17 +123,17 @@ public:
     virtual client_t get_id(const std::string& _name) const = 0;
     virtual bool is_configured_client_id(client_t _id) const = 0;
 
-    virtual std::size_t get_max_dispatchers(const std::string& _name) const = 0;
-    virtual std::size_t get_max_dispatch_time(const std::string& _name) const = 0;
-    virtual std::size_t get_io_thread_count(const std::string& _name) const = 0;
+    virtual size_t get_max_dispatchers(const std::string& _name) const = 0;
+    virtual size_t get_max_dispatch_time(const std::string& _name) const = 0;
+    virtual size_t get_io_thread_count(const std::string& _name) const = 0;
     virtual int get_io_thread_nice_level(const std::string& _name) const = 0;
-    virtual std::size_t get_request_debounce_time(const std::string& _name) const = 0;
+    virtual size_t get_request_debounce_time(const std::string& _name) const = 0;
     virtual bool has_session_handling(const std::string& _name) const = 0;
 
-    virtual std::uint32_t get_max_message_size_local() const = 0;
-    virtual std::uint32_t get_max_message_size_reliable(const std::string& _address, std::uint16_t _port) const = 0;
-    virtual std::uint32_t get_max_message_size_unreliable() const = 0;
-    virtual std::uint32_t get_buffer_shrink_threshold() const = 0;
+    virtual uint32_t get_max_message_size_local() const = 0;
+    virtual uint32_t get_max_message_size_reliable(const std::string& _address, uint16_t _port) const = 0;
+    virtual uint32_t get_max_message_size_unreliable() const = 0;
+    virtual uint32_t get_buffer_shrink_threshold() const = 0;
 
     virtual bool supports_selective_broadcasts(const boost::asio::ip::address& _address) const = 0;
 
@@ -159,9 +159,9 @@ public:
     virtual int32_t get_sd_cyclic_offer_delay() const = 0;
     virtual int32_t get_sd_request_response_delay() const = 0;
     virtual uint8_t get_sd_find_initial_debounce_reps() const = 0;
-    virtual std::uint32_t get_sd_find_initial_debounce_time() const = 0;
-    virtual std::uint32_t get_sd_offer_debounce_time() const = 0;
-    virtual std::uint32_t get_sd_find_debounce_time() const = 0;
+    virtual uint32_t get_sd_find_initial_debounce_time() const = 0;
+    virtual uint32_t get_sd_offer_debounce_time() const = 0;
+    virtual uint32_t get_sd_find_debounce_time() const = 0;
     virtual bool get_sd_wait_route_netlink_notification() const = 0;
     /**
      * @brief Get the timeout of the service discovery watchdog for stop offers.
@@ -181,7 +181,7 @@ public:
     virtual std::shared_ptr<cfg::trace> get_trace() const = 0;
 
     // File permissions
-    virtual std::uint32_t get_permissions_uds() const = 0;
+    virtual uint32_t get_permissions_uds() const = 0;
 
     virtual bool log_version() const = 0;
     virtual uint32_t get_version_log_interval(const std::string& _name, bool _is_host) const = 0;
@@ -203,7 +203,7 @@ public:
     virtual uint32_t get_status_log_interval(const std::string& _name, bool _is_host) const = 0;
 
     // TTL factor
-    typedef std::uint32_t ttl_factor_t;
+    typedef uint32_t ttl_factor_t;
     typedef std::map<service_t, std::map<instance_t, ttl_factor_t>> ttl_map_t;
     virtual ttl_map_t get_ttl_factor_offers() const = 0;
     virtual ttl_map_t get_ttl_factor_subscribes() const = 0;
@@ -215,8 +215,8 @@ public:
                                                                  event_t _event) const = 0;
 
     // Queue size limit endpoints
-    typedef std::uint32_t endpoint_queue_limit_t;
-    virtual endpoint_queue_limit_t get_endpoint_queue_limit(const std::string& _address, std::uint16_t _port) const = 0;
+    typedef uint32_t endpoint_queue_limit_t;
+    virtual endpoint_queue_limit_t get_endpoint_queue_limit(const std::string& _address, uint16_t _port) const = 0;
     virtual endpoint_queue_limit_t get_endpoint_queue_limit_local() const = 0;
 
     // Network options
@@ -229,13 +229,13 @@ public:
     virtual uint32_t get_external_tcp_keepintvl() const = 0;
     virtual uint32_t get_external_tcp_keepcnt() const = 0;
 
-    virtual std::uint32_t get_max_tcp_restart_aborts() const = 0;
-    virtual std::uint32_t get_max_tcp_connect_time() const = 0;
+    virtual uint32_t get_max_tcp_restart_aborts() const = 0;
+    virtual uint32_t get_max_tcp_connect_time() const = 0;
 
     // Acceptance handling
     virtual bool is_protected_device(const boost::asio::ip::address& _address) const = 0;
-    virtual bool is_protected_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const = 0;
-    virtual bool is_secure_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const = 0;
+    virtual bool is_protected_port(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) const = 0;
+    virtual bool is_secure_port(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) const = 0;
 
     virtual void set_sd_acceptance_rule(const boost::asio::ip::address& _address, port_range_t _port_range, port_type_e _type,
                                         const std::string& _path, bool _reliable, bool _enable, bool _default) = 0;
@@ -244,11 +244,11 @@ public:
                      std::pair<std::set<std::string>, // paths to files that determines whether or not IPsec
                                                       // is active
                                std::map<bool, // false = unreliable (aka UDP), true = reliable (aka TCP)
-                                        std::pair<boost::icl::interval_set<std::uint16_t>, // optional (aka
-                                                                                           // semi-secure)
-                                                                                           // port range
-                                                  boost::icl::interval_set<std::uint16_t> // secure port
-                                                                                          // range
+                                        std::pair<boost::icl::interval_set<uint16_t>, // optional (aka
+                                                                                      // semi-secure)
+                                                                                      // port range
+                                                  boost::icl::interval_set<uint16_t> // secure port
+                                                                                     // range
                                                   >>>>
             sd_acceptance_rules_t;
     virtual sd_acceptance_rules_t get_sd_acceptance_rules() = 0;
@@ -266,7 +266,7 @@ public:
     virtual bool is_tp_client(service_t _service, instance_t _instance, method_t _method) const = 0;
     virtual bool is_tp_service(service_t _service, instance_t _instance, method_t _method) const = 0;
     virtual void get_tp_configuration(service_t _service, instance_t _instance, method_t _method, bool _is_client,
-                                      std::uint16_t& _max_segment_length, std::uint32_t& _separation_time) const = 0;
+                                      uint16_t& _max_segment_length, uint32_t& _separation_time) const = 0;
 
     virtual bool log_statistics() const = 0;
     virtual uint32_t get_statistics_interval() const = 0;
@@ -289,13 +289,13 @@ public:
 /// Inclusive port range.
 struct port_range_t {
     /// Start of the port range.
-    std::uint16_t start_{ANY_PORT};
+    uint16_t start_{ANY_PORT};
 
     /// End (inclusive) of the port range.
-    std::uint16_t end_{ANY_PORT};
+    uint16_t end_{ANY_PORT};
 
     /// Creates a new `port_range_t`.
-    port_range_t(const std::uint16_t _start, const std::uint16_t _end) : start_(_start), end_(_end) {
+    port_range_t(const uint16_t _start, const uint16_t _end) : start_(_start), end_(_end) {
         // Fix swapped values.
         if (start_ > end_) {
             std::swap(start_, end_);
@@ -303,7 +303,7 @@ struct port_range_t {
     }
 
     /// Whether the given value is within this port range.
-    [[nodiscard]] bool contains(const std::uint16_t _value) const { return _value >= start_ && _value <= end_; }
+    [[nodiscard]] bool contains(const uint16_t _value) const { return _value >= start_ && _value <= end_; }
 
     /// Whether both ends of this range are set to `ANY_PORT`.
     [[nodiscard]] bool is_any() const { return start_ == ANY_PORT && end_ == ANY_PORT; }

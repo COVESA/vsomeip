@@ -175,7 +175,7 @@ public:
     VSOMEIP_EXPORT void register_routing_ready_handler(const routing_ready_handler_t& _handler);
     VSOMEIP_EXPORT void register_routing_state_handler(const routing_state_handler_t& _handler);
 
-    VSOMEIP_EXPORT bool update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+    VSOMEIP_EXPORT bool update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                      bool _magic_cookies_enabled, bool _offer);
 
     VSOMEIP_EXPORT void update_security_policy_configuration(uint32_t _uid, uint32_t _gid, std::shared_ptr<policy> _policy,
@@ -195,7 +195,7 @@ public:
                                                      const message_handler_t& _handler, handler_registration_type_e _type);
 
 private:
-    using members_key_t = std::uint64_t;
+    using members_key_t = uint64_t;
     using members_t = std::unordered_map<members_key_t, std::deque<message_handler_t>>;
 
     static members_key_t to_members_key(service_t _service, instance_t _instance, method_t _method) {
@@ -283,8 +283,7 @@ private:
     // a concurrent offer/request/subscribe on another thread can be missed. The goal is to catch
     // sequential API-ordering mistakes (typically at startup), not to detect races.
     void warn_late_registration(const char* _what, service_t _service, instance_t _instance, const char* _context) const;
-    void warn_late_registration(const char* _what, service_t _service, instance_t _instance, std::uint16_t _sub_id,
-                                const char* _context) const;
+    void warn_late_registration(const char* _what, service_t _service, instance_t _instance, uint16_t _sub_id, const char* _context) const;
 
     // Emit a warning log that "_what" is being registered while a handler is already registered for the
     // same key, i.e. a duplicate registration that silently replaces the previous handler. Like the
@@ -292,7 +291,7 @@ private:
     // handlers where keeping several handlers is intentional (e.g. message handlers registered
     // with HRT_APPEND/HRT_PREPEND).
     void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance) const;
-    void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, std::uint16_t _sub_id) const;
+    void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, uint16_t _sub_id) const;
 
     void main_dispatch();
     void dispatch();
@@ -404,8 +403,8 @@ private:
     // Condition to wakeup the dispatcher thread
     bool elapse_unactive_dispatchers_;
     mutable std::condition_variable dispatcher_condition_;
-    std::size_t max_dispatchers_;
-    std::size_t max_dispatch_time_;
+    size_t max_dispatchers_;
+    size_t max_dispatch_time_;
 
     std::mutex start_stop_mutex_;
     std::atomic_bool stopping_;

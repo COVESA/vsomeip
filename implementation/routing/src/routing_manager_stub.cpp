@@ -1079,7 +1079,7 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
             std::vector<std::span<byte_t const>> data;
             data.reserve(updated_security_policies_.size());
             for (auto const& [_, payload] : updated_security_policies_) {
-                data.emplace_back(payload->get_data(), static_cast<std::size_t>(payload->get_length()));
+                data.emplace_back(payload->get_data(), static_cast<size_t>(payload->get_length()));
             }
             its_endpoint->send(protocol::create_distribute_security_policy_cmd(VSOMEIP_ROUTING_CLIENT, data));
         }

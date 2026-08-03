@@ -97,7 +97,7 @@ void message_impl::set_unicast_flag(bool _is_set) {
 
 bool message_impl::add_entry_data(const std::shared_ptr<entry_impl>& _entry, const std::vector<std::shared_ptr<option_impl>>& _options,
                                   const std::shared_ptr<entry_impl>& _other) {
-    std::uint32_t its_entry_size = VSOMEIP_SOMEIP_SD_ENTRY_SIZE;
+    uint32_t its_entry_size = VSOMEIP_SOMEIP_SD_ENTRY_SIZE;
     std::map<const std::shared_ptr<option_impl>, bool> its_options;
 
     if (_other) {

@@ -65,11 +65,11 @@ TEST_F(malicious_data, send_malicious_events) {
     std::thread receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
         std::function<void()> receive;
-        std::vector<std::uint8_t> receive_buffer(4096);
+        std::vector<uint8_t> receive_buffer(4096);
         std::vector<vsomeip::event_t> its_received_events;
 
-        const std::function<void(const boost::system::error_code&, std::size_t)> receive_cbk = [&](const boost::system::error_code& error,
-                                                                                                   std::size_t bytes_transferred) {
+        const std::function<void(const boost::system::error_code&, size_t)> receive_cbk = [&](const boost::system::error_code& error,
+                                                                                              size_t bytes_transferred) {
             if (error) {
                 keep_receiving = false;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
@@ -89,7 +89,7 @@ TEST_F(malicious_data, send_malicious_events) {
                         EXPECT_TRUE(e->is_eventgroup_entry());
                         EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
                         EXPECT_EQ(1, e->get_num_options(1));
-                        EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                        EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                         EXPECT_EQ(malicious_data_test::service.service_id, e->get_service());
                         EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
                         EXPECT_EQ(1u, sd_msg.get_options().size());
@@ -141,7 +141,7 @@ TEST_F(malicious_data, send_malicious_events) {
             });
 
             // offer the service
-            std::uint8_t its_offer_service_message[] = {
+            uint8_t its_offer_service_message[] = {
                     0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x30, // length
                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
                     0x01, 0x00, 0x00, 0x20, 0x33, 0x44, 0x00, 0x01, // service / instance
@@ -182,7 +182,7 @@ TEST_F(malicious_data, send_malicious_events) {
             }
 
             // send malicious data as server
-            std::uint8_t its_malicious_data[] = {
+            uint8_t its_malicious_data[] = {
                     0x33, 0x44, 0x80, 0x02, 0x00, 0x00, 0x00, 0x7f, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x15, 0x11, 0x3f, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x04,
                     0x03, 0x05, 0x26, 0x5c, 0x00, 0x04, 0x00, 0x89, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4e, 0x00, 0x0e, 0x47,
@@ -337,7 +337,7 @@ TEST_F(malicious_data, send_malicious_events) {
             boost::asio::ip::tcp::socket::endpoint_type remote(boost::asio::ip::make_address(std::string(remote_address)), 34511);
             tcp_socket2.open(remote.protocol());
             tcp_socket2.connect(remote);
-            std::uint8_t its_malicious_client_data[] = {
+            uint8_t its_malicious_client_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x00, 0x7f, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x15, 0x11, 0x3f, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x04,
                     0x03, 0x05, 0x26, 0x5c, 0x00, 0x04, 0x00, 0x89, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4e, 0x00, 0x0e, 0x47,
@@ -488,7 +488,7 @@ TEST_F(malicious_data, send_malicious_events) {
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             // call shutdown method
-            std::uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
+            uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
             std::scoped_lock its_lock(socket_mutex);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
@@ -523,7 +523,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
 
     std::thread sd_receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
-        std::vector<std::uint8_t> receive_buffer(4096);
+        std::vector<uint8_t> receive_buffer(4096);
         std::vector<vsomeip::event_t> its_received_events;
         std::atomic<bool> service_offered(false);
         std::atomic<bool> client_subscribed(false);
@@ -536,7 +536,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
 
         while (keep_receiving) {
             boost::system::error_code error;
-            std::size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
+            size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
             if (error) {
                 keep_receiving = false;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
@@ -555,7 +555,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                             EXPECT_TRUE(e->is_eventgroup_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
                             EXPECT_EQ(1, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(malicious_data_test::service.service_id, e->get_service());
                             EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
                             EXPECT_EQ(1u, sd_msg.get_options().size());
@@ -570,7 +570,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                             EXPECT_TRUE(e->is_service_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
                             EXPECT_EQ(2, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(malicious_data_test::service.service_id + 1u, e->get_service());
                             EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
                             EXPECT_EQ(2u, sd_msg.get_options().size());
@@ -619,7 +619,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             });
 
             // offer the service
-            std::uint8_t its_offer_service_message[] = {
+            uint8_t its_offer_service_message[] = {
                     0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x30, // length
                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
                     0x01, 0x00, 0x00, 0x20, 0x33, 0x44, 0x00, 0x01, // service / instance
@@ -665,12 +665,12 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                 ADD_FAILURE() << "Didn't receive offer within time";
             }
 
-            std::atomic<std::uint32_t> fin_as_service_received(0);
+            std::atomic<uint32_t> fin_as_service_received(0);
             std::promise<void> client_reconnected1;
 
             std::thread tcp_receive_thread([&]() {
                 std::atomic<bool> keep_receiving(true);
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
 
                 while (keep_receiving) {
                     boost::system::error_code error;
@@ -697,7 +697,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                 }
             });
             // send malicious data as server (too long length and wrong protocol version)
-            std::uint8_t its_malicious_data[] = {
+            uint8_t its_malicious_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x07, 0x7f,
                     0xBB, 0xBB, 0xCA, 0xFE, 0xAA, 0x00, 0x00, 0x00 // protocol version set to 0xAA
             };
@@ -717,7 +717,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
 
             std::thread tcp_receive_thread2([&]() {
                 std::atomic<bool> keep_receiving(true);
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
                 while (keep_receiving) {
                     boost::system::error_code error;
                     tcp_socket3.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
@@ -732,7 +732,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             });
 
             // send malicious data as server (too long length and wrong protocol version)
-            std::uint8_t its_malicious_data_correct_length[] = {
+            uint8_t its_malicious_data_correct_length[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x00, 0x7f,
                     0xBB, 0xBB, 0xCA, 0xFE, 0xAA, 0x00, 0x00, 0x00 // protocol version set to 0xAA
             };
@@ -743,8 +743,8 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             EXPECT_EQ(2u, fin_as_service_received);
 
             // establish second tcp connection as client and send malicious data as well
-            std::atomic<std::uint32_t> error_response_as_client_received(0);
-            std::atomic<std::uint32_t> fin_as_client_received(0);
+            std::atomic<uint32_t> error_response_as_client_received(0);
+            std::atomic<uint32_t> fin_as_client_received(0);
 
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(boost::asio::ip::make_address(std::string(remote_address)), 34511);
@@ -753,10 +753,10 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
 
             std::thread tcp_service_receive_thread([&]() {
                 std::atomic<bool> keep_receiving(true);
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
                 while (keep_receiving) {
                     boost::system::error_code error;
-                    std::size_t bytes_transferred =
+                    size_t bytes_transferred =
                             tcp_socket2.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (!error) {
                         vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
@@ -784,7 +784,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             });
 
             // send malicious data as client (too long length and wrong protocol version)
-            std::uint8_t its_malicious_client_data[] = {
+            uint8_t its_malicious_client_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x07, 0x7f,
                     0xCC, 0xCC, 0xDD, 0xDD, 0xAA, 0x00, 0x00, 0x00 // protocol version set to 0xAA
             };
@@ -804,10 +804,10 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
 
             std::thread tcp_service_receive_thread2([&]() {
                 std::atomic<bool> keep_receiving(true);
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
                 while (keep_receiving) {
                     boost::system::error_code error;
-                    std::size_t bytes_transferred =
+                    size_t bytes_transferred =
                             tcp_socket5.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (!error) {
                         vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
@@ -829,7 +829,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             });
 
             // send malicious data as client (wrong protocol version)
-            std::uint8_t its_malicious_client_data_correct_length[] = {
+            uint8_t its_malicious_client_data_correct_length[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
                     0xCC, 0xCC, 0xDD, 0xDD, 0xAA, 0x00, 0x00, 0x00 // protocol version set to 0xAA
             };
@@ -842,7 +842,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             tcp_socket5.close(ec);
 
             // call shutdown method
-            std::uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
+            uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
             boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
             udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);
@@ -878,7 +878,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
 
     std::thread sd_receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
-        std::vector<std::uint8_t> receive_buffer(4096);
+        std::vector<uint8_t> receive_buffer(4096);
         std::vector<vsomeip::event_t> its_received_events;
         std::atomic<bool> service_offered(false);
         std::atomic<bool> client_subscribed(false);
@@ -891,7 +891,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
 
         while (keep_receiving) {
             boost::system::error_code error;
-            std::size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
+            size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
             if (error) {
                 keep_receiving = false;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
@@ -910,7 +910,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
                             EXPECT_TRUE(e->is_eventgroup_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
                             EXPECT_EQ(1, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(malicious_data_test::service.service_id, e->get_service());
                             EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
                             EXPECT_EQ(1u, sd_msg.get_options().size());
@@ -925,7 +925,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
                             EXPECT_TRUE(e->is_service_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
                             EXPECT_EQ(2, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(malicious_data_test::service.service_id + 1u, e->get_service());
                             EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
                             EXPECT_EQ(2u, sd_msg.get_options().size());
@@ -974,7 +974,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
             });
 
             // offer the service
-            std::uint8_t its_offer_service_message[] = {
+            uint8_t its_offer_service_message[] = {
                     0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x30, // length
                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
                     0x01, 0x00, 0x00, 0x20, 0x33, 0x44, 0x00, 0x01, // service / instance
@@ -1025,7 +1025,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
 
             std::thread tcp_receive_thread([&]() {
                 std::atomic<bool> keep_receiving(true);
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
 
                 while (keep_receiving) {
                     boost::system::error_code error;
@@ -1054,7 +1054,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
                 }
             });
             // send malicious data as server (too long length and wrong message type)
-            std::uint8_t its_malicious_data[] = {
+            uint8_t its_malicious_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x07, 0x7f,
                     0xBB, 0xBB, 0xCA, 0xFE, 0x01, 0x00, 0xAA, 0x00 // message type set to 0xAA
             };
@@ -1084,7 +1084,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
 
             std::thread tcp_service_receive_thread([&]() {
                 std::atomic<bool> keep_receiving(true);
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
 
                 while (keep_receiving) {
                     boost::system::error_code error;
@@ -1103,7 +1103,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
             });
 
             // send malicious data as client (too long length and wrong message type)
-            std::uint8_t its_malicious_client_data[] = {
+            uint8_t its_malicious_client_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x07, 0x7f,
                     0xCC, 0xCC, 0xDD, 0xDD, 0x01, 0x00, 0xAA, 0x00 // protocol version set to 0xAA
             };
@@ -1118,7 +1118,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
             tcp_socket2.close(ec);
 
             // call shutdown method
-            std::uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
+            uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
             boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
             udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);
@@ -1154,7 +1154,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
 
     std::thread sd_receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
-        std::vector<std::uint8_t> receive_buffer(4096);
+        std::vector<uint8_t> receive_buffer(4096);
         std::vector<vsomeip::event_t> its_received_events;
         std::atomic<bool> service_offered(false);
         std::atomic<bool> client_subscribed(false);
@@ -1167,7 +1167,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
 
         while (keep_receiving) {
             boost::system::error_code error;
-            std::size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
+            size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
             if (error) {
                 keep_receiving = false;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
@@ -1186,7 +1186,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
                             EXPECT_TRUE(e->is_eventgroup_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
                             EXPECT_EQ(1, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(malicious_data_test::service.service_id, e->get_service());
                             EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
                             EXPECT_EQ(1u, sd_msg.get_options().size());
@@ -1201,7 +1201,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
                             EXPECT_TRUE(e->is_service_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
                             EXPECT_EQ(2, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(malicious_data_test::service.service_id + 1u, e->get_service());
                             EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
                             EXPECT_EQ(2u, sd_msg.get_options().size());
@@ -1250,7 +1250,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
             });
 
             // offer the service
-            std::uint8_t its_offer_service_message[] = {
+            uint8_t its_offer_service_message[] = {
                     0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x30, // length
                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
                     0x01, 0x00, 0x00, 0x20, 0x33, 0x44, 0x00, 0x01, // service / instance
@@ -1301,7 +1301,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
 
             std::thread tcp_receive_thread([&]() {
                 std::atomic<bool> keep_receiving(true);
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
 
                 while (keep_receiving) {
                     boost::system::error_code error;
@@ -1330,7 +1330,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
                 }
             });
             // send malicious data as server (too long length and wrong return code)
-            std::uint8_t its_malicious_data[] = {
+            uint8_t its_malicious_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x07, 0x7f,
                     0xBB, 0xBB, 0xCA, 0xFE, 0x01, 0x00, 0x00, 0xAA // return code set to 0xAA
             };
@@ -1360,7 +1360,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
 
             std::thread tcp_service_receive_thread([&]() {
                 std::atomic<bool> keep_receiving(true);
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
 
                 while (keep_receiving) {
                     boost::system::error_code error;
@@ -1379,7 +1379,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
             });
 
             // send malicious data as client (too long length and wrong return code)
-            std::uint8_t its_malicious_client_data[] = {
+            uint8_t its_malicious_client_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x07, 0x7f,
                     0xCC, 0xCC, 0xDD, 0xDD, 0x01, 0x00, 0x00, 0xAA // return version set to 0xAA
             };
@@ -1394,7 +1394,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
             tcp_socket2.close(ec);
 
             // call shutdown method
-            std::uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
+            uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
             boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
             udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);
@@ -1434,7 +1434,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
 
     std::thread sd_receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
-        std::vector<std::uint8_t> receive_buffer(4096);
+        std::vector<uint8_t> receive_buffer(4096);
         std::vector<vsomeip::event_t> its_received_events;
         std::atomic<bool> service_offered(false);
         std::atomic<bool> client_subscribed(false);
@@ -1447,7 +1447,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
 
         while (keep_receiving) {
             boost::system::error_code error;
-            std::size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
+            size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
             if (error) {
                 keep_receiving = false;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
@@ -1466,7 +1466,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
                             EXPECT_TRUE(e->is_eventgroup_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
                             EXPECT_EQ(1, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(malicious_data_test::service.service_id, e->get_service());
                             EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
                             EXPECT_EQ(1u, sd_msg.get_options().size());
@@ -1492,7 +1492,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
                             EXPECT_TRUE(e->is_service_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
                             EXPECT_EQ(2, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(malicious_data_test::service.service_id + 1u, e->get_service());
                             EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
                             EXPECT_EQ(2u, sd_msg.get_options().size());
@@ -1536,7 +1536,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
             boost::asio::detail::throw_error(ec, "udp_socket_service set_option");
 
             // offer the service
-            std::uint8_t its_offer_service_message[] = {
+            uint8_t its_offer_service_message[] = {
                     0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x30, // length
                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
                     0x01, 0x00, 0x00, 0x20, 0x33, 0x44, 0x00, 0x01, // service / instance
@@ -1578,26 +1578,25 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
             }
 
             // send malicious data as server (wrong protocol version)
-            std::uint8_t wrong_protocol_data[] = {
+            uint8_t wrong_protocol_data[] = {
                     0x33, 0x44, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
                     0xAA, 0xAA, 0xCA, 0xFE, 0xAA, 0x00, 0x00, 0x00 // protocol version set to 0xAA
             };
             udp_socket_service.send_to(boost::asio::buffer(wrong_protocol_data), udp_client_info);
 
-            std::uint8_t wrong_message_type_data[] = {
+            uint8_t wrong_message_type_data[] = {
                     0x33, 0x44, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
                     0xBB, 0xBB, 0xCA, 0xFE, 0x01, 0x00, 0xBB, 0x00 // message type set to 0xBB
             };
             udp_socket_service.send_to(boost::asio::buffer(wrong_message_type_data), udp_client_info);
 
-            std::uint8_t wrong_return_code_data[] = {
+            uint8_t wrong_return_code_data[] = {
                     0x33, 0x44, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
                     0xCC, 0xCC, 0xCA, 0xFE, 0x01, 0x00, 0x00, 0xCC // return code set to 0xCC
             };
             udp_socket_service.send_to(boost::asio::buffer(wrong_return_code_data), udp_client_info);
 
-            std::uint8_t all_wrong_data[] = {0x33, 0x44, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
-                                             0xAA, 0xAA, 0xCA, 0xFE, 0xAA, 0x00, 0xBB, 0xCC};
+            uint8_t all_wrong_data[] = {0x33, 0x44, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08, 0xAA, 0xAA, 0xCA, 0xFE, 0xAA, 0x00, 0xBB, 0xCC};
             udp_socket_service.send_to(boost::asio::buffer(all_wrong_data), udp_client_info);
 
             udp_socket_service.shutdown(boost::asio::socket_base::shutdown_both, ec);
@@ -1614,9 +1613,9 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
             std::thread udp_client_receive_thread([&]() {
                 std::atomic<bool> keep_receiving(true);
                 std::function<void()> receive;
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
 
-                auto receive_cbk = [&](const boost::system::error_code& _error, std::size_t bytes_transferred) {
+                auto receive_cbk = [&](const boost::system::error_code& _error, size_t bytes_transferred) {
                     if (!_error) {
                         vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
                         std::shared_ptr<vsomeip::message> its_message = its_deserializer.deserialize_message();
@@ -1648,7 +1647,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
             });
 
             // send malicious data as client (too long length and wrong protocol version)
-            std::uint8_t wrong_protocol_client_data[] = {
+            uint8_t wrong_protocol_client_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
                     0xCC, 0xCC, 0xDD, 0xDD, 0xAA, 0x00, 0x00, 0x00 // protocol version set to 0xAA
             };
@@ -1657,7 +1656,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
                 udp_socket_client.send_to(boost::asio::buffer(wrong_protocol_client_data), udp_service_info);
             }
 
-            std::uint8_t wrong_message_type_client_data[] = {
+            uint8_t wrong_message_type_client_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
                     0xCC, 0xCC, 0xDD, 0xDD, 0x01, 0x00, 0xBB, 0x00 // message type set to 0xBB
             };
@@ -1666,7 +1665,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
                 udp_socket_client.send_to(boost::asio::buffer(wrong_message_type_client_data), udp_service_info);
             }
 
-            std::uint8_t wrong_return_code_client_data[] = {
+            uint8_t wrong_return_code_client_data[] = {
                     0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
                     0xCC, 0xCC, 0xDD, 0xDD, 0x01, 0x00, 0x00, 0xCC // return code set to 0xCC
             };
@@ -1675,8 +1674,8 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
                 udp_socket_client.send_to(boost::asio::buffer(wrong_return_code_client_data), udp_service_info);
             }
 
-            std::uint8_t all_wrong_client_data[] = {0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
-                                                    0xCC, 0xCC, 0xDD, 0xDD, 0xAA, 0x00, 0xBB, 0xCC};
+            uint8_t all_wrong_client_data[] = {0x33, 0x45, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08,
+                                               0xCC, 0xCC, 0xDD, 0xDD, 0xAA, 0x00, 0xBB, 0xCC};
             {
                 std::scoped_lock its_lock(socket_mutex);
                 udp_socket_client.send_to(boost::asio::buffer(all_wrong_client_data), udp_service_info);
@@ -1689,7 +1688,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
             udp_socket_client.close(ec);
 
             // call shutdown method
-            std::uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
+            uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
             boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
             udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);

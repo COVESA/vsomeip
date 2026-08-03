@@ -54,7 +54,7 @@ bool header::prepare(const local_endpoint* _endpoint, bool _is_sending, instance
     return true;
 }
 
-void header::prepare(const boost::asio::ip::address_v4& _address, std::uint16_t _port, protocol_e _protocol, bool _is_sending,
+void header::prepare(const boost::asio::ip::address_v4& _address, uint16_t _port, protocol_e _protocol, bool _is_sending,
                      instance_t _instance) {
 
     bithelper::write_uint32_be(_address.to_uint(), data_); // [0-3] Address

@@ -69,9 +69,7 @@ private:
         return state_->local_endpoint();
     }
 
-    virtual void io_control(io_control_operation<std::size_t>&, boost::system::error_code& _ec) override {
-        _ec = boost::system::error_code();
-    }
+    virtual void io_control(io_control_operation<size_t>&, boost::system::error_code& _ec) override { _ec = boost::system::error_code(); }
 
     virtual void set_option(boost::asio::ip::tcp::no_delay, boost::system::error_code& _ec) override {
         _ec = boost::system::error_code();

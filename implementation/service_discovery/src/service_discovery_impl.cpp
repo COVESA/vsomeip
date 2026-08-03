@@ -158,8 +158,8 @@ void service_discovery_impl::start() {
     }
 
     // see PRS_SOMEIPSD_00399: initial wait phase before sending any messages
-    std::uniform_int_distribution<std::uint32_t> distribution{configuration_->get_sd_initial_delay_min(),
-                                                              configuration_->get_sd_initial_delay_max()};
+    std::uniform_int_distribution<uint32_t> distribution{configuration_->get_sd_initial_delay_min(),
+                                                         configuration_->get_sd_initial_delay_max()};
     std::chrono::milliseconds initial_delay{distribution(random_generator_)};
 
     start_main_phase_timer();
@@ -247,7 +247,7 @@ void service_discovery_impl::reset_request_sent_counter(service_t _service, inst
 void service_discovery_impl::update_request(service_t _service, instance_t _instance) {
     std::scoped_lock its_lock(requested_mutex_);
     if (auto find_instance = requested_.find({_service, _instance}); find_instance != requested_.end()) {
-        find_instance->second->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
+        find_instance->second->set_sent_counter(uint8_t(repetitions_max_ + 1));
     }
 }
 
@@ -753,7 +753,7 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
     }
     std::shared_ptr<eventgroupentry_impl> its_entry, its_other;
     if (insert_reliable && its_reliable_endpoint) {
-        const std::uint16_t its_port = its_reliable_endpoint->get_local_port();
+        const uint16_t its_port = its_reliable_endpoint->get_local_port();
         if (its_port) {
             its_entry = std::make_shared<eventgroupentry_impl>();
             if (!its_entry) {
@@ -797,7 +797,7 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
     }
 
     if (insert_unreliable && its_unreliable_endpoint) {
-        const std::uint16_t its_port = its_unreliable_endpoint->get_local_port();
+        const uint16_t its_port = its_unreliable_endpoint->get_local_port();
         if (its_port) {
             if (!its_entry) {
                 its_entry = std::make_shared<eventgroupentry_impl>();
@@ -1389,7 +1389,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
     if (_sd_ac_state.sd_acceptance_required_) {
 
         auto expire_subscriptions_and_services = [this, &service_str, &_sd_ac_state](const boost::asio::ip::address& _address,
-                                                                                     std::uint16_t _port, bool _reliable) {
+                                                                                     uint16_t _port, bool _reliable) {
             const auto its_port_pair = std::make_pair(_reliable, _port);
             if (_sd_ac_state.expired_ports_.count(its_port_pair) == 0) {
                 VSOMEIP_WARNING << "sdi::process_offerservice_serviceentry: Dropping offer of " << service_str() << " @ "
@@ -2057,7 +2057,7 @@ void service_discovery_impl::handle_eventgroup_subscription(
     if (reliablility_nack && _ttl > 0) {
         insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
         VSOMEIP_WARNING_P << "SubNack for " << dump_entry() << " due to event reliability "
-                          << static_cast<std::uint32_t>(_info->get_reliability())
+                          << static_cast<uint32_t>(_info->get_reliability())
                           << " not matching provided endpoint options: " << _first_address.to_string() << ":" << _first_port << " "
                           << _second_address.to_string() << ":" << _second_port;
         return;
@@ -2408,9 +2408,9 @@ bool service_discovery_impl::check_ipv4_address(const boost::asio::ip::address& 
         VSOMEIP_ERROR << "Subscriber's IP address is same as host's address! : " << its_address;
         is_valid = false;
     } else {
-        const std::uint32_t self = bithelper::read_uint32_be(&its_unicast_address[0]);
-        const std::uint32_t remote = bithelper::read_uint32_be(&endpoint_address[0]);
-        const std::uint32_t netmask = bithelper::read_uint32_be(&its_netmask[0]);
+        const uint32_t self = bithelper::read_uint32_be(&its_unicast_address[0]);
+        const uint32_t remote = bithelper::read_uint32_be(&endpoint_address[0]);
+        const uint32_t netmask = bithelper::read_uint32_be(&its_netmask[0]);
 
         if ((self & netmask) != (remote & netmask)) {
             VSOMEIP_ERROR << "Subscriber's IP isn't in the same subnet as host's IP: " << its_address;
@@ -2497,7 +2497,7 @@ void service_discovery_impl::on_find_debounce_timer_expired(const boost::system:
     send(its_messages);
 
     std::chrono::milliseconds its_delay(repetitions_base_delay_);
-    std::uint8_t its_repetitions(1);
+    uint8_t its_repetitions(1);
 
     auto its_timer = std::make_shared<boost::asio::steady_timer>(host_->get_io());
     {
@@ -2560,7 +2560,7 @@ void service_discovery_impl::on_offer_debounce_timer_expired(const boost::system
     send(its_messages);
 
     std::chrono::milliseconds its_delay(0);
-    std::uint8_t its_repetitions(0);
+    uint8_t its_repetitions(0);
     if (repetitions_max_) {
         // Start timer for repetition phase the first time
         // with 2^0 * repetitions_base_delay
@@ -2588,7 +2588,7 @@ void service_discovery_impl::on_offer_debounce_timer_expired(const boost::system
 
 void service_discovery_impl::on_repetition_phase_timer_expired(const boost::system::error_code& _error,
                                                                const std::shared_ptr<boost::asio::steady_timer>& _timer,
-                                                               std::uint8_t _repetition, std::uint32_t _last_delay) {
+                                                               uint8_t _repetition, uint32_t _last_delay) {
     if (_error) {
         return;
     }
@@ -2602,7 +2602,7 @@ void service_discovery_impl::on_repetition_phase_timer_expired(const boost::syst
         auto its_timer_pair = repetition_phase_timers_.find(_timer);
         if (its_timer_pair != repetition_phase_timers_.end()) {
             std::chrono::milliseconds new_delay(0);
-            std::uint8_t repetition(0);
+            uint8_t repetition(0);
             bool move_to_main(false);
             if (_repetition <= repetitions_max_) {
                 // Sent offers, double time to wait and start timer again.
@@ -2644,7 +2644,7 @@ void service_discovery_impl::on_repetition_phase_timer_expired(const boost::syst
 
 void service_discovery_impl::on_find_repetition_phase_timer_expired(const boost::system::error_code& _error,
                                                                     const std::shared_ptr<boost::asio::steady_timer>& _timer,
-                                                                    std::uint8_t _repetition, std::uint32_t _last_delay) {
+                                                                    uint8_t _repetition, uint32_t _last_delay) {
     if (_error) {
         return;
     }
@@ -2653,7 +2653,7 @@ void service_discovery_impl::on_find_repetition_phase_timer_expired(const boost:
     auto its_timer_pair = find_repetition_phase_timers_.find(_timer);
     if (its_timer_pair != find_repetition_phase_timers_.end()) {
         std::chrono::milliseconds new_delay(0);
-        std::uint8_t repetition(0);
+        uint8_t repetition(0);
         if (_repetition <= repetitions_max_) {
             // Sent findService entries in one message, double time to wait and start timer again.
             std::vector<std::shared_ptr<message_impl>> its_messages;
@@ -3051,8 +3051,8 @@ reliability_type_e service_discovery_impl::get_remote_offer_type(const std::shar
 }
 
 bool service_discovery_impl::update_remote_offer_type(service_t _service, instance_t _instance, reliability_type_e _offer_type,
-                                                      const boost::asio::ip::address& _reliable_address, std::uint16_t _reliable_port,
-                                                      const boost::asio::ip::address& _unreliable_address, std::uint16_t _unreliable_port,
+                                                      const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
+                                                      const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
                                                       bool _received_via_multicast) {
     bool ret(false);
     std::scoped_lock its_lock(remote_offer_types_mutex_);
@@ -3086,14 +3086,14 @@ bool service_discovery_impl::update_remote_offer_type(service_t _service, instan
 }
 
 void service_discovery_impl::remove_remote_offer_type(service_t _service, instance_t _instance,
-                                                      const boost::asio::ip::address& _reliable_address, std::uint16_t _reliable_port,
-                                                      const boost::asio::ip::address& _unreliable_address, std::uint16_t _unreliable_port) {
+                                                      const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
+                                                      const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port) {
     std::scoped_lock its_lock(remote_offer_types_mutex_);
     const remote_offer_info_t its_service_instance(_service, _instance);
 
     remote_offer_types_.erase(its_service_instance.service_info);
 
-    auto delete_from_remote_offers_by_ip = [&](const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) {
+    auto delete_from_remote_offers_by_ip = [&](const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) {
         const auto found_address = remote_offers_by_ip_.find(_address);
         if (found_address != remote_offers_by_ip_.end()) {
             auto found_port = found_address->second.find(std::make_pair(_reliable, _port));
@@ -3121,7 +3121,7 @@ void service_discovery_impl::remove_remote_offer_type_by_ip(const boost::asio::i
     remove_remote_offer_type_by_ip(_address, ANY_PORT, false);
 }
 
-void service_discovery_impl::remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) {
+void service_discovery_impl::remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) {
     std::scoped_lock its_lock(remote_offer_types_mutex_);
     const auto found_address = remote_offers_by_ip_.find(_address);
     if (found_address != remote_offers_by_ip_.end()) {
@@ -3150,7 +3150,7 @@ void service_discovery_impl::remove_remote_offer_type_by_ip(const boost::asio::i
 
 bool service_discovery_impl::set_offer_multicast_state(service_t _service, instance_t _instance, reliability_type_e _offer_type,
                                                        const boost::asio::ip::address& _reliable_address, port_t _reliable_port,
-                                                       const boost::asio::ip::address& _unreliable_address, std::uint16_t _unreliable_port,
+                                                       const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
                                                        bool _received_via_multicast) {
 
     bool was_unicast = false;
@@ -3226,8 +3226,8 @@ void service_discovery_impl::send_subscription_ack(const std::shared_ptr<remote_
 
     _acknowledgement->done();
 
-    std::uint32_t its_max_answers(1); // Must be 1 as "_acknowledgement" not
-                                      // necessarily contains subscriptions
+    uint32_t its_max_answers(1); // Must be 1 as "_acknowledgement" not
+                                 // necessarily contains subscriptions
     bool do_not_answer(false);
     std::shared_ptr<remote_subscription> its_parent;
 
@@ -3271,7 +3271,7 @@ void service_discovery_impl::send_subscription_ack(const std::shared_ptr<remote_
     }
 
     // send messages
-    for (std::uint32_t i = 0; i < its_max_answers; i++) {
+    for (uint32_t i = 0; i < its_max_answers; i++) {
         for (const auto& its_subscription : _acknowledgement->get_subscriptions()) {
             if (i < its_subscription->get_answers()) {
                 if (its_subscription->get_ttl() > 0) {
