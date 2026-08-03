@@ -301,7 +301,7 @@ bool configuration_impl::load(const std::string& _name) {
     // Log about reading of configuration file(s) that failed.
     // (This may fail if the logger configuration is incomplete/missing).
     for (const auto& f : its_failed) {
-        VSOMEIP_WARNING << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
+        VSOMEIP_ERROR_P << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
     }
 
     // set global unicast address for all services with magic cookies enabled
@@ -359,7 +359,7 @@ void configuration_impl::lazy_load_security(const std::string& _client_host) {
     }
 
     for (auto f : its_failed) {
-        VSOMEIP_WARNING_P << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete";
+        VSOMEIP_ERROR_P << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete";
     }
 
     policy_manager_->set_is_policy_extension_loaded(its_client_host, true);
@@ -499,7 +499,9 @@ void configuration_impl::load_policy_data(const std::string& _input, std::vector
         try {
             boost::property_tree::json_parser::read_json(_input, its_tree);
             _elements.push_back({_input, its_tree});
-        } catch (boost::property_tree::json_parser_error&) {
+        } catch (boost::property_tree::json_parser_error& ex) {
+            VSOMEIP_ERROR_P << "Could not parse JSON file '" << _input << "', ex: " << ex.what();
+
             _failed.insert(_input);
         }
     }
@@ -944,10 +946,10 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
             its_converter << std::dec << its_value;
             its_converter >> its_io_thread_count;
             if (its_io_thread_count == 0) {
-                VSOMEIP_WARNING << "Min. number of threads per application is 1";
+                VSOMEIP_ERROR_P << "Min. number of threads per application is 1";
                 its_io_thread_count = 1;
             } else if (its_io_thread_count > 255) {
-                VSOMEIP_WARNING << "Max. number of threads per application is 255";
+                VSOMEIP_ERROR_P << "Max. number of threads per application is 255";
                 its_io_thread_count = 255;
             }
         } else if (its_key == "status_log_interval") {
@@ -963,7 +965,7 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
             its_converter << std::dec << its_value;
             its_converter >> its_request_debounce_time;
             if (its_request_debounce_time > 10000) {
-                VSOMEIP_WARNING << "Max. request debounce time is 10.000ms";
+                VSOMEIP_ERROR_P << "Max. request debounce time is 10.000ms";
                 its_request_debounce_time = 10000;
             }
         } else if (its_key == "plugins") {
@@ -1004,7 +1006,7 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
                                        its_debounces,
                                        has_session_handling};
         } else {
-            VSOMEIP_WARNING << "Multiple configurations for application " << its_name << ". Ignoring a configuration from " << _file_name;
+            VSOMEIP_ERROR_P << "Multiple configurations for application " << its_name << ". Ignoring a configuration from " << _file_name;
         }
     }
 }
@@ -1086,7 +1088,7 @@ void configuration_impl::add_plugin(std::map<plugin_type_e, std::set<std::string
 #endif
         _plugins[plugin_type_e::PRE_CONFIGURATION_PLUGIN].insert(its_library);
     } else {
-        VSOMEIP_WARNING << "Unknown plug-in type (" << _plugin_data.type_ << ") configured for client: " << _application_name;
+        VSOMEIP_ERROR_P << "Unknown plug-in type (" << _plugin_data.type_ << ") configured for client: " << _application_name;
     }
 }
 
@@ -1130,7 +1132,7 @@ void configuration_impl::load_tracing(const configuration_element& _element) {
                             // VSOMEIP_FULL_HEADER_SIZE bytes - so clamp it up. 0 keeps
                             // its special "disabled" (always full) meaning.
                             if (its_value_u32 != 0 && its_value_u32 < VSOMEIP_FULL_HEADER_SIZE) {
-                                VSOMEIP_WARNING << "tracing.full_logging_threshold (" << its_value_u32 << ") is below the minimum of "
+                                VSOMEIP_ERROR_P << "tracing.full_logging_threshold (" << its_value_u32 << ") is below the minimum of "
                                                 << VSOMEIP_FULL_HEADER_SIZE << ", using " << VSOMEIP_FULL_HEADER_SIZE << ".";
                                 its_value_u32 = VSOMEIP_FULL_HEADER_SIZE;
                             }
@@ -1246,12 +1248,12 @@ void configuration_impl::load_trace_filter_expressions(const boost::property_tre
         }
     } else if (_criteria == "methods") {
         if (!has_issued_methods_warning_) {
-            VSOMEIP_WARNING << "\"method\" entry in filter configuration has no effect!";
+            VSOMEIP_ERROR_P << "\"method\" entry in filter configuration has no effect!";
             has_issued_methods_warning_ = true;
         }
     } else if (_criteria == "clients") {
         if (!has_issued_clients_warning_) {
-            VSOMEIP_WARNING << "\"clients\" entry in filter configuration has no effect!";
+            VSOMEIP_ERROR_P << "\"clients\" entry in filter configuration has no effect!";
             has_issued_clients_warning_ = true;
         }
     } else if (_criteria == "matches") {
@@ -1816,7 +1818,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     max_remote_subscribers_ =
                             (tmp > std::numeric_limits<uint8_t>::max()) ? std::numeric_limits<uint8_t>::max() : static_cast<uint8_t>(tmp);
                     if (max_remote_subscribers_ == 0) {
-                        VSOMEIP_WARNING << "max_remote_subscribers_ = 0 is not allowed. Using default ("
+                        VSOMEIP_ERROR_P << "max_remote_subscribers_ = 0 is not allowed. Using default ("
                                         << VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS << ")";
                         max_remote_subscribers_ = VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS;
                     }
@@ -2344,7 +2346,7 @@ std::pair<uint16_t, uint16_t> configuration_impl::load_client_port_range(const b
     }
 
     if (its_last_port < its_first_port) {
-        VSOMEIP_WARNING << "Port range invalid: first: " << its_first_port << " last: " << its_last_port;
+        VSOMEIP_ERROR_P << "Port range invalid: first: " << its_first_port << " last: " << its_last_port;
         its_port_range = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
     } else {
         its_port_range = std::make_pair(its_first_port, its_last_port);
@@ -2481,20 +2483,20 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
             }
             if (max_local_message_size_ != 0 && max_configured_message_size_ != 0
                 && max_configured_message_size_ > max_local_message_size_) {
-                VSOMEIP_WARNING << max_local_payload_size << " is configured smaller than the biggest payloadsize for external"
+                VSOMEIP_ERROR_P << max_local_payload_size << " is configured smaller than the biggest payloadsize for external"
                                 << " communication. " << max_local_payload_size << " will be increased to "
                                 << max_configured_message_size_ - 16 << " to ensure local message distribution.";
                 max_local_message_size_ = max_configured_message_size_;
             }
             if (max_local_message_size_ != 0 && max_reliable_message_size_ != 0 && max_reliable_message_size_ > max_local_message_size_) {
-                VSOMEIP_WARNING << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
+                VSOMEIP_ERROR_P << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
                                 << max_reliable_payload_size << " (" << max_reliable_message_size_ - 16 << "). " << max_local_payload_size
                                 << " will be increased to " << max_reliable_message_size_ - 16 << " to ensure local message distribution.";
                 max_local_message_size_ = max_reliable_message_size_;
             }
             if (max_local_message_size_ != 0 && max_unreliable_message_size_ != 0
                 && max_unreliable_message_size_ > max_local_message_size_) {
-                VSOMEIP_WARNING << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
+                VSOMEIP_ERROR_P << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
                                 << max_unreliable_payload_size << " (" << max_unreliable_message_size_ - 16 << "). "
                                 << max_local_payload_size << " will be increased to " << max_unreliable_message_size_ - 16 << " to ensure "
                                 << "local message distribution.";
@@ -3851,7 +3853,7 @@ void configuration_impl::load_event_debounce(const boost::property_tree::ptree& 
                 its_converter >> its_debounce->interval_;
             }
         } else if (its_key == "send_current_value_after") {
-            VSOMEIP_WARNING << "Filter uses unsupported parameter 'send_current_value_after'";
+            VSOMEIP_ERROR_P << "Filter uses unsupported parameter 'send_current_value_after'";
             its_debounce->send_current_value_after_ = (its_value == "true");
         }
     }
@@ -4036,7 +4038,7 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
                         find_sd_acceptance_rule->second.first.insert(p);
                     }
                 } else {
-                    VSOMEIP_WARNING << "Detected inconsistent acceptance rules. Multiple entries share the IP address but define different "
+                    VSOMEIP_ERROR_P << "Detected inconsistent acceptance rules. Multiple entries share the IP address but define different "
                                     << "[semi-] secure ports";
                 }
             } else {
@@ -4173,7 +4175,7 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                             // Ensure this by subtracting the rest
                             auto its_rest = uint16_t(its_max_segment_length % 16);
                             if (its_rest != 0) {
-                                VSOMEIP_WARNING << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected "
+                                VSOMEIP_ERROR_P << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected "
                                                 << its_max_segment_length << " to " << its_max_segment_length - its_rest;
 
                                 its_max_segment_length = uint16_t(its_max_segment_length - its_rest);
@@ -4204,7 +4206,7 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                     if (its_entry == _service->tp_client_config_.end()) {
                         _service->tp_client_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
-                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method [" << _service->service_instance_ << "."
+                        VSOMEIP_ERROR_P << "SOME/IP-TP: Multiple client configurations for method [" << _service->service_instance_ << "."
                                         << hex4(its_method) << "]: using (" << its_entry->second.first << ", " << its_entry->second.second
                                         << ")";
                     }
@@ -4213,7 +4215,7 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                     if (its_entry == _service->tp_service_config_.end()) {
                         _service->tp_service_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
-                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method [" << _service->service_instance_ << "."
+                        VSOMEIP_ERROR_P << "SOME/IP-TP: Multiple service configurations for method [" << _service->service_instance_ << "."
                                         << hex4(its_method) << "]: using (" << its_entry->second.first << ", " << its_entry->second.second
                                         << ")";
                     }
