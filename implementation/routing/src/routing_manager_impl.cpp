@@ -1205,10 +1205,6 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
                                                                : trace::protocol_e::udp;
         its_header.prepare(its_remote_address, _remote_port, its_protocol, false, its_instance);
         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _length);
-    } else {
-        VSOMEIP_WARNING_P << "Dropped message [" << hex4(its_service) << "." << hex4(its_instance) << "." << hex4(its_method) << "."
-                          << hex4(its_client) << "." << hex4(its_session) << "] from: " << _remote_address.to_string() << ":"
-                          << _remote_port;
     }
 }
 
