@@ -9,8 +9,9 @@
 #include "helpers/base_fake_socket_fixture.hpp"
 #include "helpers/ecu_setup.hpp"
 #include "helpers/message_checker.hpp"
-#include "helpers/fake_socket_factory.hpp"
 #include "helpers/someip_gate.hpp"
+
+#include "common/timeout_scale.hpp"
 
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
@@ -96,7 +97,8 @@ TEST_F(test_field_resubscribe, field_resubscribe_recovers_after_lost_initial_not
 
     // Next cyclic offer must force a StopSubscribe(ttl=0) immediately followed by Subscribe.
     ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_sequence(
-            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}}, std::chrono::seconds(2)));
+            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}},
+            common::scaled_timeout(std::chrono::seconds(2))));
 
     // Release the withheld notification — recovery should complete.
     notify_gate_->block(false);
@@ -129,7 +131,8 @@ TEST_F(test_field_resubscribe, field_resubscribe_recovers_after_lost_initial_not
 
     // Next cyclic offer must force a StopSubscribe(ttl=0) immediately followed by Subscribe.
     ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_sequence(
-            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}}, std::chrono::seconds(2)));
+            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}},
+            common::scaled_timeout(std::chrono::seconds(2))));
 
     // Release the withheld notification — recovery should complete.
     notify_gate_->block(false);
@@ -161,7 +164,8 @@ TEST_F(test_field_resubscribe, field_resubscribe_recovers_after_lost_initial_not
 
     // Next cyclic offer must force a StopSubscribe(ttl=0) immediately followed by Subscribe.
     ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_sequence(
-            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}}, std::chrono::seconds(2)));
+            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}},
+            common::scaled_timeout(std::chrono::seconds(2))));
 
     // Release the withheld notification — recovery should complete.
     notify_gate_->block(false);
@@ -201,7 +205,8 @@ TEST_F(test_field_resubscribe, field_resubscribe_recovers_after_lost_initial_not
 
     // Next cyclic offer must force a StopSubscribe(ttl=0) immediately followed by Subscribe.
     ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_sequence(
-            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}}, std::chrono::seconds(2)));
+            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}},
+            common::scaled_timeout(std::chrono::seconds(2))));
 
     // Release the withheld notification — recovery should complete.
     notify_gate_->block(false);
@@ -213,7 +218,8 @@ TEST_F(test_field_resubscribe, field_resubscribe_recovers_after_lost_initial_not
     // The next cyclic offer shall still trigger a StopSubscribe+Subscribe pair, because one the fields is still missing the initial
     // notification.
     ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_sequence(
-            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}}, std::chrono::seconds(2)));
+            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}},
+            common::scaled_timeout(std::chrono::seconds(2))));
 }
 
 TEST_F(test_field_resubscribe, field_resubscribe_repeats_while_value_still_missing) {
@@ -237,11 +243,13 @@ TEST_F(test_field_resubscribe, field_resubscribe_repeats_while_value_still_missi
     ASSERT_TRUE(notify_gate_->wait_for_blocked());
 
     // First forced resubscribe, on the next cyclic offer.
-    ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_any({sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, std::chrono::seconds(2)));
+    ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_any({sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0},
+                                                               common::scaled_timeout(std::chrono::seconds(2))));
 
     // The notification stays blocked — a second cyclic offer must trigger it again.
     ecu_one_sd_send_gate_->sd_record_.clear();
-    ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_any({sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, std::chrono::seconds(2)));
+    ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_any({sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0},
+                                                               common::scaled_timeout(std::chrono::seconds(2))));
 }
 
 TEST_F(test_field_resubscribe, no_forced_resubscribe_for_plain_event) {
@@ -320,7 +328,8 @@ TEST_F(test_field_resubscribe, field_resubscribe_late_field_registration) {
     // The next cyclic offer must force a StopSubscribe(ttl=0) immediately followed by Subscribe, because the newly registered field has not
     // yet been notified.
     ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_sequence(
-            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}}, std::chrono::seconds(2)));
+            {{sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}, {sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}},
+            common::scaled_timeout(std::chrono::seconds(2))));
 }
 
 const interface service_3344_instance_2{0x3344,
@@ -355,7 +364,7 @@ TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_after_f
     server->offer(interfaces::boardnet::service_3344);
     client->request_service(interfaces::boardnet::service_3344.instance_);
     ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_),
-                                                           std::chrono::seconds(2)));
+                                                           common::scaled_timeout(std::chrono::seconds(2))));
 
     // Prepare Service Discovery Gate
     std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
@@ -367,7 +376,7 @@ TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_after_f
     server->stop_offer(interfaces::boardnet::service_3344.instance_);
 
     // Verify whether a StopService message was blocked or not, if it wasn't, we can safely assume it was not sent either.
-    EXPECT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
+    EXPECT_TRUE(router_one_sd_gate->wait_for_blocked(common::scaled_timeout(std::chrono::seconds(2))));
 }
 
 // This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait for each service-instance.
@@ -400,13 +409,13 @@ TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_for_eac
 
     router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
     server->stop_offer(first_instance);
-    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
+    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(common::scaled_timeout(std::chrono::seconds(2))));
     router_one_sd_gate->block(false);
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(first_instance)));
 
     router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
     server->stop_offer(second_instance);
-    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
+    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(common::scaled_timeout(std::chrono::seconds(2))));
     router_one_sd_gate->block(false);
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(second_instance)));
 }
