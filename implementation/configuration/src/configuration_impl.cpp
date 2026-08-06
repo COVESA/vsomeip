@@ -55,8 +55,8 @@ configuration_impl::configuration_impl(const std::string& _path) :
     sd_initial_delay_min_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN}, sd_initial_delay_max_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX},
     sd_repetitions_base_delay_{VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY}, sd_repetitions_max_{VSOMEIP_SD_DEFAULT_REPETITIONS_MAX},
     sd_ttl_{VSOMEIP_SD_DEFAULT_TTL}, sd_cyclic_offer_delay_{VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY},
-    sd_request_response_delay_{VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY}, sd_offer_debounce_time_{VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME},
-    sd_find_debounce_time_{VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME}, sd_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
+    sd_offer_debounce_time_{VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME}, sd_find_debounce_time_{VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME},
+    sd_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
     sd_find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
     sd_wait_route_netlink_notification_{VSOMEIP_SD_WAIT_ROUTE_NETLINK_NOTIFICATION},
     sd_stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME}, sd_offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME},
@@ -142,7 +142,6 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     sd_repetitions_max_ = _other.sd_repetitions_max_;
     sd_ttl_ = _other.sd_ttl_;
     sd_cyclic_offer_delay_ = _other.sd_cyclic_offer_delay_;
-    sd_request_response_delay_ = _other.sd_request_response_delay_;
     sd_find_initial_debounce_reps_ = _other.sd_find_initial_debounce_reps_;
     sd_find_initial_debounce_time_ = _other.sd_find_initial_debounce_time_;
     sd_offer_debounce_time_ = _other.sd_offer_debounce_time_;
@@ -1738,15 +1737,6 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     its_converter << its_value;
                     its_converter >> sd_cyclic_offer_delay_;
                     is_configured_[ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY] = true;
-                }
-            } else if (its_key == "request_response_delay") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.request_response_delay. Ignoring definition from "
-                                    << _element.name_;
-                } else {
-                    its_converter << its_value;
-                    its_converter >> sd_request_response_delay_;
-                    is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY] = true;
                 }
             } else if (its_key == "find_initial_debounce_reps") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS]) {
@@ -3463,10 +3453,6 @@ ttl_t configuration_impl::get_sd_ttl() const {
 
 int32_t configuration_impl::get_sd_cyclic_offer_delay() const {
     return sd_cyclic_offer_delay_;
-}
-
-int32_t configuration_impl::get_sd_request_response_delay() const {
-    return sd_request_response_delay_;
 }
 
 uint8_t configuration_impl::get_sd_find_initial_debounce_reps() const {

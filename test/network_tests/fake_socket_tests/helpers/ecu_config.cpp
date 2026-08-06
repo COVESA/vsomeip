@@ -200,7 +200,6 @@ void write_service_discovery(std::ostringstream& o, bool enabled, const service_
         o << R"(, "repetitions_max" : "3")";
         o << R"(, "ttl" : "3")";
         o << R"(, "cyclic_offer_delay" : "2000")";
-        o << R"(, "request_response_delay" : "1500")";
     }
     o << R"( })";
 }

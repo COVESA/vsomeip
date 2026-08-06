@@ -719,7 +719,6 @@ The general filter rules are:
         - **instance** - The id of the service instance.
         - **ttl_factor** - TTL correction factor
     - **cyclic_offer_delay** - Cycle of the OfferService messages in the main phase. The default value is `1000` ms.
-    - **request_response_delay** - Minimum delay of a unicast message to a multicast message for provided services and eventgroups. The default value is `2000` ms.
     - **offer_debounce_time** - Time which the stack collects new service offers before they enter the repetition phase. This can be used to reduce the number of sent messages during startup. The default value is `500` ms.
     - **find_debounce_time** - Time which the stack collects non local service requests before sending find messages. The default value is `500` ms.
     - **max_remote_subscribers** - Maximum possible number of different remote subscribers. Additional remote subscribers will not be acknowledged. The default value is `3`.

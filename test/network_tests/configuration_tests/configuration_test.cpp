@@ -83,7 +83,6 @@ namespace vsomeip = vsomeip_v3;
 #define EXPECTED_REPETITIONS_MAX 4
 #define EXPECTED_TTL 13
 #define EXPECTED_CYCLIC_OFFER_DELAY 2132
-#define EXPECTED_REQUEST_RESPONSE_DELAY 1111
 #define EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION true
 
 template<class T>
@@ -157,7 +156,7 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
                 const std::string& _expected_protocol, const std::string& _expected_multicast, uint16_t _expected_port,
                 uint32_t _expected_initial_delay_min, uint32_t _expected_initial_delay_max, int32_t _expected_repetitions_base_delay,
                 uint8_t _expected_repetitions_max, vsomeip::ttl_t _expected_ttl, vsomeip::ttl_t _expected_cyclic_offer_delay,
-                vsomeip::ttl_t _expected_request_response_delay, bool _expected_wait_route_netlink_notification) {
+                bool _expected_wait_route_netlink_notification) {
 
     // 0. Set environment variable to config file and load it
 #if defined(__linux__) || defined(__QNX__)
@@ -664,7 +663,6 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     uint8_t repetitions_max = its_configuration->get_sd_repetitions_max();
     vsomeip::ttl_t ttl = its_configuration->get_sd_ttl();
     int32_t cyclic_offer_delay = its_configuration->get_sd_cyclic_offer_delay();
-    int32_t request_response_delay = its_configuration->get_sd_request_response_delay();
     bool wait_route_netlink_notification = its_configuration->get_sd_wait_route_netlink_notification();
 
     EXPECT_TRUE(check<bool>(enabled, _expected_enabled, "SD ENABLED"));
@@ -678,8 +676,6 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     EXPECT_TRUE(check<uint8_t>(repetitions_max, _expected_repetitions_max, "SD REPETITION MAX"));
     EXPECT_TRUE(check<vsomeip::ttl_t>(ttl, _expected_ttl, "SD TTL"));
     EXPECT_TRUE(check<int32_t>(cyclic_offer_delay, static_cast<int32_t>(_expected_cyclic_offer_delay), "SD CYCLIC OFFER DELAY"));
-    EXPECT_TRUE(
-            check<int32_t>(request_response_delay, static_cast<int32_t>(_expected_request_response_delay), "SD RESPONSE REQUEST DELAY"));
     EXPECT_TRUE(
             check<bool>(wait_route_netlink_notification, _expected_wait_route_netlink_notification, "SD WAIT ROUTE NETLINK NOTIFICATION"));
     EXPECT_EQ(1000u, its_configuration->get_sd_offer_debounce_time());
@@ -699,7 +695,7 @@ TEST(configuration_test, check_config_file) {
                EXPECTED_UNRELIABLE_PORT_2266_0022, EXPECTED_UNICAST_ADDRESS_4466_0321, EXPECTED_RELIABLE_PORT_4466_0321,
                EXPECTED_UNRELIABLE_PORT_4466_0321, EXPECTED_SD_ENABLED, EXPECTED_SD_PROTOCOL, EXPECTED_SD_MULTICAST, EXPECTED_SD_PORT,
                EXPECTED_INITIAL_DELAY_MIN, EXPECTED_INITIAL_DELAY_MAX, EXPECTED_REPETITIONS_BASE_DELAY, EXPECTED_REPETITIONS_MAX,
-               EXPECTED_TTL, EXPECTED_CYCLIC_OFFER_DELAY, EXPECTED_REQUEST_RESPONSE_DELAY, EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
+               EXPECTED_TTL, EXPECTED_CYCLIC_OFFER_DELAY, EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
 }
 
 TEST(configuration_test, default_values) {

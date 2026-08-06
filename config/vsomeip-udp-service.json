@@ -43,7 +43,6 @@
                         "0x8777",
                         "0x8778"
                     ]
-
                 },
                 {
                     "eventgroup": "0x4465",
@@ -86,7 +85,6 @@
         "repetitions_base_delay": "200",
         "repetitions_max": "3",
         "ttl": "3",
-        "cyclic_offer_delay": "2000",
-        "request_response_delay": "1500"
+        "cyclic_offer_delay": "2000"
     }
 }
