@@ -2066,10 +2066,7 @@ std::map<std::string, std::string> application_impl::get_additional_data(const s
 
 void application_impl::register_message_handler_ext(service_t _service, instance_t _instance, method_t _method,
                                                     const message_handler_t& _handler, handler_registration_type_e _type) {
-
-    // A message handler may serve a provided service (incoming requests) or a consumed
-    // service (incoming responses/notifications), so warn for either ordering mistake.
-    const bool late = routing_ && (routing_->is_offered(_service, _instance) || routing_->is_requested(_service, _instance));
+    const bool late = routing_ && routing_->is_offered(_service, _instance);
 
     const auto key = to_members_key(_service, _instance, _method);
 
@@ -2078,9 +2075,9 @@ void application_impl::register_message_handler_ext(service_t _service, instance
     if (members_.find(key) != members_.end() && _type == handler_registration_type_e::HRT_REPLACE) {
         warn_duplicate_registration("Message handler", _service, _instance, _method);
     }
-    // If the handler is being registered after the service has been offered or requested, warn about late registration.
+    // If the handler is being registered after the service has been offered, warn about late registration.
     if (late) {
-        warn_late_registration("Message handler", _service, _instance, _method, "offer/request");
+        warn_late_registration("Message handler", _service, _instance, _method, "offer");
     }
 
     switch (_type) {
