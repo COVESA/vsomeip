@@ -125,6 +125,9 @@ void routing_manager_client::start() {
 
         assert(!on_sender_stopped_);
         on_sender_stopped_ = {};
+        // A fresh start discards the deadline of any outage of a previous lifecycle;
+        // restart_sender arms the watchdog for the connect attempt it is about to make.
+        connect_timeout_ = std::chrono::steady_clock::time_point::max();
         restart_sender(lock);
     }
 
@@ -2027,6 +2030,8 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client, bool 
                                     << ") could not send pending offers";
                 } else {
                     host_->on_state(state_type_e::ST_REGISTERED);
+                    // The routing manager is reachable, so the deadline is dropped.
+                    connect_timeout_ = std::chrono::steady_clock::time_point::max();
                     return;
                 }
             }
@@ -2068,8 +2073,19 @@ void routing_manager_client::restart_sender([[maybe_unused]] std::scoped_lock<st
         return;
     }
     start_sender_after_debounce_ = false;
-    if (!state_machine_->start_registration()) { // `start_registration` does logging
+    if (!state_machine_->start_registration()) {
         return;
+    }
+    auto const its_now = std::chrono::steady_clock::now();
+    if (connect_timeout_ == std::chrono::steady_clock::time_point::max()) {
+        connect_timeout_ = its_now + std::chrono::milliseconds(VSOMEIP_RECONNECT_TIMEOUT);
+    } else if (its_now >= connect_timeout_) {
+        // Once the router could not be reached for VSOMEIP_RECONNECT_TIMEOUT, every further attempt
+        // is reported and the client keeps retrying.
+        auto const its_sec_client = get_sec_client();
+        VSOMEIP_ERROR_P << "Application \"" << host_->get_name() << "\" (0x" << hex4(get_client()) << ", uid/gid=" << its_sec_client.user
+                        << '/' << its_sec_client.group << ") could not connect to the routing manager for more than "
+                        << VSOMEIP_RECONNECT_TIMEOUT << "ms";
     }
     sender_ = ep_mgr_->create_routing_client();
     if (sender_) {

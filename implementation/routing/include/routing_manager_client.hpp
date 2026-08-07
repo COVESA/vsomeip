@@ -8,6 +8,7 @@
 #include <map>
 #include <mutex>
 #include <atomic>
+#include <chrono>
 #include <span>
 #include <tuple>
 #include <vector>
@@ -371,6 +372,11 @@ private:
     bool sender_debounce_active_{false};
     bool start_sender_after_debounce_{false};
     std::shared_ptr<timer> sender_debounce_;
+    // Watchdog for reaching the routing manager. connect_deadline_ is the point in time after
+    // which the current registration sequence is considered overdue; from then on every further
+    // attempt to reach the router logs an error. It is re-armed once the application registers
+    // or is (re)started. Until then (before the first start) the watchdog stays disarmed.
+    std::chrono::steady_clock::time_point connect_timeout_{std::chrono::steady_clock::time_point::max()};
     std::shared_ptr<local_endpoint> sender_; // --> stub
 
     // Receivers are guarded by mutex_.
