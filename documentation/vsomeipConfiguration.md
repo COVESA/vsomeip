@@ -705,9 +705,9 @@ The general filter rules are:
     - **multicast** - The multicast address which the messages of the Service Discovery will be sent to. The default value is `224.224.224.0`.
     - **port** - The port of the Service Discovery. The default value is `30490`.
     - **protocol** The protocol that is used for sending the Service Discovery messages, valid values are `tcp`, `udp`. The default value is `udp`.
-    - **initial_delay_min** - Minimum delay before first offer message. The default value is `0` ms.
-    - **initial_delay_max** - Maximum delay before first offer message. The default value is `3000` ms.
-    - **repetitions_base_delay** - Base delay sending offer messages within the repetition phase. The default value is `10`.
+    - **initial_delay_min** - Minimum delay before first offer/find messages. The default value is `0` ms.
+    - **initial_delay_max** - Maximum delay before first offer/find messages. The default value is `0` ms.
+    - **repetitions_base_delay** - Base delay sending offer messages within the repetition phase. The default value is `10` ms.
     - **repetitions_max** - Maximum number of repetitions for provided services within the repetition phase. The default value is `3`.
     - **ttl** - Lifetime of entries for provided services as well as consumed services and eventgroups. The default value is `0xFFFFFF`, until next reboot.
     - **ttl_factor_offers** (optional array) - Array which holds correction factors for incoming remote offers. If a value greater than one is specified for a service instance, the TTL field of the corresponding service entry will be multiplied with the specified factor. **Example**: An offer of a service is received with a TTL of 3 sec and the TTL factor is set to 5. The remote node stops offering the service w/o sending a StopOffer message. The service will then expire (marked as unavailable) 15 seconds after the last offer has been received.
@@ -719,8 +719,8 @@ The general filter rules are:
         - **instance** - The id of the service instance.
         - **ttl_factor** - TTL correction factor
     - **cyclic_offer_delay** - Cycle of the OfferService messages in the main phase. The default value is `1000` ms.
-    - **offer_debounce_time** - Time which the stack collects new service offers before they enter the repetition phase. This can be used to reduce the number of sent messages during startup. The default value is `500` ms.
-    - **find_debounce_time** - Time which the stack collects non local service requests before sending find messages. The default value is `500` ms.
+    - **offer_debounce_time** - Time which the stack collects new service offers before sending a multicast message. This can be used to reduce the number of sent multicast messages (especially at startup). The default value is `20` ms.
+    - **find_debounce_time** - Time which the stack collects new service requests before sending a multicast message. This can be used to reduce the number of sent multicast messages (especially at startup). The default value is `20` ms.
     - **max_remote_subscribers** - Maximum possible number of different remote subscribers. Additional remote subscribers will not be acknowledged. The default value is `3`.
     - **find_initial_debounce_reps** - Number of initial debounces using find_initial_debounce_time. This can be used to modify the number of sent messages during initial part of startup (valid values: `0 - 2^8-1`). The default setting is `0`.
     - **find_initial_debounce_time** - Time which the stack collects new service requests before they enter the repetition phase. This can be used to modify the number of sent messages during initial part of startup. The default setting is `200` ms.
@@ -737,8 +737,8 @@ The general filter rules are:
     "multicast" : "239.192.255.251",
     "port" : "30490",
     "protocol" : "udp",
-    "initial_delay_min" : "10",
-    "initial_delay_max" : "10",
+    "initial_delay_min" : "0",
+    "initial_delay_max" : "0",
     "repetitions_base_delay" : "30",
     "repetitions_max" : "3",
     "cyclic_offer_delay" : "1000",
