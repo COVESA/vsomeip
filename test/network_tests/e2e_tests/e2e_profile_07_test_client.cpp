@@ -108,8 +108,9 @@ void e2e_profile_07_test_client::on_message(const std::shared_ptr<vsomeip::messa
         // check if payload is as expected as well (including CRC / counter / data ID)
         std::shared_ptr<vsomeip::payload> its_payload = _message->get_payload();
         const auto its_data = its_payload->get_data();
-        for (size_t i = 0; i < its_payload->get_length(); i++)
+        for (size_t i = 0; i < its_payload->get_length(); i++) {
             EXPECT_EQ(its_data[i], responses_[counters_[PROFILE_07_METHOD] % PROFILE_07_NUM_MESSAGES][i]);
+        }
 
         counters_[PROFILE_07_METHOD]++;
 
@@ -124,8 +125,20 @@ void e2e_profile_07_test_client::on_message(const std::shared_ptr<vsomeip::messa
         // check if payload is as expected as well (including CRC / counter / data ID nibble)
         std::shared_ptr<vsomeip::payload> its_payload = _message->get_payload();
         const auto its_data = its_payload->get_data();
-        for (size_t i = 0; i < its_payload->get_length(); i++)
+
+        // TODO: Remove workaround for NTWALL-1293 once the task is resolved.
+        // The workaround is to ignore duplicate event payloads that can occur when the consumer resubscribes (StopSub/Sub) because the
+        // field's initial notification has not arrived yet. The provider re-sends the field value, so the same event payload can be
+        // delivered twice. This workaround ensures that the strict counter-based comparison below is not thrown off by duplicates.
+        std::vector<vsomeip::byte_t> its_bytes(its_data, its_data + its_payload->get_length());
+        if (its_bytes == last_event_payload_) {
+            return;
+        }
+        last_event_payload_ = std::move(its_bytes);
+
+        for (size_t i = 0; i < its_payload->get_length(); i++) {
             EXPECT_EQ(its_data[i], events_[counters_[PROFILE_07_EVENT] % PROFILE_07_NUM_MESSAGES][i]);
+        }
 
         counters_[PROFILE_07_EVENT]++;
     }
