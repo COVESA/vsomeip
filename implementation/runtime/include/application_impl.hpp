@@ -290,7 +290,8 @@ private:
     // late-registration checks above this is best-effort and API-level only; it is not emitted for
     // handlers where keeping several handlers is intentional (e.g. message handlers registered
     // with HRT_APPEND/HRT_PREPEND).
-    void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance) const;
+    void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, major_version_t _major,
+                                     minor_version_t _minor) const;
     void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, uint16_t _sub_id) const;
 
     void main_dispatch();

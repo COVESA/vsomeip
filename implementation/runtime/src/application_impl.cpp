@@ -737,8 +737,9 @@ void application_impl::warn_late_registration(const char* _what, service_t _serv
                     << _context << "; register handlers first.";
 }
 
-void application_impl::warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance) const {
-    VSOMEIP_WARNING_P << _what << " [" << hex4(_service) << "." << hex4(_instance)
+void application_impl::warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, major_version_t _major,
+                                                   minor_version_t _minor) const {
+    VSOMEIP_WARNING_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "." << static_cast<uint32_t>(_major) << "." << _minor
                       << "] registered more than once; the previous handler is replaced.";
 }
 
@@ -752,9 +753,11 @@ void application_impl::register_availability_handler(service_t _service, instanc
 
     {
         std::scoped_lock availability_lock{availability_mutex_};
-        // A pre-existing handler for this service/instance is silently replaced, so warn users.
-        if (availability_.find({_service, _instance}) != availability_.end()) {
-            warn_duplicate_registration("Availability handler", _service, _instance);
+        // A pre-existing handler for this service/instance and major is silently replaced, so warn users.
+        if (auto its_service = availability_.find({_service, _instance}); its_service != availability_.end()) {
+            if (its_service->second.find(_major) != its_service->second.end()) {
+                warn_duplicate_registration("Availability handler", _service, _instance, _major, _minor);
+            }
         }
     }
     if (routing_ && routing_->is_requested(_service, _instance)) {
@@ -771,8 +774,10 @@ void application_impl::register_availability_handler(service_t _service, instanc
                                                      major_version_t _major, minor_version_t _minor) {
     {
         std::scoped_lock availability_lock{availability_mutex_};
-        if (availability_.find({_service, _instance}) != availability_.end()) {
-            warn_duplicate_registration("Availability handler", _service, _instance);
+        if (auto its_service = availability_.find({_service, _instance}); its_service != availability_.end()) {
+            if (its_service->second.find(_major) != its_service->second.end()) {
+                warn_duplicate_registration("Availability handler", _service, _instance, _major, _minor);
+            }
         }
     }
     if (routing_ && routing_->is_requested(_service, _instance)) {
