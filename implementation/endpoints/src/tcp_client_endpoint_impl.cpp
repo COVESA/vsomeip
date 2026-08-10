@@ -207,8 +207,8 @@ void tcp_client_endpoint_impl::connect() {
                 }
                 if (operations_cancelled != 0) {
                     try {
-                        VSOMEIP_WARNING_P << "Connecting to: local:" << this->get_address_port_local()
-                                          << " remote: " << this->get_address_port_remote();
+                        VSOMEIP_INFO_P << "Connecting to: local:" << this->get_address_port_local()
+                                       << " remote: " << this->get_address_port_remote();
                         // don't connect on bind error to avoid using a random port
                         boost::asio::post(strand_, std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(), its_bind_error));
                     } catch (const std::exception& e) {
@@ -233,7 +233,7 @@ void tcp_client_endpoint_impl::connect() {
         state_ = cei_state_e::CONNECTING;
         connect_timepoint_ = std::chrono::steady_clock::now();
         aborted_restart_count_ = 0;
-        VSOMEIP_WARNING_P << "Connecting to: local:" << this->get_address_port_local() << " remote: " << this->get_address_port_remote();
+        VSOMEIP_INFO_P << "Connecting to: local:" << this->get_address_port_local() << " remote: " << this->get_address_port_remote();
         auto self = std::dynamic_pointer_cast<tcp_client_endpoint_impl>(shared_from_this());
         socket_->async_connect(remote_,
                                boost::asio::bind_executor(strand_, [self](const auto& _error) { self->cancel_and_connect_cbk(_error); }));
