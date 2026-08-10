@@ -140,42 +140,36 @@ TEST_F(usei_fixture, basic) {
 }
 
 TEST_F(usei_fixture, corrupted_data) {
-    using namespace std::chrono_literals;
-
     auto good_data = make_bytes(0x01, 0x02, 0x03, 0x04, 0x00, 0x00, 0x00, 0x08, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
                                 0x0F, 0x10, 0x00, 0x00, 0x00, 0x09, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19);
     auto end_message = make_bytes(0x1A, 0x1B, 0x1C, 0x1D, 0x00, 0x00, 0x00, 0x08, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x025);
 
     constexpr size_t MESSAGE_SENT_COUNT = 10000;
-    std::mutex sync;
     bool received{false};
-    std::condition_variable event;
 
     EXPECT_CALL(*endpoint_, on_error).Times(0);
     EXPECT_CALL(*routing_, on_message).WillRepeatedly([&](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len, auto...) {
         if (len == 16 && data[0] == 0x1A && data[1] == 0x1B && data[2] == 0x1C && data[3] == 0x1D) {
-            std::unique_lock lock(sync);
             received = true;
-            event.notify_one();
         }
     });
 
     boost::system::error_code error;
     server_->init(unicast_parameters_, error);
-    server_->start();
 
     for (size_t i = 0; i < MESSAGE_SENT_COUNT; ++i) {
         auto bad_data = good_data;
         bad_data[i % bad_data.size()] = static_cast<std::byte>(i);
-        send(unicast_parameters_, bad_data);
-        std::this_thread::sleep_for(20us);
+        vsomeip_v3::message_buffer_t buffer(reinterpret_cast<vsomeip_v3::byte_t*>(bad_data.data()),
+                                            reinterpret_cast<vsomeip_v3::byte_t*>(bad_data.data()) + bad_data.size());
+        server_->on_message_received_unlocked(boost::system::error_code{}, buffer.size(), false, tester_parameters_, buffer);
     }
 
-    send(unicast_parameters_, end_message);
+    vsomeip_v3::message_buffer_t end_buffer(reinterpret_cast<vsomeip_v3::byte_t*>(end_message.data()),
+                                            reinterpret_cast<vsomeip_v3::byte_t*>(end_message.data()) + end_message.size());
+    server_->on_message_received_unlocked(boost::system::error_code{}, end_buffer.size(), false, tester_parameters_, end_buffer);
 
-    std::unique_lock lock(sync);
-    // note the `MESSAGE_SENT_COUNT` above, usei might need to process quite a few messages
-    EXPECT_EQ(event.wait_for(lock, common::scaled_timeout(std::chrono::seconds(5)), [&] { return received; }), true);
+    EXPECT_TRUE(received);
 
     server_->stop(false);
 }
