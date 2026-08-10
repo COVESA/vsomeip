@@ -1212,10 +1212,6 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
             }
             break;
         }
-        case protocol::id_e::SUSPEND_ID: {
-            on_suspend(); // cleanup remote subscribers
-            break;
-        }
 #ifndef VSOMEIP_DISABLE_SECURITY
         case protocol::id_e::UPDATE_SECURITY_POLICY_INT_ID:
             is_internal_policy_update = true;
@@ -2040,13 +2036,6 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client, bool 
     // This code path will only be reached if there was an error in the registration
     VSOMEIP_ERROR << "Application/Client " << hex4(get_client()) << " (" << host_->get_name() << ") failed to register, will reconnect.";
     reconnect();
-}
-
-void routing_manager_client::on_suspend() {
-
-    VSOMEIP_INFO_P << "Application 0x" << hex4(host_->get_client());
-    std::scoped_lock its_lock(provider_mutex_);
-    clear_remote_subscriptions(its_lock);
 }
 
 void routing_manager_client::clear_remote_subscriptions(std::scoped_lock<std::mutex> const& _provider_lock) {

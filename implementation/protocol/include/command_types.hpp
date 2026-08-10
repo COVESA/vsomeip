@@ -471,10 +471,6 @@ inline simple_command_data create_pong_cmd(client_t _client) {
     return simple_command_data::create(id_e::PONG_ID, _client);
 }
 
-inline simple_command_data create_suspend_cmd(client_t _client) {
-    return simple_command_data::create(id_e::SUSPEND_ID, _client);
-}
-
 inline service_command_data create_offer_service_cmd(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                      minor_version_t _minor) {
     return service_command_data::create(id_e::OFFER_SERVICE_ID, _client, _service, _instance, _major, _minor);

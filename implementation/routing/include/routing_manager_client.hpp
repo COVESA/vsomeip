@@ -230,8 +230,6 @@ private:
 #endif
     void on_client_assign_ack(const client_t& _client, bool _is_tcp);
 
-    void on_suspend();
-
     /**
      * @brief Remove all remote subscriptions.
      *

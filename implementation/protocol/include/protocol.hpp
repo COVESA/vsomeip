@@ -51,7 +51,7 @@ enum class id_e : uint8_t {
     DISTRIBUTE_SECURITY_POLICIES_ID = 0x28,
     UPDATE_SECURITY_POLICY_INT_ID = 0x29,
     EXPIRE_ID = 0x2A,
-    SUSPEND_ID = 0x30,
+    // SUSPEND_ID = 0x30, (deprecated since 3.7.6)
     CONFIG_ID = 0x31,
     UNKNOWN_ID = 0xFF
 };
@@ -109,7 +109,7 @@ static const size_t COMMAND_POSITION_PAYLOAD = 9;
 static inline id_e get_command(byte_t _byte) {
 
     id_e its_id(id_e::UNKNOWN_ID);
-    if (_byte <= static_cast<byte_t>(id_e::SUSPEND_ID)) {
+    if (_byte <= static_cast<byte_t>(id_e::CONFIG_ID)) {
         its_id = static_cast<id_e>(_byte);
     }
     return its_id;

@@ -2771,9 +2771,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             // stop processing of incoming SD messages
             discovery_->suspend();
 
-            VSOMEIP_INFO_P << "Inform all applications that we are going to suspend.";
-            send_suspend();
-
             // remove all remote subscriptions to remotely offered services on this node
             VSOMEIP_INFO_P << "Expire subscription.";
             expire_subscriptions(true);
@@ -3838,10 +3835,6 @@ void routing_manager_impl::statistics_log_timer_cbk(boost::system::error_code co
 
 bool routing_manager_impl::get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const {
     return ep_mgr_impl_->get_guest(_client, _address, _port);
-}
-
-void routing_manager_impl::send_suspend() const {
-    stub_->send_suspend();
 }
 
 void routing_manager_impl::register_message_acceptance_handler(const message_acceptance_handler_t& _handler) {

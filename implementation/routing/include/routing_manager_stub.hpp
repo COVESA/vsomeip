@@ -113,12 +113,8 @@ public:
 
     void lazy_load(const std::string& _client_host) override;
 
-    void send_suspend() const;
-
 private:
     [[nodiscard]] std::string get_client_info(client_t _client) const;
-
-    void broadcast(protocol::simple_command_data const& _command) const;
 
     void on_deregister_application(client_t _client);
 

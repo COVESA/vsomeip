@@ -105,8 +105,6 @@ public:
 
     bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const;
 
-    void broadcast_locally(protocol::simple_command_data const& _command);
-
 private:
     std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable);
     std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable);

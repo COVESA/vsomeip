@@ -86,7 +86,6 @@ private:
 
     bool send_queued_unlocked(const target_data_iterator_type _it);
     void leave_unlocked(const std::string& _address);
-    void set_broadcast();
     void receive_unicast_unlocked(std::shared_ptr<message_buffer_t> _unicast_recv_buffer);
     void receive_multicast_unlocked(std::shared_ptr<message_buffer_t> _multicast_recv_buffer,
                                     std::shared_ptr<endpoint_type> _multicast_sender);

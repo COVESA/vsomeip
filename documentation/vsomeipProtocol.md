@@ -397,13 +397,9 @@
         Data           xx ... xx
 
 
-## VSOMEIP_SUSPEND (0x30)
+## VSOMEIP_SUSPEND (0x30) (Deprecated since 3.7.6)
 
-    Command            30
-    Version            xx xx
-    Client             00 00
-    Size               00 00 00 00
-
+`<unused>`
 
 ## VSOMEIP_CONFIG (0x31)
 

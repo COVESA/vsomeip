@@ -113,10 +113,6 @@ TEST(ut_commands_roundtrip, pong_roundtrip) {
     EXPECT_EQ(roundtrip(create_pong_cmd(0xABCD)), create_pong_cmd(0xABCD));
 }
 
-TEST(ut_commands_roundtrip, suspend_roundtrip) {
-    EXPECT_EQ(roundtrip(create_suspend_cmd(0x00FF)), create_suspend_cmd(0x00FF));
-}
-
 // --- Service commands ---
 
 TEST(ut_commands_roundtrip, offer_service_roundtrip) {

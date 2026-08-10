@@ -1560,11 +1560,4 @@ bool endpoint_manager_impl::get_guest(client_t _client, boost::asio::ip::address
     return false;
 }
 
-void endpoint_manager_impl::broadcast_locally(protocol::simple_command_data const& _command) {
-    std::scoped_lock its_lock{routing_endpoint_mtx_};
-    for (auto const& [id, ep] : routing_endpoints_) {
-        ep->send(_command);
-    }
-}
-
 } // namespace vsomeip_v3

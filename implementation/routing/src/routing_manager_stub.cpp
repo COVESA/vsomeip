@@ -741,12 +741,6 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
     }
 }
 
-void routing_manager_stub::broadcast(protocol::simple_command_data const& _command) const {
-    if (auto epm = host_->get_endpoint_manager(); epm) {
-        epm->broadcast_locally(_command);
-    }
-}
-
 void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                               event_t _event) {
 
@@ -1468,11 +1462,6 @@ void routing_manager_stub::on_security_update_response(pending_security_update_i
     }
 }
 #endif // !VSOMEIP_DISABLE_SECURITY
-
-void routing_manager_stub::send_suspend() const {
-
-    broadcast(protocol::create_suspend_cmd(VSOMEIP_ROUTING_CLIENT));
-}
 
 std::shared_ptr<local_endpoint> routing_manager_stub::find_local_routing_endpoint(client_t _client) const {
     if (auto epm = host_->get_endpoint_manager(); epm) {

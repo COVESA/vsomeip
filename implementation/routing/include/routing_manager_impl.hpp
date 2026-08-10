@@ -351,8 +351,6 @@ private:
 
     bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const;
 
-    void send_suspend() const;
-
     bool is_acl_message_allowed(boardnet_endpoint* _receiver, service_t _service, instance_t _instance,
                                 const boost::asio::ip::address& _remote_address) const;
 
