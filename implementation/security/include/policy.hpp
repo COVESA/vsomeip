@@ -52,6 +52,9 @@ void get_bounds(const boost::icl::discrete_interval<T_>& _interval, T_& _lower, 
 struct policy {
     policy() : allow_who_(false), allow_what_(false) {};
 
+    // Deep copy
+    policy(const policy& _other);
+
     // Returns true if the policy is defined for single uid/gid pair.
     // uid & gid are copied to the arguments. Otherwise, returns false.
     bool get_uid_gid(uid_t& _uid, gid_t& _gid) const;

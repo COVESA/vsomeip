@@ -234,6 +234,9 @@ public:
     void remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,
                                  instance_t _instance = ANY_INSTANCE);
 
+    std::shared_ptr<policy_manager_impl> get_policy_manager() const override;
+    std::shared_ptr<security> get_security() const override;
+
     // endpoint_manager_impl requires this to be accessible
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance, major_version_t _major) const;
     bool offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);

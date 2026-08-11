@@ -11,7 +11,12 @@
 #include <vsomeip/vsomeip_sec.h>
 #include "types.hpp"
 
+#include <memory>
+
 namespace vsomeip_v3 {
+
+class policy_manager_impl;
+class security;
 
 struct debounce_filter_impl_t;
 class endpoint_manager_impl;
@@ -105,6 +110,9 @@ public:
 
     virtual void remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,
                                          instance_t _instance = ANY_INSTANCE) = 0;
+
+    virtual std::shared_ptr<policy_manager_impl> get_policy_manager() const = 0;
+    virtual std::shared_ptr<security> get_security() const = 0;
 };
 
 } // namespace vsomeip_v3

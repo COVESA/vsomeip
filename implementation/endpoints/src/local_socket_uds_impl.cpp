@@ -106,7 +106,8 @@ std::string local_socket_uds_impl::to_string() const {
     return name_ + ", fd: " + std::to_string(socket_->native_handle());
 }
 
-bool local_socket_uds_impl::update(vsomeip_sec_client_t& _client, [[maybe_unused]] configuration const& _configuration) {
+bool local_socket_uds_impl::update(vsomeip_sec_client_t& _client, [[maybe_unused]] configuration const& _configuration,
+                                   [[maybe_unused]] security const* _security) {
     std::scoped_lock const lock{socket_mtx_};
     if (!socket_->get_peer_credentials(_client)) {
         VSOMEIP_ERROR_P << "Could not getsockopt(SO_PEERCRED), errno " << errno;

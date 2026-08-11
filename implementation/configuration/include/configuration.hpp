@@ -37,7 +37,6 @@
 namespace vsomeip_v3 {
 
 class policy_manager_impl;
-class security;
 class event;
 struct debounce_filter_impl_t;
 struct port_range_t;
@@ -52,13 +51,30 @@ public:
 #endif
 
     virtual bool load(const std::string& _name) = 0;
+
+    /**
+     * @brief Load the optional (routing-manager exclusive) configuration.
+     *
+     * load() parses the mandatory configuration files only. Whether this
+     * application is entitled to the full configuration is the caller's
+     * decision - only the routing manager host is.
+     */
+    virtual void load_optional() = 0;
+
 #ifndef VSOMEIP_DISABLE_SECURITY
     /**
      * @brief Lazy-load security policy for a given host
      *
      * Does nothing if the policy is already loaded or if `_client_host` is nonsense
      */
-    virtual void lazy_load_security(const std::string& _client_host) = 0;
+    virtual void lazy_load_security(const std::string& _client_host, policy_manager_impl& _pm) const = 0;
+
+    /**
+     * @brief Load security policies from the retained config elements into the given policy manager.
+     *
+     * Must be called by each application after it has created its own per-app policy_manager_impl.
+     */
+    virtual void load_security_policies(policy_manager_impl& _pm) const = 0;
 #endif // !VSOMEIP_DISABLE_SECURITY
     virtual bool remote_offer_info_add(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                        bool _magic_cookies_enabled) = 0;
@@ -257,7 +273,7 @@ public:
 
     virtual int get_udp_receive_buffer_size() const = 0;
 
-    virtual bool check_routing_credentials(client_t _client, const vsomeip_sec_client_t* _sec_client) const = 0;
+    virtual bool check_routing_credentials(client_t _client, const vsomeip_sec_client_t& _sec_client) const = 0;
 
     virtual bool check_suppress_events(service_t _service, instance_t _instance, event_t _event) const = 0;
 
@@ -281,8 +297,6 @@ public:
     virtual bool is_security_external() const = 0;
     virtual bool is_security_audit() const = 0;
     virtual bool is_remote_access_allowed() const = 0;
-    virtual std::shared_ptr<policy_manager_impl> get_policy_manager() const = 0;
-    virtual std::shared_ptr<security> get_security() const = 0;
 };
 
 /// Inclusive port range.

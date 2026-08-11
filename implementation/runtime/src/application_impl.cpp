@@ -38,6 +38,7 @@
 #include "../../endpoints/include/boardnet_endpoint.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_manager_client.hpp"
+#include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 #include "../../tracing/include/connector_impl.hpp"
 #include "../../thread_manager/include/thread_manager.hpp"
@@ -66,20 +67,6 @@ application_impl::application_impl(const std::string& _name, const std::string& 
 
 application_impl::~application_impl() {
     runtime_->remove_application(name_);
-#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-    if (configuration_ && plugin_manager_) {
-        auto its_plugin = plugin_manager_->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
-        if (its_plugin) {
-            auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
-            if (its_configuration_plugin) {
-                bool its_removed = its_configuration_plugin->remove_configuration(name_);
-                if (!its_removed) {
-                    VSOMEIP_WARNING_P << "Unable to remove configuration entry stored for " << name_;
-                }
-            }
-        }
-    }
-#endif
 }
 
 bool application_impl::init() {
@@ -126,6 +113,13 @@ bool application_impl::init() {
     VSOMEIP_INFO << "Configuration loaded with Multiple Routing Managers ENABLED.";
 #endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 
+    // Elect the routing host before init() queries the configuration: load()
+    // parsed the mandatory files only, and the optional pass can still change
+    // any value they define.
+    if (!determine_routing_host()) {
+        return false;
+    }
+
 #ifdef __unix__
     sec_client_.user = getuid();
     sec_client_.group = getgid();
@@ -144,12 +138,19 @@ bool application_impl::init() {
         sec_client_.port = VSOMEIP_SEC_PORT_UNSET;
     }
 
+    // Create per-app policy manager and security, then load policies from the shared config
+    policy_manager_ = std::make_shared<policy_manager_impl>();
+    security_ = std::make_shared<security>(policy_manager_);
+#ifndef VSOMEIP_DISABLE_SECURITY
+    configuration_->load_security_policies(*policy_manager_);
+#endif
+
     // Set security mode
     if (configuration_->is_security_enabled()) {
         if (configuration_->is_security_external()) {
-            if (configuration_->get_security()->load()) {
+            if (security_->load()) {
                 VSOMEIP_INFO << "Using external security implementation!";
-                auto its_result = configuration_->get_security()->initialize();
+                auto its_result = security_->initialize();
                 if (VSOMEIP_SEC_POLICY_OK != its_result) {
                     VSOMEIP_ERROR << "Initializing external security implementation failed (" << its_result << ')';
                 }
@@ -221,34 +222,13 @@ bool application_impl::init() {
             VSOMEIP_INFO << "Application: " << name_ << " has session handling switched off!";
         }
 
-        std::string its_routing_host = its_configuration->get_routing_host_name();
-        if (its_routing_host != "") {
-            is_routing_manager_host_ = (its_routing_host == name_);
-            if (is_routing_manager_host_ && !utility::is_routing_manager(configuration_->get_network())) {
-#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-                VSOMEIP_ERROR << "Application: " << name_
-                              << " configured as routing but other routing manager present. Won't instantiate routing";
-                is_routing_manager_host_ = false;
-                return false;
-#else
-                is_routing_manager_host_ = true;
-#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-            }
-        } else {
-            auto its_routing_address = its_configuration->get_routing_host_address();
-            auto its_routing_port = its_configuration->get_routing_host_port();
-            if (its_routing_address.is_unspecified() || is_local_endpoint(its_routing_address, its_routing_port)) {
-                is_routing_manager_host_ = utility::is_routing_manager(configuration_->get_network());
-            }
-        }
-
         if (is_routing_manager_host_) {
             VSOMEIP_INFO << "Instantiating routing manager [Host].";
             if (client_ == VSOMEIP_CLIENT_UNSET) {
                 client_ = static_cast<client_t>((configuration_->get_diagnosis_address() << 8) & configuration_->get_diagnosis_mask());
                 utility::request_client_id(configuration_, name_, client_);
             }
-            routing_app_ = std::make_unique<routing_application>(io_, configuration_, name_);
+            routing_app_ = std::make_unique<routing_application>(io_, configuration_, name_, policy_manager_, security_);
         }
         VSOMEIP_INFO << "Instantiating routing manager [Proxy].";
         routing_ = std::make_shared<routing_manager_client>(this, client_side_logging_, client_side_logging_filter_);
@@ -1175,17 +1155,56 @@ void application_impl::set_sec_client_port(port_t _port) {
     sec_client_.port = htons(_port);
 }
 
+bool application_impl::determine_routing_host() {
+    const std::string its_routing_host = configuration_->get_routing_host_name();
+    if (its_routing_host != "") {
+        is_routing_manager_host_ = (its_routing_host == name_);
+        if (is_routing_manager_host_ && !utility::is_routing_manager(configuration_->get_network())) {
+#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+            VSOMEIP_ERROR << "Application: " << name_
+                          << " configured as routing but other routing manager present. Won't instantiate routing";
+            is_routing_manager_host_ = false;
+            return false;
+#else
+            is_routing_manager_host_ = true;
+#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+        }
+    } else {
+        auto its_routing_address = configuration_->get_routing_host_address();
+        auto its_routing_port = configuration_->get_routing_host_port();
+        if (its_routing_address.is_unspecified() || is_local_endpoint(its_routing_address, its_routing_port)) {
+            is_routing_manager_host_ = utility::is_routing_manager(configuration_->get_network());
+        }
+    }
+
+    // The optional configuration is routing-manager exclusive, and the election
+    // is settled now: a plain application never parses it.
+    if (is_routing_manager_host_) {
+        configuration_->load_optional();
+    }
+
+    return true;
+}
+
 std::shared_ptr<configuration> application_impl::get_configuration() const {
     return configuration_;
 }
 
 std::shared_ptr<policy_manager> application_impl::get_policy_manager() const {
 #ifndef VSOMEIP_DISABLE_SECURITY
-    return configuration_->get_policy_manager();
+    return policy_manager_;
 #else
     VSOMEIP_WARNING_P << "Manager is not available when security is disabled.";
-    return {};
+    return nullptr;
 #endif
+}
+
+std::shared_ptr<policy_manager_impl> application_impl::get_policy_manager_impl() const {
+    return policy_manager_;
+}
+
+std::shared_ptr<security> application_impl::get_security() const {
+    return security_;
 }
 
 diagnosis_t application_impl::get_diagnosis() const {

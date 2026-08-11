@@ -14,6 +14,7 @@ add_subdirectory(security_policy_tests)
 add_subdirectory(security_tests)
 add_subdirectory(tracing_tests)
 add_subdirectory(utility_utility_tests)
+add_subdirectory(configuration_tests)
 
 if (NOT WIN32)
 add_subdirectory(netlink_tests)

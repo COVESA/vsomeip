@@ -27,6 +27,8 @@
 
 #include "internal.hpp"
 #include "../../routing/include/routing_manager_host.hpp"
+#include "../../security/include/policy_manager_impl.hpp"
+#include "../../security/include/security.hpp"
 #include "../../utility/include/service_instance_map.hpp"
 #include "../../utility/include/utility.hpp"
 
@@ -121,7 +123,9 @@ public:
     VSOMEIP_EXPORT void set_sec_client_port(port_t _port);
     VSOMEIP_EXPORT diagnosis_t get_diagnosis() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration> get_configuration() const;
-    VSOMEIP_EXPORT std::shared_ptr<policy_manager> get_policy_manager() const;
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager> get_policy_manager() const override;
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager_impl> get_policy_manager_impl() const override;
+    VSOMEIP_EXPORT std::shared_ptr<security> get_security() const override;
     VSOMEIP_EXPORT std::shared_ptr<configuration_public> get_public_configuration() const;
     VSOMEIP_EXPORT boost::asio::io_context& get_io();
 
@@ -310,6 +314,12 @@ private:
 
     bool is_local_endpoint(const boost::asio::ip::address& _unicast, port_t _port);
 
+    // Decides whether this application is the routing manager host and, if it is
+    // (or if no routing host is configured by name), loads the optional part of
+    // the configuration. Returns false when init() must be aborted because
+    // another routing manager is already present.
+    bool determine_routing_host();
+
     const std::deque<message_handler_t>& find_handlers(service_t _service, instance_t _instance, method_t _method) const;
 
     using availability_state_t =
@@ -360,6 +370,10 @@ private:
 
     // vsomeip security mode
     security_mode_e security_mode_;
+
+    // per-app policy manager and security (not shared with other apps)
+    std::shared_ptr<policy_manager_impl> policy_manager_;
+    std::shared_ptr<security> security_;
 
     // vsomeip offered services handler
     std::mutex offered_services_handler_mutex_;
@@ -424,7 +438,7 @@ private:
     bool client_side_logging_;
     std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
 
-    vsomeip_sec_client_t sec_client_;
+    vsomeip_sec_client_t sec_client_{};
 
     bool has_session_handling_;
 

@@ -7,6 +7,7 @@
 
 #include "../../routing/include/routing_manager_host.hpp"
 
+#include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 
 #include <vsomeip/enumeration_types.hpp>
@@ -23,7 +24,8 @@ class routing_manager_impl;
 
 class routing_application : public routing_manager_host {
 public:
-    routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name);
+    routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name,
+                        std::shared_ptr<policy_manager_impl> _policy_manager, std::shared_ptr<security> _security);
     ~routing_application();
 
     void start() const;
@@ -79,6 +81,9 @@ private:
     void on_offered_services_info(std::vector<std::pair<service_t, instance_t>>& _services) override;
     bool is_routing() const override;
 
+    std::shared_ptr<policy_manager_impl> get_policy_manager_impl() const override;
+    std::shared_ptr<security> get_security() const override;
+
 private:
     vsomeip_sec_client_t sec_client_;
 
@@ -91,5 +96,8 @@ private:
     std::shared_ptr<configuration> const configuration_;
     std::shared_ptr<routing_manager_impl> const routing_;
     bool const has_session_handling_;
+
+    std::shared_ptr<policy_manager_impl> const policy_manager_;
+    std::shared_ptr<security> const security_;
 };
 }

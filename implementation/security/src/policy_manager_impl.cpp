@@ -177,6 +177,50 @@ void policy_manager_impl::set_routing_credentials(uid_t _uid, gid_t _gid, const 
     }
 }
 
+void policy_manager_impl::init_from_base(const policy_manager_impl& _base) {
+#ifndef VSOMEIP_DISABLE_SECURITY
+    {
+        // Deep copy: aliasing the base's policy objects would let one app's
+        // update_security_policy() mutate the policies of every other app
+        // initialized from the same base.
+        std::scoped_lock lck(_base.any_client_policies_mutex_);
+        any_client_policies_.clear();
+        any_client_policies_.reserve(_base.any_client_policies_.size());
+        for (const auto& its_policy : _base.any_client_policies_) {
+            any_client_policies_.push_back(std::make_shared<policy>(*its_policy));
+        }
+    }
+    policy_enabled_ = _base.policy_enabled_.load();
+    check_credentials_ = _base.check_credentials_;
+    allow_remote_clients_ = _base.allow_remote_clients_;
+    check_whitelist_ = _base.check_whitelist_;
+    {
+        std::scoped_lock src(_base.service_interface_whitelist_mutex_);
+        service_interface_whitelist_ = _base.service_interface_whitelist_;
+    }
+    {
+        std::scoped_lock src(_base.uid_whitelist_mutex_);
+        uid_whitelist_ = _base.uid_whitelist_;
+    }
+    {
+        std::scoped_lock src(_base.policy_base_path_mutex_);
+        policy_base_path_ = _base.policy_base_path_;
+    }
+    {
+        // policy_extension_paths_ from the base has empty per-host loaded maps,
+        // which is exactly what a fresh per-app PM needs.
+        std::shared_lock src(_base.policy_extension_paths_mutex_);
+        policy_extension_paths_ = _base.policy_extension_paths_;
+    }
+    check_routing_credentials_ = _base.check_routing_credentials_;
+#endif // !VSOMEIP_DISABLE_SECURITY
+    {
+        std::scoped_lock src(_base.routing_credentials_mutex_);
+        routing_credentials_ = _base.routing_credentials_;
+    }
+    is_configured_ = _base.is_configured_;
+}
+
 bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
                                             method_t _method, bool _is_request_service) const {
 

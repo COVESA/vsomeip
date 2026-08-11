@@ -18,6 +18,7 @@
 
 namespace vsomeip_v3 {
 class configuration;
+class security;
 
 enum class socket_role_e { CLIENT, SERVER };
 char const* to_string(socket_role_e _role);
@@ -87,9 +88,10 @@ public:
      * @brief Updates security client credentials from the connected peer.
      * @param _client Structure to populate with peer credentials (UID, GID, port).
      * @param _configuration Configuration for security settings.
+     * @param _security Security object for syncing TCP clients; may be nullptr for UDS.
      * @return true if credentials were successfully retrieved, false otherwise.
      */
-    virtual bool update(vsomeip_sec_client_t& _client, configuration const& _configuration) = 0;
+    virtual bool update(vsomeip_sec_client_t& _client, configuration const& _configuration, security const* _security) = 0;
 
     virtual port_t own_port() const = 0;
     virtual boost::asio::ip::tcp::endpoint peer_endpoint() const = 0;

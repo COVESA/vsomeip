@@ -62,7 +62,7 @@ public:
     void async_send(std::vector<uint8_t> _data, write_handler) override;
 
     std::string to_string() const override;
-    bool update(vsomeip_sec_client_t& _client, configuration const& _configuration) override;
+    bool update(vsomeip_sec_client_t& _client, configuration const& _configuration, security const* _security) override;
     port_t own_port() const override;
 
     boost::asio::ip::tcp::endpoint peer_endpoint() const override;

@@ -20,9 +20,11 @@
 
 namespace vsomeip_v3 {
 
-routing_application::routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name) :
+routing_application::routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name,
+                                         std::shared_ptr<policy_manager_impl> _policy_manager, std::shared_ptr<security> _security) :
     io_(_io), name_(std::move(_name)), configuration_(std::move(_configuration)), routing_(std::make_shared<routing_manager_impl>(this)),
-    has_session_handling_(configuration_->has_session_handling(name_)) {
+    has_session_handling_(configuration_->has_session_handling(name_)), policy_manager_(std::move(_policy_manager)),
+    security_(std::move(_security)) {
 
 #ifdef __unix__
     sec_client_.user = getuid();
@@ -173,6 +175,14 @@ connection_control_response_e routing_application::change_connection_control(con
 
 bool routing_application::is_routing() const {
     return true;
+}
+
+std::shared_ptr<policy_manager_impl> routing_application::get_policy_manager_impl() const {
+    return policy_manager_;
+}
+
+std::shared_ptr<security> routing_application::get_security() const {
+    return security_;
 }
 
 vsomeip_sec_client_t routing_application::get_sec_client() const {

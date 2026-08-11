@@ -17,6 +17,14 @@
 
 namespace vsomeip_v3 {
 
+policy::policy(const policy& _other) : allow_who_(false), allow_what_(false) {
+    credentials_ = _other.credentials_;
+    allow_who_ = _other.allow_who_;
+    requests_ = _other.requests_;
+    offers_ = _other.offers_;
+    allow_what_ = _other.allow_what_;
+}
+
 bool policy::get_uid_gid(uid_t& _uid, gid_t& _gid) const {
 
     if (credentials_.size() != 1) {

@@ -17,6 +17,9 @@ struct configuration_element {
 
     configuration_element(const std::string& _name, const boost::property_tree::ptree& _tree) noexcept : name_(_name), tree_(_tree) { }
 
+    configuration_element(const std::string& _name, boost::property_tree::ptree&& _tree) noexcept :
+        name_(_name), tree_(std::move(_tree)) { }
+
     configuration_element(configuration_element&& _source) noexcept : name_(std::move(_source.name_)), tree_(std::move(_source.tree_)) { }
 
     bool operator<(const configuration_element& _other) const { return (name_ < _other.name_); }

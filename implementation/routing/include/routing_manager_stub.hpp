@@ -113,6 +113,11 @@ public:
 
     void lazy_load(const std::string& _client_host) override;
 
+    std::shared_ptr<policy_manager_impl> get_policy_manager() const override;
+    std::shared_ptr<security> get_security() const override;
+
+    void send_suspend() const;
+
 private:
     [[nodiscard]] std::string get_client_info(client_t _client) const;
 

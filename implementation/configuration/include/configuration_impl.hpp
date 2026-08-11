@@ -10,6 +10,9 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <set>
+#include <tuple>
 #include <unordered_set>
 #include <vector>
 
@@ -62,8 +65,10 @@ public:
     VSOMEIP_EXPORT virtual ~configuration_impl();
 
     VSOMEIP_EXPORT bool load(const std::string& _name);
+    VSOMEIP_EXPORT void load_optional();
 #ifndef VSOMEIP_DISABLE_SECURITY
-    VSOMEIP_EXPORT void lazy_load_security(const std::string& _client_host);
+    VSOMEIP_EXPORT void lazy_load_security(const std::string& _client_host, policy_manager_impl& _pm) const;
+    VSOMEIP_EXPORT void load_security_policies(policy_manager_impl& _pm) const;
 #endif // !VSOMEIP_DISABLE_SECURITY
     VSOMEIP_EXPORT bool remote_offer_info_add(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                               bool _magic_cookies_enabled);
@@ -187,7 +192,7 @@ public:
 
     VSOMEIP_EXPORT uint32_t get_permissions_uds() const;
 
-    VSOMEIP_EXPORT bool check_routing_credentials(client_t _client, const vsomeip_sec_client_t* _sec_client) const;
+    VSOMEIP_EXPORT bool check_routing_credentials(client_t _client, const vsomeip_sec_client_t& _sec_client) const;
 
     VSOMEIP_EXPORT bool check_suppress_events(service_t _service, instance_t _instance, event_t _event) const;
 
@@ -263,15 +268,12 @@ public:
     VSOMEIP_EXPORT bool is_security_audit() const;
     VSOMEIP_EXPORT bool is_remote_access_allowed() const;
 
-    VSOMEIP_EXPORT std::shared_ptr<policy_manager_impl> get_policy_manager() const;
-    VSOMEIP_EXPORT std::shared_ptr<security> get_security() const;
-
 private:
     void read_data(const std::set<std::string>& _input, std::vector<configuration_element>& _elements, std::set<std::string>& _failed,
-                   bool _mandatory_only, bool _read_second_level = false);
+                   bool _mandatory_only, bool _read_second_level = false) const;
 #ifndef VSOMEIP_DISABLE_POLICY
     void load_policy_data(const std::string& _input, std::vector<configuration_element>& _elements, std::set<std::string>& _failed,
-                          bool _mandatory_only);
+                          bool _mandatory_only) const;
 #endif // !VSOMEIP_DISABLE_POLICY
     bool load_data(const std::vector<configuration_element>& _elements, bool _load_mandatory, bool _load_optional);
 
@@ -413,8 +415,18 @@ private:
 
     std::set<std::string> mandatory_;
 
-    std::shared_ptr<policy_manager_impl> policy_manager_;
-    std::shared_ptr<security> security_;
+    // Retained after the mandatory load so the optional (routing-manager
+    // exclusive) configuration can be loaded lazily via load_optional() once
+    // the caller knows which application is the routing host.
+    std::set<std::string> input_;
+    bool optional_loaded_ = false;
+
+    // Retained after load() for per-app policy replay via load_security_policies()
+    std::shared_ptr<policy_manager_impl> policy_base_;
+    std::optional<std::tuple<uid_t, gid_t, std::string>> routing_credentials_;
+    // true only when an explicit routing-credentials block was parsed; false when
+    // credentials come solely from routing.host uid/gid (audit-mode semantics).
+    bool strict_routing_credentials_ = false;
 
 protected:
     // Configuration data

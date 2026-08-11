@@ -25,16 +25,25 @@ if(TEST_SECURITY)
 
     add_executable(security_test_service
         security_test_service.cpp
+        security_service.cpp
     )
 
     add_executable(security_test_client
         security_test_client.cpp
+        security_client.cpp
+    )
+
+    add_executable(single_process_security_test
+        single_process_security_test.cpp
+        security_client.cpp
+        security_service.cpp
     )
 
     # Add build dependencies and link libraries to executables.
     set(executables
         security_test_service
         security_test_client
+        single_process_security_test
     )
     targets_add_default_dependencies("${executables}")
     targets_link_default_libraries("${executables}")
@@ -64,6 +73,12 @@ if(TEST_SECURITY)
         NAME security_test_external_deny
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/security_test_external_master_start.sh security_test_config_client_external_deny.json --deny
         SLAVES 1
+    )
+
+    add_custom_test(
+        NAME single_process_security_test
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/single_process_security_test
+        ENVIRONMENT "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/security_test_local_config.json"
     )
 
 endif()

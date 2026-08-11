@@ -19,8 +19,11 @@ namespace vsomeip_v3 {
 
 class configuration;
 class message;
+class policy_manager_impl;
+class security;
 
 class routing_manager_host {
+
 public:
     virtual ~routing_manager_host() { }
 
@@ -50,6 +53,9 @@ public:
     virtual void send(std::shared_ptr<message> _message) = 0;
     virtual void on_offered_services_info(std::vector<std::pair<service_t, instance_t>>& _services) = 0;
     virtual bool is_routing() const = 0;
+
+    virtual std::shared_ptr<policy_manager_impl> get_policy_manager_impl() const = 0;
+    virtual std::shared_ptr<security> get_security() const = 0;
 };
 
 } // namespace vsomeip_v3

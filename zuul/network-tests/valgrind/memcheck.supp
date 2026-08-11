@@ -4,7 +4,6 @@
 # uses value semantics std::string and boost:property_tree::ptree.
 # False positive, likely trigger by external resources or Boost usage.
 
-
 {
 	<memcheck_leak_bash_if_command>
 	Memcheck:Leak

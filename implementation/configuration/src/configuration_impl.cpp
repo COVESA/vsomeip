@@ -80,8 +80,6 @@ configuration_impl::configuration_impl(const std::string& _path) :
     initial_routing_state_{routing_state_e::RS_UNKNOWN}, request_debounce_time_{VSOMEIP_REQUEST_DEBOUNCE_TIME},
     default_max_dispatch_time_{VSOMEIP_DEFAULT_MAX_DISPATCH_TIME}, default_max_dispatchers_{VSOMEIP_DEFAULT_MAX_DISPATCHERS} {
 
-    policy_manager_ = std::make_shared<policy_manager_impl>();
-    security_ = std::make_shared<security>(policy_manager_);
     unicast_ = boost::asio::ip::make_address(VSOMEIP_UNICAST_ADDRESS);
     netmask_ = boost::asio::ip::make_address(VSOMEIP_NETMASK);
     for (auto i = 0; i < ET_MAX; i++) {
@@ -278,19 +276,16 @@ bool configuration_impl::load(const std::string& _name) {
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     std::vector<configuration_element> its_mandatory_elements;
-    std::vector<configuration_element> its_optional_elements;
 
-    // Look for the standard configuration file
+    // Look for the standard configuration file.
     read_data(its_input, its_mandatory_elements, its_failed, true);
     load_data(its_mandatory_elements, true, false);
 
-    // If the configuration is incomplete, this is the routing manager configuration or
-    // the routing is yet unknown, read the full set of configuration files
-    if (its_mandatory_elements.empty() || _name == get_routing_host_name() || "" == get_routing_host_name()) {
-        read_data(its_input, its_optional_elements, its_failed, false);
-        load_data(its_mandatory_elements, false, true);
-        load_data(its_optional_elements, true, true);
-    }
+    // Retain the inputs so the optional configuration can be loaded later, once
+    // we know whether this (or a subsequent) application is the routing host.
+    // The mandatory elements themselves are not retained; load_optional()
+    // re-reads them from input_ when it needs them.
+    input_ = its_input;
 
     // Dummy initialization; if logger configs were not found use default
     if (!is_logging_loaded_) {
@@ -302,9 +297,6 @@ bool configuration_impl::load(const std::string& _name) {
     for (const auto& f : its_failed) {
         VSOMEIP_ERROR_P << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
     }
-
-    // set global unicast address for all services with magic cookies enabled
-    set_magic_cookies_unicast_address();
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
@@ -321,21 +313,102 @@ bool configuration_impl::load(const std::string& _name) {
     VSOMEIP_INFO << "Parsed vsomeip configuration in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
                  << "ms";
 
+#ifndef VSOMEIP_DISABLE_SECURITY
+    // Compile all security policies into a single shared base.  Each per-app
+    // policy_manager_impl will copy the compiled state via init_from_base()
+    policy_base_ = std::make_shared<policy_manager_impl>();
+    for (const auto& path : input_) {
+        if (policy_base_->is_policy_extension(path)) {
+            policy_base_->set_policy_extension_base_path(path);
+        }
+    }
+    if (routing_credentials_ && !strict_routing_credentials_) {
+        const auto& [uid, gid, name] = *routing_credentials_;
+        policy_base_->set_routing_credentials(uid, gid, name);
+    }
+    if (!is_security_external()) {
+        for (const auto& e : its_mandatory_elements) {
+            policy_base_->load(e);
+        }
+    }
+#endif // !VSOMEIP_DISABLE_SECURITY
+
     is_loaded_ = true;
+
+    // Parse everything now if the mandatory pass couldn't tell us who the
+    // routing host is: either it loaded nothing (single-file setup) or the
+    // routing block lives in a non-mandatory file. The caller needs a host
+    // answer to run the routing-host election.
+    if (its_mandatory_elements.empty() || !is_configured_[ET_ROUTING]) {
+        load_optional();
+    } else {
+        // set global unicast address for all services with magic cookies enabled
+        set_magic_cookies_unicast_address();
+    }
+
     return is_loaded_;
 }
 
-#ifndef VSOMEIP_DISABLE_SECURITY
-void configuration_impl::lazy_load_security(const std::string& _client_host) {
+// Loads the routing-manager exclusive part of the configuration: the optional
+// sections of the mandatory files plus every non-mandatory file. Who is
+// entitled to it is decided by the caller, see
+// application_impl::determine_routing_host().
+void configuration_impl::load_optional() {
+    // Already loaded for this process — nothing to do.
+    if (optional_loaded_) {
+        return;
+    }
 
-    std::string const its_client_host{_client_host};
-    std::string its_folder = policy_manager_->get_policy_extension_path(its_client_host);
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+    std::set<std::string> its_failed;
+    std::vector<configuration_element> its_optional_elements;
+
+    // Re-read the mandatory files' own elements: the mandatory load in load()
+    // only kept them locally, so this needs to parse them again here to pick
+    // up their optional sections below.
+    std::vector<configuration_element> its_mandatory_elements;
+    read_data(input_, its_mandatory_elements, its_failed, true);
+    read_data(input_, its_optional_elements, its_failed, false);
+    load_data(its_mandatory_elements, false, true);
+    load_data(its_optional_elements, true, true);
+
+    for (const auto& f : its_failed) {
+        VSOMEIP_WARNING << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
+    }
+
+#ifndef VSOMEIP_DISABLE_SECURITY
+    // Append the optional security policies to the shared base.
+    if (policy_base_ && !is_security_external()) {
+        for (const auto& e : its_optional_elements) {
+            policy_base_->load(e);
+        }
+    }
+#endif // !VSOMEIP_DISABLE_SECURITY
+
+    optional_loaded_ = true;
+
+    // New service data arrived — refresh the magic-cookie unicast addresses.
+    set_magic_cookies_unicast_address();
+
+    // The retained inputs are no longer needed once the full configuration has
+    // been parsed; release them to keep the shared object small.
+    input_.clear();
+
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    VSOMEIP_INFO << "Parsed optional vsomeip configuration in "
+                 << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms";
+}
+
+#ifndef VSOMEIP_DISABLE_SECURITY
+void configuration_impl::lazy_load_security(const std::string& _client_host, policy_manager_impl& _pm) const {
+
+    std::string its_folder = _pm.get_policy_extension_path(_client_host);
     if (its_folder.empty()) {
         return; // nothing to do, host does not exist
     }
 
-    if (policy_manager_->is_policy_extension_loaded(its_client_host)
-        == policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_LOADED) {
+    if (_pm.is_policy_extension_loaded(_client_host) == policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_LOADED) {
         return; // nothing to do, host already loaded
     }
 
@@ -346,22 +419,21 @@ void configuration_impl::lazy_load_security(const std::string& _client_host) {
     std::vector<configuration_element> its_mandatory_elements;
 
     // load security configuration files from UID_GID sub folder if existing
-    std::string its_security_config_folder = policy_manager_->get_security_config_folder(its_folder);
-    if (!its_security_config_folder.empty()) {
+    if (std::string its_security_config_folder = _pm.get_security_config_folder(its_folder); !its_security_config_folder.empty()) {
         its_input.insert(its_security_config_folder);
     }
 
     read_data(its_input, its_mandatory_elements, its_failed, true, true);
 
     for (const auto& e : its_mandatory_elements) {
-        policy_manager_->load(e, true);
+        _pm.load(e, true);
     }
 
     for (auto f : its_failed) {
         VSOMEIP_ERROR_P << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete";
     }
 
-    policy_manager_->set_is_policy_extension_loaded(its_client_host, true);
+    _pm.set_is_policy_extension_loaded(_client_host, true);
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
@@ -376,11 +448,24 @@ void configuration_impl::lazy_load_security(const std::string& _client_host) {
     VSOMEIP_INFO << "vSomeIP Security: Loaded security policies for host: " << _client_host << " at UID/GID: " << uid << "/" << gid
                  << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms";
 }
+
+void configuration_impl::load_security_policies(policy_manager_impl& _pm) const {
+    _pm.init_from_base(*policy_base_);
+}
 #endif // !VSOMEIP_DISABLE_SECURITY
 
-bool configuration_impl::check_routing_credentials(client_t _client, const vsomeip_sec_client_t* _sec_client) const {
-
-    return (_client != get_id(routing_.host_.name_) || VSOMEIP_SEC_OK == security_->authenticate_router(_sec_client));
+bool configuration_impl::check_routing_credentials(client_t _client, const vsomeip_sec_client_t& _sec_client) const {
+    if (_client != get_id(routing_.host_.name_)) {
+        return true; // not the routing host — always permitted
+    }
+    if (_sec_client.port != VSOMEIP_SEC_PORT_UNUSED) {
+        return true; // TCP socket — no UDS credential to verify
+    }
+    if (!routing_credentials_) {
+        return true; // no credentials configured — permissive, preserves pre-existing audit-mode semantics
+    }
+    auto& [uid, gid, name] = *routing_credentials_;
+    return (_sec_client.user == uid && _sec_client.group == gid) || !strict_routing_credentials_;
 }
 
 bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
@@ -448,7 +533,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t
 }
 
 void configuration_impl::read_data(const std::set<std::string>& _input, std::vector<configuration_element>& _elements,
-                                   std::set<std::string>& _failed, bool _mandatory_only, bool _read_second_level) {
+                                   std::set<std::string>& _failed, bool _mandatory_only, bool _read_second_level) const {
     for (auto i : _input) {
         if (utility::is_file(i)) {
             load_policy_data(i, _elements, _failed, _mandatory_only);
@@ -487,17 +572,12 @@ void configuration_impl::read_data(const std::set<std::string>& _input, std::vec
 }
 
 void configuration_impl::load_policy_data(const std::string& _input, std::vector<configuration_element>& _elements,
-                                          std::set<std::string>& _failed, bool _mandatory_only) {
+                                          std::set<std::string>& _failed, bool _mandatory_only) const {
     if (is_mandatory(_input) == _mandatory_only) {
-#ifndef VSOMEIP_DISABLE_SECURITY
-        if (policy_manager_->is_policy_extension(_input)) {
-            policy_manager_->set_policy_extension_base_path(_input);
-        }
-#endif
         boost::property_tree::ptree its_tree;
         try {
             boost::property_tree::json_parser::read_json(_input, its_tree);
-            _elements.push_back({_input, its_tree});
+            _elements.push_back({_input, std::move(its_tree)});
         } catch (boost::property_tree::json_parser_error& ex) {
             VSOMEIP_ERROR_P << "Could not parse JSON file '" << _input << "', ex: " << ex.what();
 
@@ -529,6 +609,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
         // Load mandatory configuration data
         for (const auto& e : _elements) {
             has_routing = load_routing(e) || has_routing;
+            load_routing_credentials(e);
             has_applications = load_applications(e) || has_applications;
             load_uds_preferred(e);
             load_network(e);
@@ -544,12 +625,12 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
             load_services(e);
             load_request_debounce_time(e);
             load_dispatch_defaults(e);
+            load_unicast_address(e);
         }
     }
 
     if (_load_optional) {
         for (const auto& e : _elements) {
-            load_unicast_address(e);
             load_netmask(e);
             load_device(e);
             load_service_discovery(e);
@@ -797,8 +878,16 @@ bool configuration_impl::load_routing_host(const boost::property_tree::ptree& _t
             }
         }
 
+        // routing.host uid/gid and an explicit routing-credentials block are
+        // mutually exclusive ways of configuring the routing credentials.
         if (has_uid && has_gid) {
-            policy_manager_->set_routing_credentials(its_uid, its_gid, _name);
+            if (!strict_routing_credentials_) {
+                routing_credentials_ = std::make_tuple(its_uid, its_gid, _name);
+            } else {
+                VSOMEIP_ERROR << "routing.host uid/gid and routing-credentials are mutually exclusive. Ignoring the routing.host "
+                                 "uid/gid from "
+                              << _name;
+            }
         }
 
     } catch (...) {
@@ -822,6 +911,61 @@ bool configuration_impl::load_routing_guests(const boost::property_tree::ptree& 
         }
     } catch (...) {
         // intentionally left empty
+    }
+    return true;
+}
+
+bool configuration_impl::load_routing_credentials(const configuration_element& _element) {
+    try {
+        auto its_cred = _element.tree_.get_child("routing-credentials");
+        // strict_routing_credentials_ is set only by a previous explicit block,
+        // so this guards against a *second* explicit block: the first one wins.
+        // It does NOT guard against routing.host uid/gid, which never sets the
+        // flag — an explicit block therefore always overrides host credentials.
+        if (strict_routing_credentials_) {
+            VSOMEIP_WARNING << "Multiple definitions of routing-credentials. Ignoring definition from " << _element.name_;
+            return true;
+        }
+        // An explicit routing-credentials block always wins over routing.host
+        // uid/gid and switches on strict enforcement (strict_routing_credentials_),
+        // so a mismatching client — including a uid/gid that would be accepted via
+        // routing.host — is rejected once security is out of audit mode.
+        bool has_uid(false), has_gid(false);
+        uid_t its_uid(0);
+        gid_t its_gid(0);
+        for (auto i = its_cred.begin(); i != its_cred.end(); ++i) {
+            std::string its_key(i->first);
+            std::string its_value(i->second.data());
+            if (its_key == "uid" || its_key == "gid") {
+                std::stringstream its_converter;
+                if (its_value.find("0x") == 0) {
+                    its_converter << std::hex << its_value;
+                } else {
+                    its_converter << std::dec << its_value;
+                }
+                if (its_key == "uid") {
+                    its_converter >> its_uid;
+                    has_uid = true;
+                } else {
+                    its_converter >> its_gid;
+                    has_gid = true;
+                }
+            }
+        }
+        if (has_uid && has_gid) {
+            if (routing_credentials_) {
+                // A second explicit block was rejected above, so credentials that
+                // are already set can only come from routing.host uid/gid.
+                const auto& its_host_source = std::get<2>(*routing_credentials_);
+                VSOMEIP_WARNING << "routing.host uid/gid and routing-credentials are mutually exclusive. Overriding the routing.host "
+                                   "uid/gid from "
+                                << its_host_source << " with the routing-credentials definition from " << _element.name_ << ".";
+            }
+            routing_credentials_ = std::make_tuple(its_uid, its_gid, _element.name_);
+            strict_routing_credentials_ = true;
+        }
+    } catch (...) {
+        return false;
     }
     return true;
 }
@@ -2552,12 +2696,6 @@ void configuration_impl::load_security(const configuration_element& _element) {
     } catch (...) {
         // intentionally left empty
     }
-
-#ifndef VSOMEIP_DISABLE_SECURITY
-    if (!is_security_external()) {
-        policy_manager_->load(_element);
-    }
-#endif // !VSOMEIP_DISABLE_SECURITY
 }
 
 void configuration_impl::load_selective_broadcasts_support(const configuration_element& _element) {
@@ -4730,14 +4868,6 @@ bool configuration_impl::is_security_audit() const {
 bool configuration_impl::is_remote_access_allowed() const {
 
     return is_remote_access_allowed_;
-}
-
-std::shared_ptr<policy_manager_impl> configuration_impl::get_policy_manager() const {
-    return policy_manager_;
-}
-
-std::shared_ptr<security> configuration_impl::get_security() const {
-    return security_;
 }
 
 routing_state_e configuration_impl::get_initial_routing_state() const {

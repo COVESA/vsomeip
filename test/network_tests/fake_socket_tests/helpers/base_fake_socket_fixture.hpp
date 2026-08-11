@@ -334,6 +334,19 @@ protected:
      */
     void reset_socket_manager();
 
+    /**
+     * Drops every configuration cached by the configuration plugin.
+     *
+     * The plugin keeps parsed configurations alive for its own lifetime. Tests that run several
+     * scenarios in one process would otherwise inherit the configuration parsed by an earlier
+     * scenario, even after every application of that scenario has been stopped. Applications still
+     * running keep their configuration alive through their own shared_ptr, so this is safe to call
+     * at any time.
+     *
+     * Called on fixture teardown and by reset_socket_manager().
+     */
+    void reset_configuration_cache();
+
     std::shared_ptr<socket_manager> socket_manager_{std::make_shared<socket_manager>()};
 
 private:

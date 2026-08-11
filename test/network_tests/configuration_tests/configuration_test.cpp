@@ -477,19 +477,19 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
 #if !defined(VSOMEIP_DISABLE_SECURITY) && !defined(__QNX__)
     vsomeip_sec_client_t its_x123_x456 = utility::create_uds_client(0x123, 0x456, 0);
 
-    EXPECT_TRUE(its_configuration->check_routing_credentials(0x7788, &its_x123_x456));
+    EXPECT_TRUE(its_configuration->check_routing_credentials(0x7788, its_x123_x456));
 
     // GID does not match
     vsomeip_sec_client_t its_x123_x222 = utility::create_uds_client(0x123, 0x222, 0);
-    EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, &its_x123_x222));
+    EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, its_x123_x222));
 
     // UID does not match
     vsomeip_sec_client_t its_x333_x456 = utility::create_uds_client(0x333, 0x456, 0);
-    EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, &its_x333_x456));
+    EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, its_x333_x456));
 
     // client is not the routing manager
     vsomeip_sec_client_t its_x888_x999 = utility::create_uds_client(0x888, 0x999, 0);
-    EXPECT_TRUE(its_configuration->check_routing_credentials(0x7777, &its_x888_x999));
+    EXPECT_TRUE(its_configuration->check_routing_credentials(0x7777, its_x888_x999));
 
     EXPECT_TRUE(its_configuration->is_security_enabled());
     vsomeip_sec_client_t its_1000_1000 = utility::create_uds_client(1000, 1000, 0);
@@ -504,101 +504,102 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     vsomeip_sec_client_t its_8000_8000 = utility::create_uds_client(8000, 8000, 0);
     vsomeip_sec_client_t its_9000_9000 = utility::create_uds_client(9000, 9000, 0);
 
-    auto its_security = its_configuration->get_policy_manager();
-    EXPECT_TRUE(its_security->is_offer_allowed(&its_1000_1000, 0x1234, 0x5678));
-    EXPECT_TRUE(its_security->is_offer_allowed(&its_1000_1000, 0x1235, 0x5678));
-    EXPECT_TRUE(its_security->is_offer_allowed(&its_1000_1000, 0x1236, 0x5678));
-    EXPECT_TRUE(its_security->is_offer_allowed(&its_1000_1000, 0x1236, 0x5676));
+    auto its_pm = std::make_shared<vsomeip_v3::policy_manager_impl>();
+    its_configuration->load_security_policies(*its_pm);
+    EXPECT_TRUE(its_pm->is_offer_allowed(&its_1000_1000, 0x1234, 0x5678));
+    EXPECT_TRUE(its_pm->is_offer_allowed(&its_1000_1000, 0x1235, 0x5678));
+    EXPECT_TRUE(its_pm->is_offer_allowed(&its_1000_1000, 0x1236, 0x5678));
+    EXPECT_TRUE(its_pm->is_offer_allowed(&its_1000_1000, 0x1236, 0x5676));
 
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_1000_1000, 0x1236, 0x5679));
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_1000_1000, 0x1234, 0x5679));
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_1000_1000, 0x1233, 0x5679));
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_1001_1001, 0x1233, 0x5679));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_1000_1000, 0x1236, 0x5679));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_1000_1000, 0x1234, 0x5679));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_1000_1000, 0x1233, 0x5679));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_1001_1001, 0x1233, 0x5679));
     // explicitly denied offers
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_4000_4000, 0x1234, 0x5678));
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_4000_4000, 0x1235, 0x5678));
-    EXPECT_TRUE(its_security->is_offer_allowed(&its_4000_4000, 0x1234, 0x5679));
-    EXPECT_TRUE(its_security->is_offer_allowed(&its_4000_4000, 0x1300, 0x1));
-    EXPECT_TRUE(its_security->is_offer_allowed(&its_4000_4000, 0x1300, 0x2));
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_4000_4000, 0x1236, 0x5678));
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_4000_4000, 0x1236, 0x5675));
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_4000_4000, 0x1236, 0x5676));
-    EXPECT_FALSE(its_security->is_offer_allowed(&its_4000_4000, 0x1236, 0x5677));
-    EXPECT_TRUE(its_security->is_offer_allowed(&its_4000_4000, 0x1236, 0x5679));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_4000_4000, 0x1234, 0x5678));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_4000_4000, 0x1235, 0x5678));
+    EXPECT_TRUE(its_pm->is_offer_allowed(&its_4000_4000, 0x1234, 0x5679));
+    EXPECT_TRUE(its_pm->is_offer_allowed(&its_4000_4000, 0x1300, 0x1));
+    EXPECT_TRUE(its_pm->is_offer_allowed(&its_4000_4000, 0x1300, 0x2));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_4000_4000, 0x1236, 0x5678));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_4000_4000, 0x1236, 0x5675));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_4000_4000, 0x1236, 0x5676));
+    EXPECT_FALSE(its_pm->is_offer_allowed(&its_4000_4000, 0x1236, 0x5677));
+    EXPECT_TRUE(its_pm->is_offer_allowed(&its_4000_4000, 0x1236, 0x5679));
 
     // explicitly allowed requests of methods / events
-    EXPECT_TRUE(its_security->is_client_allowed(&its_2000_2000, 0x1234, 0x5678, 0x0001));
-    EXPECT_TRUE(its_security->is_client_allowed(&its_2000_2000, 0x1234, 0x5678, 0x8002));
-    EXPECT_TRUE(its_security->is_client_allowed(&its_2000_2000, 0x1234, 0x5688, 0x8002));
-    EXPECT_TRUE(its_security->is_client_allowed(&its_2000_2000, 0x1234, 0x5699, 0x8006));
-    EXPECT_TRUE(its_security->is_client_allowed(&its_2000_2000, 0x1234, 0x5699, 0x8001));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_2000_2000, 0x1234, 0x5678, 0x0001));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_2000_2000, 0x1234, 0x5678, 0x8002));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_2000_2000, 0x1234, 0x5688, 0x8002));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_2000_2000, 0x1234, 0x5699, 0x8006));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_2000_2000, 0x1234, 0x5699, 0x8001));
 
-    EXPECT_FALSE(its_security->is_client_allowed(&its_2001_2001, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_2001_2001, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_2000_2000, 0x1234, 0x5677, 0xFFFF));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_2000_2000, 0x1234, 0x5700, 0x0001));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_2000_2000, 0x1234, 0x5699, 0x8007));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_2000_2000, 0x1234, 0x5700, 0xFFFF));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_2000_2000, 0x1230, 0x5678, 0x0001));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_2000_2000, 0x1230, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_4000_4000, 0x1234, 0x5678, 0x0002));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_4000_4000, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_TRUE(its_security->is_client_allowed(&its_4000_4000, 0x1234, 0x5679, 0x0003));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_4000_4000, 0x1234, 0x5679, 0xFFFF));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_4000_4000, 0x1234, 0x5699, 0x9001));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_4000_4000, 0x1234, 0x5699, 0x9006));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_4001_4001, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_4001_4001, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_2001_2001, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_2001_2001, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_2000_2000, 0x1234, 0x5677, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_2000_2000, 0x1234, 0x5700, 0x0001));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_2000_2000, 0x1234, 0x5699, 0x8007));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_2000_2000, 0x1234, 0x5700, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_2000_2000, 0x1230, 0x5678, 0x0001));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_2000_2000, 0x1230, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_4000_4000, 0x1234, 0x5678, 0x0002));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_4000_4000, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_4000_4000, 0x1234, 0x5679, 0x0003));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_4000_4000, 0x1234, 0x5679, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_4000_4000, 0x1234, 0x5699, 0x9001));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_4000_4000, 0x1234, 0x5699, 0x9006));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_4001_4001, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_4001_4001, 0x1234, 0x5678, 0xFFFF));
 
     // check that any method ID is allowed
-    EXPECT_TRUE(its_security->is_client_allowed(&its_2000_2000, 0x1237, 0x5678, 0x0001));
-    EXPECT_TRUE(its_security->is_client_allowed(&its_2000_2000, 0x1237, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_2000_2000, 0x1237, 0x5678, 0x0001));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_2000_2000, 0x1237, 0x5678, 0xFFFF));
 
     // check that any instance ID is allowed but only one method ID
-    EXPECT_TRUE(its_security->is_client_allowed(&its_2000_2000, 0x1238, 0x0004, 0x0001));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_2000_2000, 0x1238, 0x0004, 0x0002));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_2000_2000, 0x1238, 0x0004, 0x0001));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_2000_2000, 0x1238, 0x0004, 0x0002));
 
     // DENY NOTHING policy
     // check that ANY_METHOD is allowed in a "deny nothing" policy
-    EXPECT_TRUE(its_security->is_client_allowed(&its_5000_5000, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_5000_5000, 0x1234, 0x5678, 0xFFFF));
     // check that specific method ID is allowed in a "deny nothing" policy
-    EXPECT_TRUE(its_security->is_client_allowed(&its_5000_5000, 0x1234, 0x5678, 0x0001));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_5000_5000, 0x1234, 0x5678, 0x0001));
 
     // ALLOW NOTHING policy
     // check that ANY_METHOD is denied in a "allow nothing" policy
-    EXPECT_FALSE(its_security->is_client_allowed(&its_6000_6000, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_6000_6000, 0x1234, 0x5678, 0xFFFF));
     // check that specific method ID is denied in a "allow nothing" policy
-    EXPECT_FALSE(its_security->is_client_allowed(&its_6000_6000, 0x1234, 0x5678, 0x0001));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_6000_6000, 0x1234, 0x5678, 0x0001));
 
     // DENY only one service instance and ANY_METHOD (0x01 - 0xFFFF) policy
-    EXPECT_FALSE(its_security->is_client_allowed(&its_7000_7000, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_7000_7000, 0x1234, 0x5678, 0x0001));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_7000_7000, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_7000_7000, 0x1234, 0x5678, 0x0001));
 
     // allow only one service instance and ANY_METHOD policy
-    EXPECT_TRUE(its_security->is_client_allowed(&its_8000_8000, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_TRUE(its_security->is_client_allowed(&its_8000_8000, 0x1234, 0x5678, 0x0001));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_8000_8000, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_8000_8000, 0x1234, 0x5678, 0x0001));
 
     // check request service
-    EXPECT_TRUE(its_security->is_client_allowed(&its_5000_5000, 0x1234, 0x5678, 0x00, true));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_6000_6000, 0x1234, 0x5678, 0x00, true));
-    EXPECT_FALSE(its_security->is_client_allowed(&its_7000_7000, 0x1234, 0x5678, 0x00, true));
-    EXPECT_TRUE(its_security->is_client_allowed(&its_7000_7000, 0x2222, 0x5678, 0x00, true));
-    EXPECT_TRUE(its_security->is_client_allowed(&its_8000_8000, 0x1234, 0x5678, 0x00, true));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_5000_5000, 0x1234, 0x5678, 0x00, true));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_6000_6000, 0x1234, 0x5678, 0x00, true));
+    EXPECT_FALSE(its_pm->is_client_allowed(&its_7000_7000, 0x1234, 0x5678, 0x00, true));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_7000_7000, 0x2222, 0x5678, 0x00, true));
+    EXPECT_TRUE(its_pm->is_client_allowed(&its_8000_8000, 0x1234, 0x5678, 0x00, true));
 
-    EXPECT_TRUE(its_security->check_credentials(0x1277, &its_1000_1000));
-    EXPECT_FALSE(its_security->check_credentials(0x1277, &its_1001_1001));
-    EXPECT_TRUE(its_security->check_credentials(0x1278, &its_1000_1000));
-    EXPECT_TRUE(its_security->check_credentials(0x1278, &its_9000_9000));
+    EXPECT_TRUE(its_pm->check_credentials(0x1277, &its_1000_1000));
+    EXPECT_FALSE(its_pm->check_credentials(0x1277, &its_1001_1001));
+    EXPECT_TRUE(its_pm->check_credentials(0x1278, &its_1000_1000));
+    EXPECT_TRUE(its_pm->check_credentials(0x1278, &its_9000_9000));
 
     // Security update / removal whitelist
-    EXPECT_TRUE(its_security->is_policy_removal_allowed(1000));
-    EXPECT_TRUE(its_security->is_policy_removal_allowed(1001));
-    EXPECT_TRUE(its_security->is_policy_removal_allowed(1008));
-    EXPECT_TRUE(its_security->is_policy_removal_allowed(2000));
-    EXPECT_TRUE(its_security->is_policy_removal_allowed(3000));
+    EXPECT_TRUE(its_pm->is_policy_removal_allowed(1000));
+    EXPECT_TRUE(its_pm->is_policy_removal_allowed(1001));
+    EXPECT_TRUE(its_pm->is_policy_removal_allowed(1008));
+    EXPECT_TRUE(its_pm->is_policy_removal_allowed(2000));
+    EXPECT_TRUE(its_pm->is_policy_removal_allowed(3000));
 
-    EXPECT_FALSE(its_security->is_policy_removal_allowed(2001));
-    EXPECT_FALSE(its_security->is_policy_removal_allowed(3001));
+    EXPECT_FALSE(its_pm->is_policy_removal_allowed(2001));
+    EXPECT_FALSE(its_pm->is_policy_removal_allowed(3001));
 
     // create a valid policy object that is on whitelist and test is_policy_update_allowed method
     std::shared_ptr<vsomeip::policy> _policy(std::make_shared<vsomeip::policy>());
@@ -625,24 +626,24 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     _policy->requests_ += std::make_pair(
             boost::icl::discrete_interval<vsomeip::service_t>(its_service, its_service, boost::icl::interval_bounds::closed()),
             its_instances_methods);
-    EXPECT_TRUE(its_security->is_policy_update_allowed(1000, _policy));
+    EXPECT_TRUE(its_pm->is_policy_update_allowed(1000, _policy));
 
     // test valid policy that holds a single service id which is whitelisted
     vsomeip::service_t its_second_service(0x7800);
     _policy->requests_ += std::make_pair(boost::icl::discrete_interval<vsomeip::service_t>(its_second_service, its_second_service,
                                                                                            boost::icl::interval_bounds::closed()),
                                          its_instances_methods);
-    EXPECT_TRUE(its_security->is_policy_update_allowed(1000, _policy));
+    EXPECT_TRUE(its_pm->is_policy_update_allowed(1000, _policy));
 
     // test invalid UID which is not whitelisted
-    EXPECT_FALSE(its_security->is_policy_update_allowed(2002, _policy));
+    EXPECT_FALSE(its_pm->is_policy_update_allowed(2002, _policy));
 
     // test invalid policy that additionally holds a service id which is not whitelisted
     vsomeip::service_t its_third_service(0x8888);
     _policy->requests_ += std::make_pair(
             boost::icl::discrete_interval<vsomeip::service_t>(its_third_service, its_third_service, boost::icl::interval_bounds::closed()),
             its_instances_methods);
-    EXPECT_FALSE(its_security->is_policy_update_allowed(1000, _policy));
+    EXPECT_FALSE(its_pm->is_policy_update_allowed(1000, _policy));
 #endif // !VSOMEIP_DISABLE_SECURITY
 
     // TCP connection setting:

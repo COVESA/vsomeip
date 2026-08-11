@@ -44,6 +44,7 @@
 #include "../../plugin/include/plugin_manager_impl.hpp"
 #include "../../protocol/include/protocol.hpp"
 #include "../../protocol/include/command_types.hpp"
+#include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 #include "../../service_discovery/include/constants.hpp"
 #include "../../service_discovery/include/defines.hpp"
@@ -123,9 +124,8 @@ std::string const& routing_manager_impl::get_name() const {
 std::string routing_manager_impl::get_client_info(client_t _client) const {
     std::stringstream its_info;
     its_info << "[" << hex4(_client) << ", '" << utility::get_client_name(configuration_, _client) << "'";
-    vsomeip_sec_client_t its_sec_client;
-    if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client)
-        && its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
+    if (vsomeip_sec_client_t its_sec_client;
+        get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client) && its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
         its_info << ", uid " << its_sec_client.user;
     }
     its_info << "]";
@@ -4560,8 +4560,7 @@ bool routing_manager_impl::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         for (const auto& e : its_eventgroup->get_events()) {
-            if (VSOMEIP_SEC_OK
-                != configuration_->get_security()->is_client_allowed_to_access_member(_sec_client, _service, _instance, e->get_event())) {
+            if (VSOMEIP_SEC_OK != get_security()->is_client_allowed_to_access_member(_sec_client, _service, _instance, e->get_event())) {
                 VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client)
                               << " : routing_manager_impl::is_subscribe_to_any_event_allowed: " << "subscribes to service/instance/event "
                               << hex4(_service) << "/" << hex4(_instance) << "/" << hex4(e->get_event())
@@ -4730,5 +4729,13 @@ void routing_manager_impl::put_serializer(const std::shared_ptr<serializer>& _se
     std::scoped_lock its_lock(serializer_mutex_);
     serializers_.push(_serializer);
     serializer_condition_.notify_one();
+}
+
+std::shared_ptr<policy_manager_impl> routing_manager_impl::get_policy_manager() const {
+    return host_->get_policy_manager_impl();
+}
+
+std::shared_ptr<security> routing_manager_impl::get_security() const {
+    return host_->get_security();
 }
 } // namespace vsomeip_v3
