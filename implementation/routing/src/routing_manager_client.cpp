@@ -2363,7 +2363,7 @@ void routing_manager_client::collect_pending_subscriptions(service_t _service, i
 
 void routing_manager_client::remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                                          std::scoped_lock<std::mutex> const&) {
-    if (_eventgroup == 0xFFFF) {
+    if (_eventgroup == ANY_EVENTGROUP) {
         std::erase_if(pending_subscriptions_, [&_service, &_instance](const subscription_data_t& ps) {
             return ps.service_instance_ == service_instance_t{_service, _instance};
         });

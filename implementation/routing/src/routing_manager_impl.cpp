@@ -1141,7 +1141,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
             return;
         }
 
-        if (its_instance == 0xFFFF) {
+        if (its_instance == ANY_INSTANCE) {
             VSOMEIP_WARNING_P << "Dropped message with no matching instanceId, [" << hex4(its_service) << '.' << hex4(its_instance) << "."
                               << hex4(its_method) << "." << hex4(its_client) << "." << hex4(its_session)
                               << "] from: " << _remote_address.to_string() << ":" << _remote_port << ", multicast: " << std::boolalpha
@@ -2288,7 +2288,7 @@ return_code_e routing_manager_impl::check_error(const byte_t* _data, length_t /*
                               << " for service 0x" << hex4(its_service);
             return return_code_e::E_WRONG_PROTOCOL_VERSION;
         }
-        if (_instance == 0xFFFF) {
+        if (_instance == ANY_INSTANCE) {
             VSOMEIP_WARNING_P << "Receiving endpoint is not configured for service 0x" << hex4(its_service);
             return return_code_e::E_UNKNOWN_SERVICE;
         }

@@ -698,15 +698,16 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                         const method_t its_method = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_METHOD_POS_MIN]);
                         instance_t its_instance = this->get_instance(its_service);
 
-                        if (its_instance != ANY_INSTANCE) {
-                            if (!tp_segmentation_enabled({its_service, its_instance}, its_method)) {
-                                VSOMEIP_WARNING_P << instance_name_ << "SomeIP/TP message for service: 0x" << hex4(its_service)
-                                                  << " method: 0x" << hex4(its_method) << " which is not configured for TP:" << " local: "
-                                                  << get_address_port_local_unlocked(_is_multicast) << " remote: " << its_remote_address
-                                                  << ":" << its_remote_port;
-                                return;
-                            }
+                        // NOTE: ANY_INSTANCE => we do not know/want this service
+                        // `on_message` would also drop it, we do it already to avoid (somewhat expensive) TP logic
+                        if (its_instance == ANY_INSTANCE || !tp_segmentation_enabled({its_service, its_instance}, its_method)) {
+                            VSOMEIP_WARNING_P << instance_name_ << "SomeIP/TP message for service: 0x" << hex4(its_service) << " method: 0x"
+                                              << hex4(its_method) << " which is not configured for TP:" << " local: "
+                                              << get_address_port_local_unlocked(_is_multicast) << " remote: " << its_remote_address << ":"
+                                              << its_remote_port;
+                            return;
                         }
+
                         const auto res =
                                 tp_reassembler_->process_tp_message(&_buffer[i], current_message_size, its_remote_address, its_remote_port);
                         if (res.first) {

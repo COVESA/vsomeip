@@ -44,7 +44,7 @@ void vsomeip_v3::endpoint_impl<Protocol>::remove_default_target(service_t) { }
 
 template<typename Protocol>
 vsomeip_v3::instance_t vsomeip_v3::endpoint_impl<Protocol>::get_instance(service_t /*_service*/) {
-    return 0xFFFF;
+    return ANY_INSTANCE;
 }
 
 template<typename Protocol>

@@ -821,7 +821,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
 }
 
 instance_t endpoint_manager_impl::find_instance(service_t _service, boardnet_endpoint* const _endpoint) const {
-    instance_t its_instance(0xFFFF);
+    instance_t its_instance = ANY_INSTANCE;
     std::scoped_lock its_lock(endpoint_mutex_);
     auto found_service = service_instances_.find(_service);
     if (found_service != service_instances_.end()) {
@@ -834,7 +834,7 @@ instance_t endpoint_manager_impl::find_instance(service_t _service, boardnet_end
 }
 
 instance_t endpoint_manager_impl::find_instance_multicast(service_t _service, const boost::asio::ip::address& _sender) const {
-    instance_t its_instance(0xFFFF);
+    instance_t its_instance = ANY_INSTANCE;
     std::scoped_lock its_lock(endpoint_mutex_);
     auto found_service = service_instances_multicast_.find(_service);
     if (found_service != service_instances_multicast_.end()) {

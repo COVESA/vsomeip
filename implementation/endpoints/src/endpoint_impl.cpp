@@ -69,8 +69,7 @@ void endpoint_impl<Protocol>::remove_default_target(service_t) { }
 template<typename Protocol>
 instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
 
-    instance_t its_instance(0xFFFF);
-
+    instance_t its_instance = ANY_INSTANCE;
     auto its_host = endpoint_host_.lock();
     if (its_host) {
         its_instance = its_host->find_instance(_service, this);
