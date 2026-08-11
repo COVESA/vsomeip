@@ -25,7 +25,6 @@ std::string const router_two_name_ = "router_two";
 std::string const ecu_two_server_name_ = "ecu_two_server";
 std::string const ecu_one_client_name_ = "ecu_one_client";
 std::string const ecu_one_server_name_ = "ecu_one_server";
-std::string const ecu_two_client_name_ = "ecu_two_client";
 
 struct test_field_resubscribe : public base_fake_socket_fixture {
     std::vector<event_spec> const events_{{0x8010, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE},
