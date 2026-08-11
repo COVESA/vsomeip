@@ -156,10 +156,14 @@ TEST_F(malicious_data, send_malicious_events) {
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             std::thread send_offers_thread([&]() {
+                uint16_t its_sd_session = 1;
                 for (size_t i = 0; i < 100; i++) {
                     if (keep_sending) {
                         std::scoped_lock its_lock(socket_mutex);
+                        its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
+                        its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
+                        ++its_sd_session;
                     } else {
                         break;
                     }
@@ -634,10 +638,14 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             std::thread send_offers_thread([&]() {
+                uint16_t its_sd_session = 1;
                 for (size_t i = 0; i < 10; i++) {
                     if (keep_sending) {
                         std::scoped_lock its_lock(socket_mutex);
+                        its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
+                        its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
+                        ++its_sd_session;
                     } else {
                         break;
                     }
@@ -989,10 +997,14 @@ TEST_F(malicious_data, send_wrong_message_type) {
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             std::thread send_offers_thread([&]() {
+                uint16_t its_sd_session = 1;
                 for (size_t i = 0; i < 10; i++) {
                     if (keep_sending) {
                         std::scoped_lock its_lock(socket_mutex);
+                        its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
+                        its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
+                        ++its_sd_session;
                     } else {
                         break;
                     }
@@ -1265,10 +1277,14 @@ TEST_F(malicious_data, send_wrong_return_code) {
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             std::thread send_offers_thread([&]() {
+                uint16_t its_sd_session = 1;
                 for (size_t i = 0; i < 10; i++) {
                     if (keep_sending) {
                         std::scoped_lock its_lock(socket_mutex);
+                        its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
+                        its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
+                        ++its_sd_session;
                     } else {
                         break;
                     }
@@ -1551,10 +1567,14 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             std::thread send_offers_thread([&]() {
+                uint16_t its_sd_session = 1;
                 for (size_t i = 0; i < 10; i++) {
                     if (keep_sending) {
                         std::scoped_lock its_lock(socket_mutex);
+                        its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
+                        its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
+                        ++its_sd_session;
                     } else {
                         break;
                     }
