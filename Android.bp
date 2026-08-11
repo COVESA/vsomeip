@@ -82,7 +82,7 @@ cc_library_shared {
 
     cflags: [
         "-DWITHOUT_SYSTEMD",
-        "-DVSOMEIP_VERSION=\"3.7.5\"",
+        "-DVSOMEIP_VERSION=\"3.7.6\"",
         "-DVSOMEIP_GIT_COMMIT=\"unknown\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
     ],
