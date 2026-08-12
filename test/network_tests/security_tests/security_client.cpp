@@ -5,6 +5,7 @@
 
 #include <iomanip>
 #include "common/test_main.hpp"
+#include "common/timeout_scale.hpp"
 
 #include "security_client.hpp"
 
@@ -54,7 +55,7 @@ void security_client::stop() {
         // Wait for the service to become unavailable, confirming the shutdown
         // message was received and processed before we tear down.
         std::unique_lock its_lock(mutex_);
-        if (!condition_.wait_for(its_lock, std::chrono::seconds(5), [this] { return !is_available_; })) {
+        if (!condition_.wait_for(its_lock, common::scaled_timeout(std::chrono::seconds(5)), [this] { return !is_available_; })) {
             GTEST_NONFATAL_FAILURE_("Service didn't become unavailable within time");
         }
     }
@@ -144,7 +145,7 @@ void security_client::on_message(const std::shared_ptr<vsomeip::message>& _respo
 void security_client::run() {
     {
         std::unique_lock its_lock(mutex_);
-        if (!condition_.wait_for(its_lock, std::chrono::seconds(10), [this] { return is_available_; })) {
+        if (!condition_.wait_for(its_lock, common::scaled_timeout(std::chrono::seconds(10)), [this] { return is_available_; })) {
             ADD_FAILURE() << "Service did not become available";
         }
     }
