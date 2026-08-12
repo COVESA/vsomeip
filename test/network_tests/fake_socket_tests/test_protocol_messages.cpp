@@ -162,6 +162,26 @@ TEST_F(test_protocol_messages, ensure_sequence_of_registration_message) {
     bool const is_any = expected_sequence1 == *record_;
     EXPECT_TRUE(is_any) << *record_;
 }
+TEST_F(test_protocol_messages, ensure_sequence_of_client_assign_ack) {
+    track_client_router();
+
+    start_router();
+    // cached so it gets forwarded to the client while it registers
+    // so that it triggers send_cached_security_policies()
+    routingmanagerd_->update_security_policy_configuration(0, 0);
+    start_client_app();
+
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence1 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_router_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the router
+            {client_to_router_, id_e::ASSIGN_CLIENT_ID}, // needed to be able to create a uds server
+            {router_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the client
+            {router_to_client_, id_e::DISTRIBUTE_SECURITY_POLICIES_ID}, // must arrive before the ack, so the client already has its
+                                                                        // security policies by the time it processes the assignment
+            {router_to_client_, id_e::ASSIGN_CLIENT_ACK_ID}};
+    bool const is_any = expected_sequence1 == *record_;
+    EXPECT_TRUE(is_any) << *record_;
+}
 TEST_F(test_protocol_messages, ensure_sequence_of_routing_info_request) {
     // collect all message over both connection between a client and the router
 

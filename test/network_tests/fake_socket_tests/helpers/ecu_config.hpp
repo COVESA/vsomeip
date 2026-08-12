@@ -8,7 +8,7 @@
 #include "service_state.hpp"
 
 #include <boost/asio/ip/address.hpp>
-
+#include <sys/types.h>
 #include <cstdint>
 #include <string>
 #include <variant>
@@ -63,7 +63,18 @@ struct service_discovery_config {
     uint32_t initial_delay_min_{10};
     uint32_t initial_delay_max_{100};
 };
+struct security_credentials {
+    uid_t uid_{};
+    gid_t gid_{};
+};
 
+/// Credential based security. Every entry of allowed_ becomes an allow-policy for that uid/gid
+/// pair; with check_credentials_ set, any other local peer is refused instead of only logged
+/// (audit mode). Credentials are only passed over UDS, so this has no effect on local TCP routing.
+struct security_config {
+    bool check_credentials_{true};
+    std::vector<security_credentials> allowed_;
+};
 struct ecu_config {
     /// Construct an ecu_config from the list of interfaces to offer on the boardnet.
     /// offered:      interfaces this ECU offers on the boardnet (ports auto-assigned from base_port)
@@ -84,6 +95,8 @@ struct ecu_config {
     bool sd_{true};
     service_discovery_config service_discovery_;
     bool uds_preferred_{false};
+    /// No security node at all means the security implementation stays switched off.
+    std::optional<security_config> security_;
 };
 
 /// Serializes an ecu_config to a vsomeip-compatible JSON configuration string.

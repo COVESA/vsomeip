@@ -130,7 +130,9 @@ private:
     std::string get_client_host() const;
 
     void add_local_routing_endpoint(std::shared_ptr<local_endpoint> _ep);
-    void add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep);
+    /// @return true if _ep was installed as the live routing endpoint for _client, false if it was
+    /// only queued as pending because an existing endpoint for _client is still being cleaned up.
+    bool add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep);
 
 private:
     boost::asio::io_context& io_;

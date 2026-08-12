@@ -574,8 +574,8 @@ void routing_manager_stub::on_register_application(client_t _client, const boost
 #ifndef VSOMEIP_DISABLE_SECURITY
     // distribute updated security config to new clients
     send_cached_security_policies(_client);
+    vsomeip_sec_client_t its_sec_client{};
     if (configuration_->is_local_routing()) {
-        vsomeip_sec_client_t its_sec_client;
         std::set<std::shared_ptr<policy>> its_policies;
 
         bool has_mapping = get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
@@ -590,6 +590,14 @@ void routing_manager_stub::on_register_application(client_t _client, const boost
         }
     }
 #endif // !VSOMEIP_DISABLE_SECURITY
+
+    // Must be sent after the security credentials, so the client only checks
+    // security policies after it has received its credentials.
+    if (auto ep = find_local_routing_endpoint(_client); ep) {
+        ep->send(protocol::create_assign_client_ack_cmd(VSOMEIP_ROUTING_CLIENT, _client));
+    } else {
+        VSOMEIP_ERROR_P << "Failed to send ASSIGN_CLIENT_ACK to client 0x" << hex4(_client) << ", as no routing connection was given";
+    }
 }
 
 void routing_manager_stub::remove_client_connections(client_t client_id) {

@@ -214,9 +214,24 @@ void app::stop_offer_event(event_ids const& _ei) {
 }
 
 void app::update_security_policy_configuration(uid_t _uid, gid_t _gid) {
-    auto policy_ = std::make_shared<vsomeip::policy>();
+    auto its_policy = std::make_shared<vsomeip::policy>();
+    boost::icl::interval_set<gid_t> its_gids;
+    its_gids.insert(boost::icl::interval<gid_t>::closed(_gid, _gid));
+    its_policy->credentials_ += std::make_pair(boost::icl::interval<uid_t>::closed(_uid, _uid), its_gids);
+    its_policy->allow_who_ = true;
+    its_policy->allow_what_ = true;
+
+    // the payload is what the routing manager distributes to its clients, so it has to carry the
+    // very same policy - a client can only apply what it receives here
+    std::vector<byte_t> its_data;
     auto its_payload = vsomeip::runtime::get()->create_payload();
-    app_->update_security_policy_configuration(_uid, _gid, policy_, its_payload,
+    if (its_policy->serialize(its_data)) {
+        its_payload->set_data(its_data);
+    } else {
+        TEST_LOG << "[app] \"" << app_->get_name() << "\" could not serialize the policy for " << _uid << "/" << _gid;
+    }
+
+    app_->update_security_policy_configuration(_uid, _gid, its_policy, its_payload,
                                                [](vsomeip_v3::security_update_state_e /*_status*/) { /* no reaction required*/ });
 }
 

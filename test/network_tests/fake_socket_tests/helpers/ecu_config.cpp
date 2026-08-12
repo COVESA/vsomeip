@@ -117,6 +117,10 @@ void to_json(std::ostringstream& o, const eventgroup_config& eg) {
     o << " }";
 }
 
+void to_json(std::ostringstream& o, const security_credentials& credentials) {
+    o << R"({ "credentials" : { "uid" : ")" << credentials.uid_ << R"(", "gid" : ")" << credentials.gid_ << R"(" } })";
+}
+
 void to_json(std::ostringstream& o, const service_config& svc) {
     o << R"({ "service" : ")" << to_hex(svc.si_.service_) << "\",";
     o << R"( "instance" : ")" << to_hex(svc.si_.instance_) << "\"";
@@ -188,6 +192,15 @@ void write_client_ports(std::ostringstream& o, const client_port_config& cp) {
     o << R"( } ])";
 }
 
+void write_security(std::ostringstream& o, const security_config& security) {
+    o << R"("security" : { "check_credentials" : ")" << (security.check_credentials_ ? "true" : "false") << "\"";
+    if (!security.allowed_.empty()) {
+        o << R"(, "policies" : )";
+        write_array(o, security.allowed_);
+    }
+    o << " }";
+}
+
 void write_service_discovery(std::ostringstream& o, bool enabled, const service_discovery_config& sd) {
     o << R"("service-discovery" : { "enable" : ")" << (enabled ? "true" : "false") << "\"";
     if (enabled) {
@@ -252,6 +265,12 @@ std::string to_json_string(const ecu_config& cfg) {
 
     if (cfg.uds_preferred_) {
         o << R"( "uds-preferred" : "true",)";
+    }
+
+    if (cfg.security_) {
+        o << " ";
+        write_security(o, *cfg.security_);
+        o << ",";
     }
 
     o << " ";

@@ -63,6 +63,7 @@ set (TEST_SUITES
     test_sd_protocol
     test_someip_tp
     test_uds_communication
+    test_security_policy_distribution
     test_vlan_toggle_registration
 )
 

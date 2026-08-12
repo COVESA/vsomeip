@@ -244,8 +244,8 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             }
             ep->send(protocol::create_config_cmd(own_client_id_, {{"hostname", server_host_}}));
 
+            // The endpoint is now fully initialized and ready to be handed over to the routing host.
             if (is_router_) {
-                ep->send(protocol::create_assign_client_ack_cmd(VSOMEIP_ROUTING_CLIENT, _client));
                 VSOMEIP_INFO << ss.str();
             }
 

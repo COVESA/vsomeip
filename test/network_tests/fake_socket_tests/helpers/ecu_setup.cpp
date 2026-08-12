@@ -47,7 +47,7 @@ std::string derive_router_name(ecu_config const& cfg) {
 // configurations by file path.
 std::string unique_config_file_name(std::string const& name) {
     static std::atomic<unsigned> counter{0};
-    return name + "_" + std::to_string(::getpid()) + "_" + std::to_string(counter++) + ".json";
+    return name + "_" + std::to_string(::getpid()) + "_" + std::to_string(counter++);
 }
 } // namespace
 
@@ -58,11 +58,8 @@ ecu_setup::~ecu_setup() {
     for (auto const& var : set_env_vars_) {
         ::unsetenv(var.c_str());
     }
-    if (!config_file_.empty()) {
-        std::filesystem::remove(config_file_);
-    }
-    if (!guest_config_file_.empty()) {
-        std::filesystem::remove(guest_config_file_);
+    for (auto const& file : config_files_) {
+        std::filesystem::remove(file);
     }
 }
 
@@ -111,6 +108,38 @@ void ecu_setup::add_app(std::string name) {
     extra_apps_.push_back(std::move(name));
 }
 
+std::filesystem::path ecu_setup::write_config(std::filesystem::path const& _base, std::string const& _file_name, ecu_config const& _cfg) {
+    auto const its_file = _base / (_file_name + ".json");
+    auto const its_json = to_json_string(_cfg);
+    std::ofstream f{its_file};
+    if (!f) {
+        throw std::runtime_error{"ecu_setup: failed to write config file: " + its_file.string()};
+    }
+    f << its_json;
+    config_files_.push_back(its_file);
+    LOCAL_LOG << "wrote config to " << its_file.string() << ":\n" << its_json;
+    EARLY_LOG << "wrote config to " << its_file.string() << ":\n" << its_json << std::endl;
+    return its_file;
+}
+
+void ecu_setup::set_configuration_env(std::string const& _app_name, std::filesystem::path const& _config_file) {
+    auto const its_var = "VSOMEIP_CONFIGURATION_" + _app_name;
+    ::setenv(its_var.c_str(), _config_file.string().c_str(), 1);
+    set_env_vars_.push_back(its_var);
+}
+
+void ecu_setup::add_app(application_config _app, ecu_config _cfg) {
+    LOCAL_LOG << _app.name_;
+    EARLY_LOG << _app.name_ << std::endl;
+
+    bool const its_known = std::any_of(config_.apps_.begin(), config_.apps_.end(),
+                                       [&_app](application_config const& _known) { return _known.name_ == _app.name_; })
+            || std::find(extra_apps_.begin(), extra_apps_.end(), _app.name_) != extra_apps_.end();
+    ASSERT_FALSE(its_known) << _app.name_ << " already uses the ECU wide configuration";
+
+    own_config_apps_.emplace_back(std::move(_app), std::move(_cfg));
+}
+
 void ecu_setup::prepare() {
     auto const base = [] {
         if (const char* p = ::getenv("VSOMEIP_BASE_PATH"); p && p[0] != '\0') {
@@ -118,52 +147,27 @@ void ecu_setup::prepare() {
         }
         return std::filesystem::temp_directory_path();
     }();
-    config_file_ = base / unique_config_file_name(name_);
 
-    {
-        auto const json = to_json_string(config_);
-        std::ofstream f{config_file_};
-        if (!f) {
-            throw std::runtime_error{"ecu_setup: failed to write config file: " + config_file_.string()};
-        }
-        f << json;
-        LOCAL_LOG << "wrote config to " << config_file_.string() << ":\n" << json;
-        EARLY_LOG << "wrote config to " << config_file_.string() << ":\n" << json << std::endl;
-    }
+    auto const its_config_file = write_config(base, unique_config_file_name(name_), config_);
 
     if (!router_name_.empty()) {
-        auto const var = "VSOMEIP_CONFIGURATION_" + router_name_;
-        ::setenv(var.c_str(), config_file_.string().c_str(), 1);
-        set_env_vars_.push_back(var);
+        set_configuration_env(router_name_, its_config_file);
     }
 
     for (auto const& app : config_.apps_) {
-        auto const var = "VSOMEIP_CONFIGURATION_" + app.name_;
-        ::setenv(var.c_str(), config_file_.string().c_str(), 1);
-        set_env_vars_.push_back(var);
+        set_configuration_env(app.name_, its_config_file);
     }
     for (auto const& name : extra_apps_) {
-        auto const var = "VSOMEIP_CONFIGURATION_" + name;
-        ::setenv(var.c_str(), config_file_.string().c_str(), 1);
-        set_env_vars_.push_back(var);
+        set_configuration_env(name, its_config_file);
+    }
+    for (auto const& [app, cfg] : own_config_apps_) {
+        set_configuration_env(app.name_, write_config(base, name_ + "_" + app.name_, cfg));
     }
 
     if (guest_config_) {
-        guest_config_file_ = base / unique_config_file_name(guest_config_name_);
-        {
-            auto const json = to_json_string(*guest_config_);
-            std::ofstream f{guest_config_file_};
-            if (!f) {
-                throw std::runtime_error{"ecu_setup: failed to write guest config file: " + guest_config_file_.string()};
-            }
-            f << json;
-            LOCAL_LOG << "wrote guest config to " << guest_config_file_.string() << ":\n" << json;
-            EARLY_LOG << "wrote guest config to " << guest_config_file_.string() << ":\n" << json << std::endl;
-        }
+        auto const its_guest_file = write_config(base, unique_config_file_name(guest_config_name_), *guest_config_);
         for (auto const& app : guest_config_->apps_) {
-            auto const var = "VSOMEIP_CONFIGURATION_" + app.name_;
-            ::setenv(var.c_str(), guest_config_file_.string().c_str(), 1);
-            set_env_vars_.push_back(var);
+            set_configuration_env(app.name_, its_guest_file);
         }
     }
 }
@@ -209,6 +213,9 @@ void ecu_setup::start_apps() {
     }
     for (auto const& name : extra_apps_) {
         start_one(name);
+    }
+    for (auto const& entry : own_config_apps_) {
+        start_one(entry.first.name_);
     }
     if (guest_config_) {
         for (auto const& app_cfg : guest_config_->apps_) {

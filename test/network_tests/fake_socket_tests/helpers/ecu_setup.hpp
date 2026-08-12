@@ -13,6 +13,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace vsomeip_v3::testing {
@@ -38,6 +39,12 @@ struct ecu_setup {
     /// (not listed in ecu_config.apps_). Must be called before prepare().
     void add_app(std::string name);
 
+    /// Add an app that runs on this ECU but from its own config file, e.g. to give it a different
+    /// security policy set than the routing manager. The app must not be part of ecu_config.apps_
+    /// and must not have been registered via add_app()/add_guest() before.
+    /// Must be called before prepare().
+    void add_app(application_config _app, ecu_config _cfg);
+
     /// Add a guest app to this ECU. A guest shares the same router (host_ip_) but runs on
     /// a separate network address (host_ip_ + 1 in the last octet) with no local router.
     /// The host routing config must use local_tcp_config. Must be called before prepare().
@@ -49,7 +56,8 @@ struct ecu_setup {
     /// to the system temp directory if VSOMEIP_BASE_PATH is unset) and set
     /// VSOMEIP_CONFIGURATION_<name>
     /// for every app in ecu_config.apps_, add_app() registrations, and guest apps
-    /// added via add_guest().
+    /// added via add_guest(). Apps added with their own ecu_config get an additional
+    /// $VSOMEIP_BASE_PATH/<name>_<app>.json.
     void prepare();
 
     /// Create and start all apps listed in ecu_config.apps_ + add_app() calls,
@@ -103,7 +111,8 @@ private:
     std::string name_;
     socket_manager& sm_;
     std::vector<std::string> extra_apps_;
-    std::filesystem::path config_file_;
+    std::vector<std::pair<application_config, ecu_config>> own_config_apps_;
+    std::vector<std::filesystem::path> config_files_;
     std::vector<std::string> set_env_vars_;
     std::map<std::string, std::unique_ptr<app>> owned_apps_;
     bool offered_tcp_{false};
@@ -118,9 +127,15 @@ private:
     /// io_context is registered transparently on the first TCP service offer.
     void setup_offer_hook(app* a);
 
+    /// Serializes _cfg to <base>/<_file_name>.json, remembers the file for removal on teardown
+    /// and returns its path.
+    std::filesystem::path write_config(std::filesystem::path const& _base, std::string const& _file_name, ecu_config const& _cfg);
+
+    /// Points VSOMEIP_CONFIGURATION_<_app_name> at _config_file until teardown.
+    void set_configuration_env(std::string const& _app_name, std::filesystem::path const& _config_file);
+
     std::optional<ecu_config> guest_config_;
     std::string guest_config_name_;
-    std::filesystem::path guest_config_file_;
 };
 
 } // namespace vsomeip_v3::testing

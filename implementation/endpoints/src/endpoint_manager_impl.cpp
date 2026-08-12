@@ -1322,13 +1322,20 @@ void endpoint_manager_impl::drop_from(const boost::asio::ip::address& _address) 
 
 void endpoint_manager_impl::add_local_routing_endpoint(std::shared_ptr<local_endpoint> _ep) {
     auto const client = _ep->connected_client();
+    bool installed;
     {
         std::scoped_lock const its_endpoint_lock{routing_endpoint_mtx_};
-        add_local_routing_endpoint_unlocked(client, _ep);
+        installed = add_local_routing_endpoint_unlocked(client, _ep);
     }
 
-    // _ep->peer_endpoint().port() - 1 because we need to pass the server port
-    router_->on_register_application(client, _ep->peer_endpoint().address(), _ep->peer_endpoint().port() - 1);
+    // If _ep was only queued as pending (an old endpoint for this client is still being cleaned
+    // up), it is not yet the live routing endpoint: on_register_application must not run against
+    // it now. It is called once the pending endpoint is actually promoted, see
+    // remove_routing_endpoint.
+    if (installed) {
+        // _ep->peer_endpoint().port() - 1 because we need to pass the server port
+        router_->on_register_application(client, _ep->peer_endpoint().address(), _ep->peer_endpoint().port() - 1);
+    }
 }
 
 std::unordered_set<client_t> endpoint_manager_impl::get_connected_clients() const {
@@ -1340,7 +1347,7 @@ std::unordered_set<client_t> endpoint_manager_impl::get_connected_clients() cons
     return clients;
 }
 
-void endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep) {
+bool endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep) {
     if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
         VSOMEIP_WARNING_P << "Already existing endpoint found for client 0x" << hex4(_client)
                           << ". Enforcing a clean-up of endpoint:" << it->second->name() << " but queuing endpoint: " << _ep->name();
@@ -1350,7 +1357,7 @@ void endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client
         }
         pending_routing_endpoints_[_client] = _ep;
         it->second->trigger_error();
-        return;
+        return false;
     }
 
     // Remove clients that occupy the same address
@@ -1371,6 +1378,7 @@ void endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client
     routing_endpoints_[_client] = _ep;
     _ep->start();
     VSOMEIP_INFO_P << "self 0x" << hex4(router_->get_client()) << ", client 0x" << hex4(_client) << ", connection > " << _ep->name();
+    return true;
 }
 
 std::shared_ptr<local_endpoint> endpoint_manager_impl::find_routing_endpoint(client_t _client) const {
@@ -1383,18 +1391,30 @@ std::shared_ptr<local_endpoint> endpoint_manager_impl::find_routing_endpoint(cli
 
 void endpoint_manager_impl::remove_routing_endpoint(client_t _client) {
     VSOMEIP_INFO_P << "client 0x" << hex4(_client);
-    std::scoped_lock const lock{routing_endpoint_mtx_};
-    if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
-        it->second->stop(true);
-        VSOMEIP_INFO_P << "self 0x" << hex4(router_->get_client()) << " is closing connection to client 0x" << hex4(_client)
-                       << " endpoint > " << it->second->name();
-        routing_endpoints_.erase(it);
+    std::shared_ptr<local_endpoint> promoted;
+    {
+        std::unique_lock its_lock{routing_endpoint_mtx_};
+        if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
+            it->second->stop(true);
+            VSOMEIP_INFO_P << "self 0x" << hex4(router_->get_client()) << " is closing connection to client 0x" << hex4(_client)
+                           << " endpoint > " << it->second->name();
+            routing_endpoints_.erase(it);
+        }
+        if (auto const it = pending_routing_endpoints_.find(_client); it != pending_routing_endpoints_.end()) {
+            // The erase above (if it fired) just cleared the only entry that could conflict with
+            // _client, under this same still-held lock, so this always installs successfully.
+            add_local_routing_endpoint_unlocked(_client, it->second);
+            promoted = it->second;
+            // safe to still use the iterator, because the adding of the endpoint can no longer fail
+            // (because of the locked mtx), therefore the pending set remains untouched
+            pending_routing_endpoints_.erase(it);
+        }
     }
-    if (auto const it = pending_routing_endpoints_.find(_client); it != pending_routing_endpoints_.end()) {
-        add_local_routing_endpoint_unlocked(_client, it->second);
-        // safe to still use the iterator, because the adding of the endpoint can no longer fail
-        // (because of the locked mtx), therefore the pending set remains untouched
-        pending_routing_endpoints_.erase(it);
+
+    // on_register_application must run for the now-installed endpoint, mirroring add_local_routing_endpoint. Must happen outside the lock:
+    // it re-enters via find_local_routing_endpoint, which re-acquires routing_endpoint_mtx_.
+    if (promoted) {
+        router_->on_register_application(_client, promoted->peer_endpoint().address(), promoted->peer_endpoint().port() - 1);
     }
 }
 
