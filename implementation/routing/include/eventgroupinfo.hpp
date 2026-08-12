@@ -15,7 +15,6 @@
 
 #include <boost/asio/ip/address.hpp>
 
-#include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
 #include "remote_subscription.hpp"
@@ -39,44 +38,44 @@ public:
         bool operator==(const subscription_t& _other) const { return (subscription_ == _other.subscription_); }
     };
 
-    VSOMEIP_EXPORT eventgroupinfo();
-    VSOMEIP_EXPORT eventgroupinfo(const service_t _service, const service_t _instance, const eventgroup_t _eventgroup,
-                                  const major_version_t _major, const ttl_t _ttl, const uint8_t _max_remote_subscribers);
-    VSOMEIP_EXPORT ~eventgroupinfo();
+    eventgroupinfo();
+    eventgroupinfo(const service_t _service, const service_t _instance, const eventgroup_t _eventgroup, const major_version_t _major,
+                   const ttl_t _ttl, const uint8_t _max_remote_subscribers);
+    ~eventgroupinfo();
 
-    VSOMEIP_EXPORT service_t get_service() const;
-    VSOMEIP_EXPORT void set_service(const service_t _service);
+    service_t get_service() const;
+    void set_service(const service_t _service);
 
-    VSOMEIP_EXPORT instance_t get_instance() const;
-    VSOMEIP_EXPORT void set_instance(const instance_t _instance);
+    instance_t get_instance() const;
+    void set_instance(const instance_t _instance);
 
-    VSOMEIP_EXPORT eventgroup_t get_eventgroup() const;
-    VSOMEIP_EXPORT void set_eventgroup(const eventgroup_t _eventgroup);
+    eventgroup_t get_eventgroup() const;
+    void set_eventgroup(const eventgroup_t _eventgroup);
 
-    VSOMEIP_EXPORT major_version_t get_major() const;
-    VSOMEIP_EXPORT void set_major(const major_version_t _major);
+    major_version_t get_major() const;
+    void set_major(const major_version_t _major);
 
-    VSOMEIP_EXPORT ttl_t get_ttl() const;
-    VSOMEIP_EXPORT void set_ttl(const ttl_t _ttl);
+    ttl_t get_ttl() const;
+    void set_ttl(const ttl_t _ttl);
 
-    VSOMEIP_EXPORT bool is_multicast() const;
-    VSOMEIP_EXPORT bool get_multicast(boost::asio::ip::address& _address, uint16_t& _port) const;
-    VSOMEIP_EXPORT void set_multicast(const boost::asio::ip::address& _address, uint16_t _port);
-    VSOMEIP_EXPORT bool is_sending_multicast() const;
+    bool is_multicast() const;
+    bool get_multicast(boost::asio::ip::address& _address, uint16_t& _port) const;
+    void set_multicast(const boost::asio::ip::address& _address, uint16_t _port);
+    bool is_sending_multicast() const;
 
-    VSOMEIP_EXPORT std::set<std::shared_ptr<event>> get_events() const;
-    VSOMEIP_EXPORT void add_event(const std::shared_ptr<event>& _event);
-    VSOMEIP_EXPORT void remove_event(const std::shared_ptr<event>& _event);
-    VSOMEIP_EXPORT reliability_type_e get_reliability() const;
-    VSOMEIP_EXPORT void set_reliability(reliability_type_e _reliability);
-    VSOMEIP_EXPORT bool is_reliability_auto_mode() const;
+    std::set<std::shared_ptr<event>> get_events() const;
+    void add_event(const std::shared_ptr<event>& _event);
+    void remove_event(const std::shared_ptr<event>& _event);
+    reliability_type_e get_reliability() const;
+    void set_reliability(reliability_type_e _reliability);
+    bool is_reliability_auto_mode() const;
 
     /// Returns the `reliability_type_e` of events that are provided by this host.
     ///
     /// This is used when checking if a subscription should be accepted or not.
-    VSOMEIP_EXPORT reliability_type_e get_provider_reliability() const;
+    reliability_type_e get_provider_reliability() const;
 
-    VSOMEIP_EXPORT std::set<std::shared_ptr<remote_subscription>> get_remote_subscriptions() const;
+    std::set<std::shared_ptr<remote_subscription>> get_remote_subscriptions() const;
 
     std::shared_ptr<remote_subscription> get_remote_subscription(const remote_subscription_id_t _id);
 
@@ -88,23 +87,23 @@ public:
 
     remote_subscription_id_t add_remote_subscription(const std::shared_ptr<remote_subscription>& _subscription);
 
-    VSOMEIP_EXPORT void remove_remote_subscription(const remote_subscription_id_t _id);
+    void remove_remote_subscription(const remote_subscription_id_t _id);
 
     void clear_remote_subscriptions();
 
-    VSOMEIP_EXPORT std::set<std::shared_ptr<endpoint_definition>> get_unicast_targets() const;
-    VSOMEIP_EXPORT std::set<std::shared_ptr<endpoint_definition>> get_multicast_targets() const;
+    std::set<std::shared_ptr<endpoint_definition>> get_unicast_targets() const;
+    std::set<std::shared_ptr<endpoint_definition>> get_multicast_targets() const;
 
-    VSOMEIP_EXPORT uint8_t get_threshold() const;
-    VSOMEIP_EXPORT void set_threshold(uint8_t _threshold);
+    uint8_t get_threshold() const;
+    void set_threshold(uint8_t _threshold);
 
-    VSOMEIP_EXPORT bool is_selective() const;
+    bool is_selective() const;
 
-    VSOMEIP_EXPORT void send_initial_events(const std::shared_ptr<endpoint_definition>& _reliable,
-                                            const std::shared_ptr<endpoint_definition>& _unreliable) const;
+    void send_initial_events(const std::shared_ptr<endpoint_definition>& _reliable,
+                             const std::shared_ptr<endpoint_definition>& _unreliable) const;
 
-    VSOMEIP_EXPORT uint8_t get_max_remote_subscribers() const;
-    VSOMEIP_EXPORT void set_max_remote_subscribers(uint8_t _max_remote_subscribers);
+    uint8_t get_max_remote_subscribers() const;
+    void set_max_remote_subscribers(uint8_t _max_remote_subscribers);
 
 private:
     void update_id();

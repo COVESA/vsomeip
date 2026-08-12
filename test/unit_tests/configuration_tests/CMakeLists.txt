@@ -9,7 +9,6 @@ set(TEST_SRCS
     ../main.cpp
     mock_configuration.cpp
     test_configuration.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/configuration/src/configuration_plugin_impl.cpp
 )
 
 add_executable(
@@ -22,7 +21,6 @@ target_link_libraries(
     gtest
     gmock
     ${VSOMEIP_NAME}-test
-    ${VSOMEIP_NAME}-cfg-test
     ${Boost_LIBRARIES}
     vsomeip_utilities
 )

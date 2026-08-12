@@ -8,7 +8,8 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <cstdint>
+
+#include <vsomeip/export.hpp>
 
 #if _WIN32
 #if VSOMEIP_DLL_COMPILATION_PLUGIN

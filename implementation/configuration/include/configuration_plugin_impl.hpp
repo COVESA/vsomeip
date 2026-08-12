@@ -6,10 +6,9 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
-
-#include <vsomeip/plugin.hpp>
 
 #include "configuration_plugin.hpp"
 
@@ -20,8 +19,14 @@ class configuration_impl;
 
 } // namespace cfg
 
-class configuration_plugin_impl : public configuration_plugin, public plugin_impl<configuration_plugin_impl> {
+// The configuration used to be loaded as a runtime plugin (libvsomeip3-cfg).
+// It is now compiled directly into libvsomeip3, but we keep this class as a
+// process-wide singleton so that multiple application_impl instances in the
+// same process continue to share a single configuration per name.
+class configuration_plugin_impl : public configuration_plugin {
 public:
+    static std::shared_ptr<configuration_plugin_impl> get();
+
     configuration_plugin_impl();
     virtual ~configuration_plugin_impl();
 
@@ -35,6 +40,7 @@ protected:
 private:
     std::string get_cache_key(const std::string& _name, const std::string& _path) const;
 
+    static std::shared_ptr<configuration_plugin_impl> the_configuration_plugin__;
     std::mutex mutex_;
     std::map<std::string, std::shared_ptr<cfg::configuration_impl>> configurations_;
 };

@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/internal/serializable.hpp>
@@ -16,9 +15,9 @@ class message_base;
 
 class message_header_impl : virtual public serializable {
 public:
-    VSOMEIP_EXPORT message_header_impl();
+    message_header_impl();
 
-    VSOMEIP_EXPORT bool serialize(serializer* _to) const override;
+    bool serialize(serializer* _to) const override;
 
 public:
     // not exported, these are internal to the codebase

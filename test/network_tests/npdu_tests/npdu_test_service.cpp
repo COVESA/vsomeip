@@ -12,8 +12,7 @@
 #include "common/test_main.hpp"
 #include "../../implementation/configuration/include/configuration.hpp"
 #include "../../implementation/configuration/include/configuration_impl.hpp"
-#include "../../implementation/configuration/include/configuration_plugin.hpp"
-#include "../../implementation/plugin/include/plugin_manager_impl.hpp"
+#include "../../implementation/configuration/include/configuration_plugin_impl.hpp"
 
 // this environment variable is set to create 4 service binaries of
 // which each of them offers a service.
@@ -148,14 +147,7 @@ void npdu_test_service::on_message_shutdown(const std::shared_ptr<vsomeip::messa
 
 TEST(someip_npdu_test, offer_service_and_check_debounce_times) {
     // get the configuration
-    std::shared_ptr<vsomeip::configuration> its_configuration;
-    auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
-    if (its_plugin) {
-        auto its_config_plugin = std::dynamic_pointer_cast<vsomeip::configuration_plugin>(its_plugin);
-        if (its_config_plugin) {
-            its_configuration = its_config_plugin->get_configuration("", "");
-        }
-    }
+    std::shared_ptr<vsomeip::configuration> its_configuration = vsomeip_v3::configuration_plugin_impl::get()->get_configuration("", "");
     if (!its_configuration) {
         ADD_FAILURE() << "No configuration object. "
                          "Either memory overflow or loading error detected!";

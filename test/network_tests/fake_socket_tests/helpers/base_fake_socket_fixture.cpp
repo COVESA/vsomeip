@@ -6,9 +6,7 @@
 #include "base_fake_socket_fixture.hpp"
 #include "test_logging.hpp"
 
-#include "../../../../implementation/configuration/include/configuration_plugin.hpp"
-
-#include <vsomeip/internal/plugin_manager.hpp>
+#include "../../../../implementation/configuration/include/configuration_plugin_impl.hpp"
 
 #include "internal.hpp"
 
@@ -51,12 +49,7 @@ void base_fake_socket_fixture::reset_socket_manager() {
 }
 
 void base_fake_socket_fixture::reset_configuration_cache() {
-    // The configuration plugin is loaded lazily by application_impl::init(), and get_plugin() does
-    // not load it: before the first application is created there is simply nothing to clear.
-    auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
-    if (auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin)) {
-        its_configuration_plugin->clear_configurations();
-    }
+    configuration_plugin_impl::get()->clear_configurations();
 }
 
 void base_fake_socket_fixture::use_configuration(std::string const& file_name) {

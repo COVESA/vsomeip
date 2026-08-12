@@ -13,25 +13,24 @@
 #include <boost/asio/ip/address.hpp>
 #include <vsomeip/primitive_types.hpp>
 
-#include <vsomeip/export.hpp>
 
 namespace vsomeip_v3 {
 
 class endpoint_definition {
 public:
-    VSOMEIP_EXPORT static std::shared_ptr<endpoint_definition> get(const boost::asio::ip::address& _address, uint16_t _port,
-                                                                   bool _is_reliable, service_t _service, instance_t _instance);
+    static std::shared_ptr<endpoint_definition> get(const boost::asio::ip::address& _address, uint16_t _port, bool _is_reliable,
+                                                    service_t _service, instance_t _instance);
 
-    VSOMEIP_EXPORT const boost::asio::ip::address& get_address() const;
+    const boost::asio::ip::address& get_address() const;
 
-    VSOMEIP_EXPORT uint16_t get_port() const;
+    uint16_t get_port() const;
 
-    VSOMEIP_EXPORT uint16_t get_remote_port() const;
-    VSOMEIP_EXPORT void set_remote_port(uint16_t _port);
+    uint16_t get_remote_port() const;
+    void set_remote_port(uint16_t _port);
 
-    VSOMEIP_EXPORT bool is_reliable() const;
+    bool is_reliable() const;
 
-    VSOMEIP_EXPORT endpoint_definition(const boost::asio::ip::address& _address, uint16_t _port, bool _is_reliable);
+    endpoint_definition(const boost::asio::ip::address& _address, uint16_t _port, bool _is_reliable);
 
 private:
     boost::asio::ip::address address_;

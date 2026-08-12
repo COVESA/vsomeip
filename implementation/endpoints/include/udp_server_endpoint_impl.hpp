@@ -46,10 +46,10 @@ public:
     void get_configured_times_from_endpoint(service_t _service, method_t _method, std::chrono::nanoseconds* _debouncing,
                                             std::chrono::nanoseconds* _maximum_retention) const override;
 
-    VSOMEIP_EXPORT void join(const std::string& _address);
-    VSOMEIP_EXPORT void join_unlocked(const std::string& _address);
-    VSOMEIP_EXPORT void leave(const std::string& _address);
-    VSOMEIP_EXPORT void set_multicast_option(const boost::asio::ip::address& _address, bool _is_join, boost::system::error_code& _error);
+    void join(const std::string& _address);
+    void join_unlocked(const std::string& _address);
+    void leave(const std::string& _address);
+    void set_multicast_option(const boost::asio::ip::address& _address, bool _is_join, boost::system::error_code& _error);
 
     void add_default_target(service_t _service, const std::string& _address, uint16_t _port) override;
     void remove_default_target(service_t _service) override;

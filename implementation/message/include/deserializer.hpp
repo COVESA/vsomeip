@@ -8,7 +8,6 @@
 #include <vector>
 #include <memory>
 
-#include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
 #if defined(__QNX__)
@@ -21,37 +20,37 @@ class message_impl;
 
 class deserializer {
 public:
-    VSOMEIP_EXPORT deserializer(uint32_t _buffer_shrink_threshold);
-    VSOMEIP_EXPORT deserializer(byte_t* _data, size_t _length, uint32_t _buffer_shrink_threshold);
-    VSOMEIP_EXPORT deserializer(const deserializer& _other);
-    VSOMEIP_EXPORT virtual ~deserializer();
+    deserializer(uint32_t _buffer_shrink_threshold);
+    deserializer(byte_t* _data, size_t _length, uint32_t _buffer_shrink_threshold);
+    deserializer(const deserializer& _other);
+    virtual ~deserializer();
 
-    VSOMEIP_EXPORT void set_data(const byte_t* _data, size_t _length);
-    VSOMEIP_EXPORT void set_data(const std::vector<byte_t>& _data);
-    VSOMEIP_EXPORT void append_data(const byte_t* _data, size_t _length);
-    VSOMEIP_EXPORT void drop_data(size_t _length);
+    void set_data(const byte_t* _data, size_t _length);
+    void set_data(const std::vector<byte_t>& _data);
+    void append_data(const byte_t* _data, size_t _length);
+    void drop_data(size_t _length);
 
-    VSOMEIP_EXPORT size_t get_available() const;
-    VSOMEIP_EXPORT size_t get_remaining() const;
-    VSOMEIP_EXPORT void set_remaining(size_t _remaining);
+    size_t get_available() const;
+    size_t get_remaining() const;
+    void set_remaining(size_t _remaining);
 
     // to be used by applications to deserialize a message
-    VSOMEIP_EXPORT std::shared_ptr<message_impl> deserialize_message();
+    std::shared_ptr<message_impl> deserialize_message();
 
     // to be used (internally) by objects to deserialize their members
     // Note: this needs to be encapsulated!
-    VSOMEIP_EXPORT bool deserialize(uint8_t& _value);
-    VSOMEIP_EXPORT bool deserialize(uint16_t& _value);
-    VSOMEIP_EXPORT bool deserialize(uint32_t& _value, bool _omit_last_byte = false);
-    VSOMEIP_EXPORT bool deserialize(uint8_t* _data, size_t _length);
-    VSOMEIP_EXPORT bool deserialize(std::string& _target, size_t _length);
-    VSOMEIP_EXPORT bool deserialize(std::vector<uint8_t>& _value);
+    bool deserialize(uint8_t& _value);
+    bool deserialize(uint16_t& _value);
+    bool deserialize(uint32_t& _value, bool _omit_last_byte = false);
+    bool deserialize(uint8_t* _data, size_t _length);
+    bool deserialize(std::string& _target, size_t _length);
+    bool deserialize(std::vector<uint8_t>& _value);
 
-    VSOMEIP_EXPORT bool look_ahead(size_t _index, uint8_t& _value) const;
-    VSOMEIP_EXPORT bool look_ahead(size_t _index, uint16_t& _value) const;
-    VSOMEIP_EXPORT bool look_ahead(size_t _index, uint32_t& _value) const;
+    bool look_ahead(size_t _index, uint8_t& _value) const;
+    bool look_ahead(size_t _index, uint16_t& _value) const;
+    bool look_ahead(size_t _index, uint32_t& _value) const;
 
-    VSOMEIP_EXPORT void reset();
+    void reset();
 
 protected:
     std::vector<byte_t> data_;

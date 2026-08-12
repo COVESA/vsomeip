@@ -48,8 +48,8 @@
 #include "../../security/include/security.hpp"
 #include "../../service_discovery/include/constants.hpp"
 #include "../../service_discovery/include/defines.hpp"
-#include "../../service_discovery/include/runtime.hpp"
 #include "../../service_discovery/include/service_discovery.hpp"
+#include "../../service_discovery/include/service_discovery_impl.hpp"
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../tracing/include/connector_impl.hpp"
@@ -60,17 +60,12 @@
 #include "../../e2e_protection/include/e2exf/config.hpp"
 
 #include "../../e2e_protection/include/e2e/profile/e2e_provider.hpp"
+#include "../../e2e_protection/include/e2e/profile/e2e_provider_impl.hpp"
 #endif
 
 namespace vsomeip_v3 {
 
 #define VSOMEIP_LOG_PREFIX "rmi"
-
-#ifdef ANDROID
-namespace sd {
-runtime::~runtime() { }
-}
-#endif
 
 routing_manager_impl::routing_manager_impl(routing_manager_host* _host) :
     host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()), env_([] {
@@ -159,34 +154,19 @@ void routing_manager_impl::init() {
     stub_->init();
 
     if (configuration_->is_sd_enabled()) {
-        VSOMEIP_INFO << "Service Discovery enabled. Trying to load module.";
-        auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::SD_RUNTIME_PLUGIN, VSOMEIP_SD_LIBRARY);
-        if (its_plugin) {
-            VSOMEIP_INFO << "Service Discovery module loaded.";
-            discovery_ = std::dynamic_pointer_cast<sd::runtime>(its_plugin)->create_service_discovery(this, configuration_);
-            discovery_->init();
-            // Only enable stop offer graceful timer if SD is enabled.
-            stop_offer_graceful_timer_.expires_after(std::chrono::milliseconds(configuration_->get_sd_cyclic_offer_delay()));
-            stop_offer_graceful_timer_.async_wait(
-                    std::bind(&routing_manager_impl::stop_offer_graceful_timeout, shared_from_this(), std::placeholders::_1));
-        } else {
-            VSOMEIP_ERROR << "Service Discovery module could not be loaded!";
-            std::exit(EXIT_FAILURE);
-        }
+        VSOMEIP_INFO << "Service Discovery enabled.";
+        discovery_ = std::make_shared<sd::service_discovery_impl>(this, configuration_);
+        discovery_->init();
+        // Only enable stop offer graceful timer if SD is enabled.
+        stop_offer_graceful_timer_.expires_after(std::chrono::milliseconds(configuration_->get_sd_cyclic_offer_delay()));
+        stop_offer_graceful_timer_.async_wait(
+                std::bind(&routing_manager_impl::stop_offer_graceful_timeout, shared_from_this(), std::placeholders::_1));
     }
 
 #ifndef ANDROID
     if (configuration_->is_e2e_enabled()) {
         VSOMEIP_INFO << "E2E protection enabled.";
-
-        const char* its_e2e_module = VSOMEIP_GETENV(VSOMEIP_ENV_E2E_PROTECTION_MODULE);
-        std::string plugin_name = its_e2e_module != nullptr ? its_e2e_module : VSOMEIP_E2E_LIBRARY;
-
-        auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, plugin_name);
-        if (its_plugin) {
-            VSOMEIP_INFO << "E2E module loaded.";
-            e2e_provider_ = std::dynamic_pointer_cast<e2e::e2e_provider>(its_plugin);
-        }
+        e2e_provider_ = std::make_shared<e2e::e2e_provider_impl>();
     }
 
     if (e2e_provider_) {

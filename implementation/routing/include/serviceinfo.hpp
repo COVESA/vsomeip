@@ -12,7 +12,6 @@
 #include <chrono>
 #include <mutex>
 
-#include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip_v3 {
@@ -21,33 +20,32 @@ class boardnet_endpoint;
 
 class serviceinfo {
 public:
-    VSOMEIP_EXPORT serviceinfo(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl,
-                               bool _is_local);
-    VSOMEIP_EXPORT serviceinfo(const serviceinfo& _other);
-    VSOMEIP_EXPORT ~serviceinfo();
+    serviceinfo(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl, bool _is_local);
+    serviceinfo(const serviceinfo& _other);
+    ~serviceinfo();
 
-    VSOMEIP_EXPORT service_t get_service() const;
-    VSOMEIP_EXPORT instance_t get_instance() const;
+    service_t get_service() const;
+    instance_t get_instance() const;
 
-    VSOMEIP_EXPORT major_version_t get_major() const;
-    VSOMEIP_EXPORT minor_version_t get_minor() const;
+    major_version_t get_major() const;
+    minor_version_t get_minor() const;
 
-    VSOMEIP_EXPORT ttl_t get_ttl() const;
-    VSOMEIP_EXPORT void set_ttl(ttl_t _ttl);
+    ttl_t get_ttl() const;
+    void set_ttl(ttl_t _ttl);
 
-    VSOMEIP_EXPORT std::chrono::milliseconds get_precise_ttl() const;
-    VSOMEIP_EXPORT void set_precise_ttl(std::chrono::milliseconds _precise_ttl);
+    std::chrono::milliseconds get_precise_ttl() const;
+    void set_precise_ttl(std::chrono::milliseconds _precise_ttl);
 
-    VSOMEIP_EXPORT std::shared_ptr<boardnet_endpoint> get_endpoint(bool _reliable) const;
-    VSOMEIP_EXPORT void set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> get_endpoint(bool _reliable) const;
+    void set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _reliable);
 
-    VSOMEIP_EXPORT bool is_local() const;
+    bool is_local() const;
 
-    VSOMEIP_EXPORT bool is_ready_to_offer() const;
-    VSOMEIP_EXPORT void set_endpoint_requirements(bool _needs_reliable, bool _needs_unreliable);
+    bool is_ready_to_offer() const;
+    void set_endpoint_requirements(bool _needs_reliable, bool _needs_unreliable);
 
-    VSOMEIP_EXPORT bool is_in_mainphase() const;
-    VSOMEIP_EXPORT void set_is_in_mainphase(bool _in_mainphase);
+    bool is_in_mainphase() const;
+    void set_is_in_mainphase(bool _in_mainphase);
 
 private:
     mutable std::mutex mutex_;

@@ -38,7 +38,6 @@ add_library (fake_socket_helpers OBJECT
 )
 target_link_libraries(fake_socket_helpers
     ${VSOMEIP_NAME}-test
-    ${VSOMEIP_NAME}-sd-test
     ${Boost_LIBRARIES}
     ${DL_LIBRARY}
     ${TEST_LINK_LIBRARIES}

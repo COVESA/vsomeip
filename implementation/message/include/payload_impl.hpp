@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <vsomeip/export.hpp>
 #include <vsomeip/payload.hpp>
 
 #if defined(__QNX__)
@@ -19,23 +18,23 @@ class deserializer;
 
 class payload_impl : public payload {
 public:
-    VSOMEIP_EXPORT payload_impl();
-    VSOMEIP_EXPORT virtual ~payload_impl() = default;
+    payload_impl();
+    virtual ~payload_impl() = default;
 
-    VSOMEIP_EXPORT bool operator==(const payload& _other) const override;
+    bool operator==(const payload& _other) const override;
 
-    VSOMEIP_EXPORT byte_t* get_data() override;
-    VSOMEIP_EXPORT const byte_t* get_data() const override;
-    VSOMEIP_EXPORT length_t get_length() const override;
+    byte_t* get_data() override;
+    const byte_t* get_data() const override;
+    length_t get_length() const override;
 
-    VSOMEIP_EXPORT void set_capacity(length_t _capacity) override;
+    void set_capacity(length_t _capacity) override;
 
-    VSOMEIP_EXPORT void set_data(const byte_t* _data, length_t _length) override;
-    VSOMEIP_EXPORT void set_data(const std::vector<byte_t>& _data) override;
-    VSOMEIP_EXPORT void set_data(std::vector<byte_t>&& _data) override;
+    void set_data(const byte_t* _data, length_t _length) override;
+    void set_data(const std::vector<byte_t>& _data) override;
+    void set_data(std::vector<byte_t>&& _data) override;
 
-    VSOMEIP_EXPORT bool serialize(serializer* _to) const override;
-    VSOMEIP_EXPORT bool deserialize(deserializer* _from) override;
+    bool serialize(serializer* _to) const override;
+    bool deserialize(deserializer* _from) override;
 
 public:
     // not exported, these are internal to the codebase

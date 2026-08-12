@@ -58,11 +58,6 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     targets_add_default_dependencies("${executables}")
     targets_link_default_libraries("${executables}")
 
-    # Link executables to vsomeip-cfg.
-    foreach(target ${executables})
-        target_link_libraries(${target} ${VSOMEIP_NAME}-cfg-test)
-    endforeach()
-
     add_custom_test(
         NAME npdu_test_udp
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/npdu_test_starter.sh UDP sync

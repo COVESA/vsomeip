@@ -6,12 +6,16 @@
 #include "../include/configuration_plugin_impl.hpp"
 #include "../include/configuration_impl.hpp"
 
-VSOMEIP_PLUGIN(vsomeip_v3::configuration_plugin_impl)
-
 namespace vsomeip_v3 {
 
-configuration_plugin_impl::configuration_plugin_impl() :
-    plugin_impl("vsomeip-configuration-plugin", VSOMEIP_CONFIG_PLUGIN_VERSION, plugin_type_e::CONFIGURATION_PLUGIN) { }
+std::shared_ptr<configuration_plugin_impl> configuration_plugin_impl::the_configuration_plugin__ =
+        std::make_shared<configuration_plugin_impl>();
+
+std::shared_ptr<configuration_plugin_impl> configuration_plugin_impl::get() {
+    return the_configuration_plugin__;
+}
+
+configuration_plugin_impl::configuration_plugin_impl() { }
 
 configuration_plugin_impl::~configuration_plugin_impl() { }
 

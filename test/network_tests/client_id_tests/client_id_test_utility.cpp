@@ -12,8 +12,7 @@
 #include <vsomeip/vsomeip.hpp>
 #include "../../implementation/utility/include/utility.hpp"
 #include "../../implementation/configuration/include/configuration.hpp"
-#include "../../implementation/configuration/include/configuration_plugin.hpp"
-#include "../../implementation/plugin/include/plugin_manager_impl.hpp"
+#include "../../implementation/configuration/include/configuration_plugin_impl.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/test_main.hpp"
@@ -43,14 +42,7 @@ class client_id_utility_test : public ::testing::Test {
 public:
     client_id_utility_test() : client_id_routing_manager_(0x0), diagnosis_(0x0), diagnosis_mask_(0xFF00), client_id_base_(0x0) {
 
-        std::shared_ptr<vsomeip::configuration> its_configuration;
-        auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
-        if (its_plugin) {
-            auto its_config_plugin = std::dynamic_pointer_cast<vsomeip::configuration_plugin>(its_plugin);
-            if (its_config_plugin) {
-                configuration_ = its_config_plugin->get_configuration(APPLICATION_NAME_ROUTING_MANAGER, "");
-            }
-        }
+        configuration_ = vsomeip_v3::configuration_plugin_impl::get()->get_configuration(APPLICATION_NAME_ROUTING_MANAGER, "");
     }
 
 protected:

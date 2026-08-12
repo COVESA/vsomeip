@@ -1,4 +1,7 @@
+// All formerly-separate plugin libraries (cfg, sd, e2e) are compiled directly
+// into libvsomeip3; there is no longer a runtime dlopen split.
 libvsomeip_srcs = [
+   "implementation/configuration/**/*.cpp",
    "implementation/endpoints/**/*.cpp",
    "implementation/logger/**/*.cpp",
    "implementation/tracing/**/*.cpp",
@@ -9,19 +12,9 @@ libvsomeip_srcs = [
    "implementation/plugin/**/*.cpp",
    "implementation/protocol/**/*.cpp",
    "implementation/security/**/*.cpp",
+   "implementation/service_discovery/**/*.cpp",
+   "implementation/e2e_protection/**/*.cpp",
    "implementation/thread_manager/**/*.cpp",
-]
-
-libvsomeip_cfg_srcs = [
-    "implementation/configuration/src/*.cpp",
-]
-
-libvsomeip_e2e_srcs = [
-    "implementation/e2e_protection/src/*.cpp",
-]
-
-libvsomeip_sd_srcs = [
-    "implementation/service_discovery/src/*.cpp",
 ]
 
 cc_defaults {
@@ -114,68 +107,19 @@ cc_library_shared {
     ]
 }
 
-cc_library_shared {
-    name: "libvsomeip_cfg",
-    vendor: true,
-
-    srcs: libvsomeip_cfg_srcs,
-
-    defaults: [
-        "vsomeip_defaults",
-        "vsomeip_lib_defaults"
-    ],
-
-    rtti: true,
-
-    shared_libs: [
-        "libvsomeip3",
-        "libboost_system",
-        "libboost_filesystem"
-    ]
-}
-
-cc_library_shared {
-    name: "libvsomeip_e2e",
-    vendor: true,
-
-    srcs: libvsomeip_e2e_srcs,
-
-    defaults: [
-        "vsomeip_defaults",
-        "vsomeip_lib_defaults"
-    ],
-
-    rtti: true,
-
-    shared_libs: [
-       "libvsomeip3"
-    ]
-}
-
-cc_library_shared {
-    name: "libvsomeip_sd",
-    vendor: true,
-
-    srcs: libvsomeip_sd_srcs,
-
-    defaults: [
-        "vsomeip_defaults",
-        "vsomeip_lib_defaults"
-    ],
-
-    rtti: true,
-
-    shared_libs: [
-        "libvsomeip3",
-        "libboost_system"
-    ]
-}
-
-// libvsomeip (without "3" suffix) is a compatibility lib, that was historically only turned on with VSOMEIP_COMPAT_NAME
-// unfortunately, the Android built by _by default_ - and so there are many Android HALs that link against the wrong lib
-// therefore deploy a dummy that links to libvsomeip3
-cc_library_shared {
-    name: "libvsomeip",
+// Every one of the names below is linked by out-of-tree consumers:
+//  - libvsomeip: historically only turned on with VSOMEIP_COMPAT_NAME, but Android
+//    built it by default, so many Android HALs link against this name.
+//  - libvsomeip_{cfg,sd,e2e}: former dlopen plugins, now compiled into libvsomeip3.
+//    A lot of Android HALs still link to them.
+//  - libvsomeip3-{cfg,sd,e2e}: A17_Migration. Google added their sdv/vsomeip project
+//    that we need to remove because it conflicts with ours, but removing it leaves
+//    missing blueprint lib definitions, and removing the projects with the issue only
+//    cascades into more build errors and eventually Purity patches which get rejected.
+//    These stubs let the SDV components resolve during blueprint evaluation.
+// All of them are empty shells forwarding to libvsomeip3.
+cc_defaults {
+    name: "vsomeip_alias_defaults",
     vendor: true,
     nocrt: true,
     no_libcrt: true,
@@ -185,69 +129,46 @@ cc_library_shared {
     // disable stripping, otherwise `strip` fails due to an empty lib
     // see https://android.googlesource.com/platform/art/+/refs/heads/main/tools/create_minidebuginfo/create_minidebuginfo.cc#60
     strip: {
-        none:true,
+        none: true,
     },
     // disable coverage, makes no sense anyhow for a dummy lib
-    native_coverage: false
+    native_coverage: false,
 }
 
-// A17_Migration
-// Google added their sdv/vsomeip project that we need to remove because it conflicts with ours
-// but when we do that, we get build errors becaus some blueprint lib defintions are missing and
-// removing the projects with the issue is not an option because it leads to more and more build
-// errors and eventually to Purity patches which will be rejected.
-// The solution is to create these 3 stubs below to make sure the SDV components can find these
-// during blueprint evaluation phase at build time, to allow us to build our code
+cc_library_shared {
+    name: "libvsomeip",
+    defaults: ["vsomeip_alias_defaults"],
+}
 
-// Alias stubs: map the "libvsomeip3-*" names expected by some modules to the
-// real "libvsomeip_*" libraries defined above.
+cc_library_shared {
+    name: "libvsomeip_cfg",
+    defaults: ["vsomeip_alias_defaults"],
+}
+
+cc_library_shared {
+    name: "libvsomeip_sd",
+    defaults: ["vsomeip_alias_defaults"],
+}
+
+cc_library_shared {
+    name: "libvsomeip_e2e",
+    defaults: ["vsomeip_alias_defaults"],
+}
+
 cc_library_shared {
     name: "libvsomeip3-cfg",
+    defaults: ["vsomeip_alias_defaults"],
     host_supported: true,
-    vendor: true,
-    nocrt: true,
-    no_libcrt: true,
-    system_shared_libs: [],
-    target: {
-        android: {
-            shared_libs: ["libvsomeip_cfg"],
-            export_shared_lib_headers: ["libvsomeip_cfg"],
-        },
-    },
-    strip: { none: true },
-    native_coverage: false,
 }
 
 cc_library_shared {
     name: "libvsomeip3-e2e",
+    defaults: ["vsomeip_alias_defaults"],
     host_supported: true,
-    vendor: true,
-    nocrt: true,
-    no_libcrt: true,
-    system_shared_libs: [],
-    target: {
-        android: {
-            shared_libs: ["libvsomeip_e2e"],
-            export_shared_lib_headers: ["libvsomeip_e2e"],
-        },
-    },
-    strip: { none: true },
-    native_coverage: false,
 }
 
 cc_library_shared {
     name: "libvsomeip3-sd",
+    defaults: ["vsomeip_alias_defaults"],
     host_supported: true,
-    vendor: true,
-    nocrt: true,
-    no_libcrt: true,
-    system_shared_libs: [],
-    target: {
-        android: {
-            shared_libs: ["libvsomeip_sd"],
-            export_shared_lib_headers: ["libvsomeip_sd"],
-        },
-    },
-    strip: { none: true },
-    native_coverage: false,
 }

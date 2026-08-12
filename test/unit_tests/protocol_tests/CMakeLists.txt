@@ -15,7 +15,6 @@ add_executable(
 target_link_libraries(
     ${PROJECT_NAME}
     vsomeip3-test
-    vsomeip3-cfg-test
     gtest
     vsomeip_utilities
 )

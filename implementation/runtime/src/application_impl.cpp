@@ -32,7 +32,7 @@
 #include "../../configuration/include/configuration_impl.hpp"
 #else
 #include "../../configuration/include/configuration.hpp"
-#include "../../configuration/include/configuration_plugin.hpp"
+#include "../../configuration/include/configuration_plugin_impl.hpp"
 #endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 #include "../../plugin/include/plugin_manager_impl.hpp"
 #include "../../endpoints/include/boardnet_endpoint.hpp"
@@ -90,20 +90,8 @@ bool application_impl::init() {
 
     // load default module
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-    auto its_plugin = plugin_manager_->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
-    if (its_plugin) {
-        auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
-        if (its_configuration_plugin) {
-            configuration_ = its_configuration_plugin->get_configuration(name_, path_);
-            VSOMEIP_INFO << "Configuration module loaded.";
-        } else {
-            std::cerr << "Invalid configuration module!" << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-    } else {
-        std::cerr << "Configuration module could not be loaded!" << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
+    configuration_ = configuration_plugin_impl::get()->get_configuration(name_, path_);
+    VSOMEIP_INFO << "Configuration module loaded.";
 #else
     configuration_ = std::dynamic_pointer_cast<configuration>(std::make_shared<vsomeip_v3::cfg::configuration_impl>(configuration_path));
     if (configuration_path.length()) {

@@ -52,9 +52,6 @@ add_executable(offer_test_external_sd_msg_sender
     offer_test_external_sd_msg_sender.cpp
 )
 
-# offer_test_external_sd_msg_sender.cpp directly uses some sd symbols
-target_link_libraries(offer_test_external_sd_msg_sender vsomeip3-sd-test)
-
 add_executable(offer_test_big_sd_msg_service
     offer_test_big_sd_msg_service.cpp
 )

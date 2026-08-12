@@ -22,7 +22,7 @@ add_executable(pending_subscription_test_sd_msg_sender
 
 # Link vsomeip-sd to executable.
 target_link_libraries(pending_subscription_test_sd_msg_sender
-    vsomeip3-sd-test
+    vsomeip3-test
 )
 
 # Add build dependencies and link libraries to executables.

@@ -9,9 +9,6 @@ cc_defaults {
 
     shared_libs: [
         "libvsomeip3",
-        "libvsomeip_cfg",
-        "libvsomeip_e2e",
-        "libvsomeip_sd",
         "liblog",
     ],
 }

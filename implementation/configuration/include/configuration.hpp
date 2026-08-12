@@ -18,7 +18,6 @@
 #include <boost/icl/interval_set.hpp>
 
 #include <vsomeip/defines.hpp>
-#include <vsomeip/export.hpp>
 #include <vsomeip/plugin.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/vsomeip_sec.h>

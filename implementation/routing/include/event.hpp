@@ -98,7 +98,7 @@ public:
     std::set<client_t> get_subscribers();
     std::set<client_t> get_filtered_subscribers(bool _force);
     std::set<client_t> update_and_get_filtered_subscribers(const std::shared_ptr<payload>& _payload, bool _force);
-    VSOMEIP_EXPORT std::set<client_t> get_subscribers(eventgroup_t _eventgroup);
+    std::set<client_t> get_subscribers(eventgroup_t _eventgroup);
     void clear_subscribers();
 
     void add_ref(client_t _client, bool _is_provided);

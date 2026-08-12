@@ -57,12 +57,10 @@ value_t read_value_from_config(const std::shared_ptr<vsomeip_v3::cfg::e2e>& _con
 
 } // namespace
 
-VSOMEIP_PLUGIN(vsomeip_v3::e2e::e2e_provider_impl)
-
 namespace vsomeip_v3 {
 namespace e2e {
 
-e2e_provider_impl::e2e_provider_impl() : plugin_impl("vsomeip e2e plugin", 1, plugin_type_e::APPLICATION_PLUGIN) { }
+e2e_provider_impl::e2e_provider_impl() { }
 
 e2e_provider_impl::~e2e_provider_impl() { }
 

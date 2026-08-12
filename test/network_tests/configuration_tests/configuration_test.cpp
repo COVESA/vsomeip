@@ -18,7 +18,7 @@
 #include "../implementation/configuration/include/configuration.hpp"
 
 #include "../../implementation/configuration/include/configuration_impl.hpp"
-#include "../../implementation/configuration/include/configuration_plugin.hpp"
+#include "../../implementation/configuration/include/configuration_plugin_impl.hpp"
 #include "../../implementation/protocol/include/protocol.hpp"
 #include "../../implementation/security/include/policy_manager_impl.hpp"
 
@@ -128,14 +128,7 @@ std::shared_ptr<vsomeip::configuration> load_config(std::string key, std::string
 
     // `configuration_plugin_impl` does caching based on `key`, so each test needs to pass a
     // different value
-    std::shared_ptr<vsomeip::configuration> conf;
-    auto plugin = vsomeip::plugin_manager::get()->get_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
-    if (plugin) {
-        auto conf_plugin = std::dynamic_pointer_cast<vsomeip::configuration_plugin>(plugin);
-        if (conf_plugin) {
-            conf = conf_plugin->get_configuration(key, "");
-        }
-    }
+    std::shared_ptr<vsomeip::configuration> conf = vsomeip_v3::configuration_plugin_impl::get()->get_configuration(key, "");
 
     return conf;
 }
@@ -166,14 +159,8 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
 #endif
 
     // 1. Create configuration object
-    std::shared_ptr<vsomeip::configuration> its_configuration;
-    auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
-    if (its_plugin) {
-        auto its_configuration_plugin = std::dynamic_pointer_cast<vsomeip::configuration_plugin>(its_plugin);
-        if (its_configuration_plugin) {
-            its_configuration = its_configuration_plugin->get_configuration(EXPECTED_ROUTING_MANAGER_HOST, "");
-        }
-    }
+    std::shared_ptr<vsomeip::configuration> its_configuration =
+            vsomeip_v3::configuration_plugin_impl::get()->get_configuration(EXPECTED_ROUTING_MANAGER_HOST, "");
 
     // 2. Did we get a configuration object?
     if (0 == its_configuration) {
@@ -343,10 +330,6 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
             EXPECT_EQ(std::string("libtestlibraryname.so." + std::to_string(VSOMEIP_APPLICATION_PLUGIN_VERSION)), its_library);
         }
     }
-    EXPECT_EQ(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, its_plugin->get_plugin_type());
-    EXPECT_EQ("vsomeip-configuration-plugin", its_plugin->get_plugin_name());
-    EXPECT_EQ(1u, its_plugin->get_plugin_version());
-
     // 5. Services
     std::string its_unicast_address = its_configuration->get_unicast_address(0x1234, 0x0022);
     uint16_t its_reliable_port = its_configuration->get_reliable_port(0x1234, 0x0022);
@@ -680,8 +663,6 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     EXPECT_TRUE(
             check<bool>(wait_route_netlink_notification, _expected_wait_route_netlink_notification, "SD WAIT ROUTE NETLINK NOTIFICATION"));
     EXPECT_EQ(1000u, its_configuration->get_sd_offer_debounce_time());
-
-    ASSERT_TRUE(vsomeip::plugin_manager::get()->unload_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN));
 }
 
 TEST(configuration_test, check_config_file) {

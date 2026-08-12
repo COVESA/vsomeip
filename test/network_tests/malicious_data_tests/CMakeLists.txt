@@ -20,11 +20,6 @@ add_executable(malicious_data_test_msg_sender
     malicious_data_test_msg_sender.cpp
 )
 
-# Link the vsomeip-sd library to the executable.
-target_link_libraries(malicious_data_test_msg_sender
-    vsomeip3-sd-test
-)
-
 # Add build dependencies and link libraries to executables.
 set(executables
     malicious_data_test_service

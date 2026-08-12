@@ -14,7 +14,6 @@
 
 #define VSOMEIP_ENV_APPLICATION_NAME            "VSOMEIP_APPLICATION_NAME"
 #define VSOMEIP_ENV_CONFIGURATION               "VSOMEIP_CONFIGURATION"
-#define VSOMEIP_ENV_E2E_PROTECTION_MODULE       "VSOMEIP_E2E_PROTECTION_MODULE"
 #define VSOMEIP_ENV_MANDATORY_CONFIGURATION_FILES "VSOMEIP_MANDATORY_CONFIGURATION_FILES"
 #define VSOMEIP_ENV_CLIENTSIDELOGGING           "VSOMEIP_CLIENTSIDELOGGING"
 #define VSOMEIP_ENV_BASE_PATH                   "VSOMEIP_BASE_PATH"
@@ -43,24 +42,6 @@
 #define VSOMEIP_BASE_PATH                       "@VSOMEIP_BASE_PATH@/"
 
 #define VSOMEIP_ROUTING_HOST_PORT_DEFAULT       31490
-
-#ifdef _WIN32
-#define VSOMEIP_CFG_LIBRARY                      "vsomeip3-cfg.dll"
-#else
-#define VSOMEIP_CFG_LIBRARY                      "libvsomeip3-cfg.so.@VSOMEIP_MAJOR_VERSION@"
-#endif
-
-#ifdef _WIN32
-#define VSOMEIP_SD_LIBRARY                      "vsomeip3-sd.dll"
-#else
-#define VSOMEIP_SD_LIBRARY                      "libvsomeip3-sd.so.@VSOMEIP_MAJOR_VERSION@"
-#endif
-
-#ifdef _WIN32
-#define VSOMEIP_E2E_LIBRARY                      "vsomeip3-e2e.dll"
-#else
-#define VSOMEIP_E2E_LIBRARY                      "libvsomeip3-e2e.so.@VSOMEIP_MAJOR_VERSION@"
-#endif
 
 #ifdef _WIN32
 #define VSOMEIP_SEC_LIBRARY                      "vsomeip_sec.dll"

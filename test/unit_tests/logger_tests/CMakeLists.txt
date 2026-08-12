@@ -16,7 +16,6 @@ add_executable(${PROJECT_NAME} ${SRCS})
 target_link_libraries(
     ${PROJECT_NAME}
     vsomeip3-test
-    vsomeip3-cfg-test
     ${Boost_LIBRARIES}
     ${DL_LIBRARY}
     gtest

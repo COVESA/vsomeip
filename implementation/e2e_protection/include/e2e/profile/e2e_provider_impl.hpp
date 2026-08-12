@@ -12,29 +12,25 @@
 #include "profile_interface/checker.hpp"
 #include "profile_interface/protector.hpp"
 
-#include "../../../../../interface/vsomeip/export.hpp"
-#include "../../../../../interface/vsomeip/plugin.hpp"
 
 namespace vsomeip_v3 {
 namespace e2e {
 
-class e2e_provider_impl : public e2e_provider,
-                          public plugin_impl<e2e_provider_impl>,
-                          public std::enable_shared_from_this<e2e_provider_impl> {
+class e2e_provider_impl : public e2e_provider, public std::enable_shared_from_this<e2e_provider_impl> {
 public:
-    VSOMEIP_EXPORT e2e_provider_impl();
-    VSOMEIP_EXPORT ~e2e_provider_impl();
+    e2e_provider_impl();
+    ~e2e_provider_impl();
 
-    VSOMEIP_EXPORT bool add_configuration(std::shared_ptr<cfg::e2e> config) override;
+    bool add_configuration(std::shared_ptr<cfg::e2e> config) override;
 
-    VSOMEIP_EXPORT bool is_protected(e2exf::data_identifier_t id) const override;
-    VSOMEIP_EXPORT bool is_checked(e2exf::data_identifier_t id) const override;
+    bool is_protected(e2exf::data_identifier_t id) const override;
+    bool is_checked(e2exf::data_identifier_t id) const override;
 
-    VSOMEIP_EXPORT size_t get_protection_base(e2exf::data_identifier_t _id) const override;
+    size_t get_protection_base(e2exf::data_identifier_t _id) const override;
 
-    VSOMEIP_EXPORT void protect(e2exf::data_identifier_t id, e2e_buffer& _buffer, instance_t _instance) override;
-    VSOMEIP_EXPORT void check(e2exf::data_identifier_t id, const e2e_buffer& _buffer, instance_t _instance,
-                              profile_interface::check_status_t& _generic_check_status) override;
+    void protect(e2exf::data_identifier_t id, e2e_buffer& _buffer, instance_t _instance) override;
+    void check(e2exf::data_identifier_t id, const e2e_buffer& _buffer, instance_t _instance,
+               profile_interface::check_status_t& _generic_check_status) override;
 
 private:
     std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::protector>> custom_protectors_;

@@ -14,7 +14,6 @@ target_link_libraries(
   ${PROJECT_NAME}
  PRIVATE
   vsomeip3-test
-  vsomeip3-cfg-test
   Threads::Threads
   ${Boost_LIBRARIES}
   ${DL_LIBRARY}

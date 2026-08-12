@@ -48,37 +48,37 @@ public:
     /**
      * \brief Get e2e protection check result.
      */
-    VSOMEIP_EXPORT virtual uint8_t get_check_result() const = 0;
+    virtual uint8_t get_check_result() const = 0;
 
     /**
      * \brief Set e2e protection check result.
      */
-    VSOMEIP_EXPORT virtual void set_check_result(uint8_t _check_result) = 0;
+    virtual void set_check_result(uint8_t _check_result) = 0;
 
     /**
      * \brief Return whether or not the CRC value received is valid.
      */
-    VSOMEIP_EXPORT virtual bool is_valid_crc() const = 0;
+    virtual bool is_valid_crc() const = 0;
 
     /**
      * \brief Return uid of the message sender.
      */
-    VSOMEIP_DEPRECATED_UID_GID VSOMEIP_EXPORT virtual uid_t get_uid() const = 0;
+    VSOMEIP_DEPRECATED_UID_GID virtual uid_t get_uid() const = 0;
 
     /**
      * \brief Return gid of the message sender.
      */
-    VSOMEIP_DEPRECATED_UID_GID VSOMEIP_EXPORT virtual gid_t get_gid() const = 0;
+    VSOMEIP_DEPRECATED_UID_GID virtual gid_t get_gid() const = 0;
 
     /**
      * \brief Return environment (hostname) of the message sender.
      */
-    VSOMEIP_EXPORT virtual std::string get_env() const = 0;
+    virtual std::string get_env() const = 0;
 
     /**
      * \brief Return security client of the message sender.
      */
-    VSOMEIP_EXPORT virtual vsomeip_sec_client_t get_sec_client() const = 0;
+    virtual vsomeip_sec_client_t get_sec_client() const = 0;
 };
 
 /** @} */

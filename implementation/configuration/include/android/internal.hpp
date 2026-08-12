@@ -14,7 +14,6 @@
 
 #define VSOMEIP_ENV_APPLICATION_NAME            "VSOMEIP_APPLICATION_NAME"
 #define VSOMEIP_ENV_CONFIGURATION               "VSOMEIP_CONFIGURATION"
-#define VSOMEIP_ENV_E2E_PROTECTION_MODULE       "VSOMEIP_E2E_PROTECTION_MODULE"
 #define VSOMEIP_ENV_MANDATORY_CONFIGURATION_FILES "VSOMEIP_MANDATORY_CONFIGURATION_FILES"
 #define VSOMEIP_ENV_CLIENTSIDELOGGING           "VSOMEIP_CLIENTSIDELOGGING"
 #define VSOMEIP_ENV_BASE_PATH                   "VSOMEIP_BASE_PATH"
@@ -47,12 +46,6 @@
 #endif
 
 #define VSOMEIP_ROUTING_HOST_PORT_DEFAULT       31490
-
-#define VSOMEIP_CFG_LIBRARY                     "libvsomeip_cfg.so"
-
-#define VSOMEIP_SD_LIBRARY                      "libvsomeip_sd.so"
-
-#define VSOMEIP_E2E_LIBRARY                     "libvsomeip_e2e.so"
 
 #define VSOMEIP_SEC_LIBRARY                     "libvsomeip-sec.so.1"
 

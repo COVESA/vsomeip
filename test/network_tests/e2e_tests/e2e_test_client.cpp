@@ -16,6 +16,7 @@
 #include "../../../implementation/e2e_protection/include/e2exf/config.hpp"
 
 #include "../../../implementation/e2e_protection/include/e2e/profile/e2e_provider.hpp"
+#include "../../../implementation/e2e_protection/include/e2e/profile/e2e_provider_impl.hpp"
 
 static bool is_remote_test = false;
 static bool remote_client_allowed = true;
@@ -86,11 +87,7 @@ void e2e_test_client::stop() {
 
 void e2e_test_client::initialize_e2e_provider() {
 
-    auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(vsomeip::plugin_type_e::APPLICATION_PLUGIN, VSOMEIP_E2E_LIBRARY);
-    if (its_plugin) {
-        VSOMEIP_DEBUG << "E2E module loaded by test client.";
-        e2e_provider_ = std::dynamic_pointer_cast<vsomeip_v3::e2e::e2e_provider>(its_plugin);
-    }
+    e2e_provider_ = std::make_shared<vsomeip_v3::e2e::e2e_provider_impl>();
 
     vsomeip_v3::cfg::e2e::custom_parameters_t pf1_e2e_custom_parameters{
             {"crc_offset", "0"}, {"data_id_mode", "3"}, {"data_length", "56"}, {"data_id", "0xA73"}};

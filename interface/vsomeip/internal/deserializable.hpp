@@ -13,8 +13,8 @@ class deserializer;
 
 class deserializable {
 public:
-    VSOMEIP_EXPORT virtual ~deserializable() { }
-    VSOMEIP_EXPORT virtual bool deserialize(deserializer* _from) = 0;
+    virtual ~deserializable() { }
+    virtual bool deserialize(deserializer* _from) = 0;
 };
 
 } // namespace vsomeip_v3

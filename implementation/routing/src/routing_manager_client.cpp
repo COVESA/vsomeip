@@ -40,7 +40,6 @@
 #include "../../protocol/include/command_types.hpp"
 #include "../../protocol/include/serialize.hpp"
 #include "../../protocol/include/logging.hpp"
-#include "../../service_discovery/include/runtime.hpp"
 #include "../../security/include/policy.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"

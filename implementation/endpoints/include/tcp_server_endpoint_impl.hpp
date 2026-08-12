@@ -9,7 +9,6 @@
 #include <memory>
 
 #include <vsomeip/defines.hpp>
-#include <vsomeip/export.hpp>
 #include "server_endpoint_impl.hpp"
 #include "auxiliary_context.hpp"
 
@@ -43,7 +42,7 @@ public:
     void get_configured_times_from_endpoint(service_t _service, method_t _method, std::chrono::nanoseconds* _debouncing,
                                             std::chrono::nanoseconds* _maximum_retention) const;
 
-    VSOMEIP_EXPORT bool is_established_to(const std::shared_ptr<endpoint_definition>& _endpoint);
+    bool is_established_to(const std::shared_ptr<endpoint_definition>& _endpoint);
 
     bool get_default_target(service_t, endpoint_type&) const;
 

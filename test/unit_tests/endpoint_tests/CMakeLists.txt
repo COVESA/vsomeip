@@ -30,7 +30,6 @@ target_link_libraries(
     gtest
     gmock
     ${VSOMEIP_NAME}-test
-    ${VSOMEIP_NAME}-cfg-test
     ${Boost_LIBRARIES}
     vsomeip_utilities
 )
