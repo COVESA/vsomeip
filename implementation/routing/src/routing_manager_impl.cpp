@@ -2733,7 +2733,10 @@ routing_state_e routing_manager_impl::get_routing_state() {
 
 void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
     std::scoped_lock its_lock(mutex_);
+    set_routing_state_unlocked(_routing_state);
+}
 
+void routing_manager_impl::set_routing_state_unlocked(routing_state_e _routing_state) {
     if (routing_state_ == _routing_state) {
         VSOMEIP_INFO_P << "No routing state change --> do nothing.";
         return;
@@ -2949,43 +2952,35 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(bool _is_inte
         }
     };
 
-    bool switch_to_resumed = false;
-
-    {
-        std::scoped_lock its_lock(mutex_);
-        if (_is_interface) {
-            if (_available != if_state_running_) {
-                log_change_message(_available);
-            }
-            if_state_running_ = _available;
-            // When the interface goes down the sd route is also lost
-            if (!if_state_running_ && configuration_->get_sd_wait_route_netlink_notification()) {
-                sd_route_set_ = false;
-            }
-        } else {
-            if (_available != sd_route_set_) {
-                log_change_message(_available);
-            }
-            sd_route_set_ = _available;
+    std::scoped_lock its_lock(mutex_);
+    if (_is_interface) {
+        if (_available != if_state_running_) {
+            log_change_message(_available);
         }
-
-        if (is_external_routing_ready()) {
-            if (!routing_running_) {
-                start_ip_routing();
-            }
-
-            auto its_routing_state{get_routing_state()};
-            if (its_routing_state == routing_state_e::RS_DELAYED_RESUME) {
-                switch_to_resumed = true;
-            } else if (its_routing_state != routing_state_e::RS_SUSPENDED) {
-                init_pending_services();
-                VSOMEIP_INFO << VSOMEIP_EXTERNAL_ROUTING_READY_MESSAGE;
-            }
+        if_state_running_ = _available;
+        // When the interface goes down the sd route is also lost
+        if (!if_state_running_ && configuration_->get_sd_wait_route_netlink_notification()) {
+            sd_route_set_ = false;
         }
+    } else {
+        if (_available != sd_route_set_) {
+            log_change_message(_available);
+        }
+        sd_route_set_ = _available;
     }
 
-    if (switch_to_resumed) {
-        set_routing_state(routing_state_e::RS_RESUMED);
+    if (is_external_routing_ready()) {
+        if (!routing_running_) {
+            start_ip_routing();
+        }
+
+        auto its_routing_state{get_routing_state()};
+        if (its_routing_state == routing_state_e::RS_DELAYED_RESUME) {
+            set_routing_state_unlocked(routing_state_e::RS_RESUMED);
+        } else if (its_routing_state != routing_state_e::RS_SUSPENDED) {
+            init_pending_services();
+            VSOMEIP_INFO << VSOMEIP_EXTERNAL_ROUTING_READY_MESSAGE;
+        }
     }
 }
 

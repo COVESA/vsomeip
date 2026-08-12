@@ -263,6 +263,9 @@ public:
     void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
 private:
+    // Assumes mutex_ is already held by the caller.
+    void set_routing_state_unlocked(routing_state_e _routing_state);
+
     bool is_locally_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
     [[nodiscard]] bool is_local_client(client_t _client) const;
