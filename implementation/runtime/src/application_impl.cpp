@@ -1033,8 +1033,11 @@ void application_impl::offer_event(service_t _service, instance_t _instance, eve
 
             configuration_->get_event_update_properties(_service, _instance, _notifier, _cycle, _change_resets_cycle, _update_on_change);
 
-            VSOMEIP_INFO_P << "Event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier)
-                           << "] uses configured cycle time " << _cycle.count() << "ms";
+            // only interesting if it's a non-zero cycle time, since this causes load
+            if (_cycle != std::chrono::milliseconds::zero()) {
+                VSOMEIP_WARNING_P << "Event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier)
+                                  << "] uses configured cycle time " << _cycle.count() << "ms";
+            }
         }
 
         routing_->register_event(client_, _service, _instance, _notifier, _eventgroups, _type, _reliability, _cycle, _change_resets_cycle,

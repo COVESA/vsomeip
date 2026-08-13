@@ -365,9 +365,6 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
             if (!configuration_->is_local_service(_service, _instance)) {
                 // Non local service instance ~> tell SD to find it!
                 discovery_->request_service(_service, _instance, _major, _minor, DEFAULT_TTL);
-            } else {
-                VSOMEIP_INFO << "Avoid trigger SD find-service message for local service/instance/major/minor: " << hex4(_service) << "/"
-                             << hex4(_instance) << "/" << static_cast<int>(_major) << "/" << _minor;
             }
         }
     } else {
