@@ -6,7 +6,6 @@
 #pragma once
 
 #define VSOMEIP_TC_DEFAULT_CHANNEL_NAME             "Trace Connector Network Logging"
-#define VSOMEIP_TC_DEFAULT_FILTER_TYPE              "positive"
 
 // Payloads larger than this (in bytes) are logged header-only unless an
 // explicit positive filter forces full logging. 0 disables the threshold.

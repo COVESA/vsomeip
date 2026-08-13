@@ -37,11 +37,9 @@ namespace vsomeip = vsomeip_v3;
 #define EXPECTED_ROUTING_MANAGER_HOST "my_application"
 
 // Logging
-#define EXPECTED_VERSION_LOGGING_ENABLED false
 #define EXPECTED_VERSION_LOGGING_INTERVAL 15
 
 // Request debounce time
-#define EXPECTED_DEFAULT_REQUEST_DEBOUNCE_TIME 10
 #define EXPECTED_GLOBAL_REQUEST_DEBOUNCE_TIME 33
 
 // Application

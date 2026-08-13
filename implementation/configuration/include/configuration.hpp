@@ -31,8 +31,6 @@
 
 #include "../../security/include/policy.hpp"
 
-#define VSOMEIP_CONFIG_PLUGIN_VERSION              1
-
 namespace vsomeip_v3 {
 
 class policy_manager_impl;

@@ -8,8 +8,6 @@
 #include <string>
 #include <memory>
 
-#define VSOMEIP_CONFIG_PLUGIN_VERSION              1
-
 namespace vsomeip_v3 {
 
 class configuration;
