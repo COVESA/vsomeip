@@ -172,13 +172,6 @@ if (ENABLE_COMPAT)
     message(FATAL "ENABLE_COMPAT is no longer supported, please remove this option")
 endif ()
 
-# Multiple routing managers
-if (ENABLE_MULTIPLE_ROUTING_MANAGERS)
-set (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS 1)
-else ()
-set (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS 0)
-endif ()
-
 # Security / Policy handling
 if (DISABLE_SECURITY)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_DISABLE_SECURITY")
@@ -252,11 +245,6 @@ else ()
         MESSAGE(STATUS "Systemd was not found, socket activation disabled")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
     endif(NOT SystemD_FOUND)
-endif ()
-
-# Multiple routing managers
-if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS")
 endif ()
 
 ################################################################################

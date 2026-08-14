@@ -28,12 +28,8 @@
 #include "../include/application_impl.hpp"
 #include "../include/runtime_impl.hpp"
 #include "../include/routing_application.hpp"
-#ifdef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-#include "../../configuration/include/configuration_impl.hpp"
-#else
 #include "../../configuration/include/configuration.hpp"
 #include "../../configuration/include/configuration_plugin_impl.hpp"
-#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 #include "../../plugin/include/plugin_manager_impl.hpp"
 #include "../../endpoints/include/boardnet_endpoint.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
@@ -89,17 +85,8 @@ bool application_impl::init() {
     // load configuration from module
 
     // load default module
-#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
     configuration_ = configuration_plugin_impl::get()->get_configuration(name_, path_);
     VSOMEIP_INFO << "Configuration module loaded.";
-#else
-    configuration_ = std::dynamic_pointer_cast<configuration>(std::make_shared<vsomeip_v3::cfg::configuration_impl>(configuration_path));
-    if (configuration_path.length()) {
-        configuration_->set_configuration_path(configuration_path);
-    }
-    configuration_->load(name_);
-    VSOMEIP_INFO << "Configuration loaded with Multiple Routing Managers ENABLED.";
-#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 
     // Elect the routing host before init() queries the configuration: load()
     // parsed the mandatory files only, and the optional pass can still change
@@ -1151,14 +1138,10 @@ bool application_impl::determine_routing_host() {
     if (its_routing_host != "") {
         is_routing_manager_host_ = (its_routing_host == name_);
         if (is_routing_manager_host_ && !utility::is_routing_manager(configuration_->get_network())) {
-#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
             VSOMEIP_ERROR << "Application: " << name_
                           << " configured as routing but other routing manager present. Won't instantiate routing";
             is_routing_manager_host_ = false;
             return false;
-#else
-            is_routing_manager_host_ = true;
-#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
         }
     } else {
         auto its_routing_address = configuration_->get_routing_host_address();
