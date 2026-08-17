@@ -3,11 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #include <csignal>
 #if defined(__linux__) || defined(__QNX__)
 #include <pthread.h>
-#endif
 #endif
 #include <chrono>
 #include <condition_variable>
@@ -350,7 +348,6 @@ static bool use_tcp;
 TEST(someip_subscribe_notify_test_one_event_two_eventgroups, subscribe_to_service) {
     subscribe_notify_test_one_event_two_eventgroups_client its_client(subscribe_notify_test::service_info_subscriber_based_notification,
                                                                       use_tcp);
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #if defined(__linux__) || defined(__QNX__)
     sigset_t its_signals;
     sigemptyset(&its_signals);
@@ -358,9 +355,7 @@ TEST(someip_subscribe_notify_test_one_event_two_eventgroups, subscribe_to_servic
     sigaddset(&its_signals, SIGTERM);
     pthread_sigmask(SIG_BLOCK, &its_signals, nullptr);
 #endif
-#endif
     if (its_client.init()) {
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #if defined(__linux__) || defined(__QNX__)
         std::thread signal_watcher([&its_client]() {
             sigset_t its_wait_set;
@@ -377,15 +372,12 @@ TEST(someip_subscribe_notify_test_one_event_two_eventgroups, subscribe_to_servic
             }
         });
 #endif
-#endif
         its_client.start();
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #if defined(__linux__) || defined(__QNX__)
         if (signal_watcher.joinable()) {
             pthread_cancel(signal_watcher.native_handle());
             signal_watcher.join();
         }
-#endif
 #endif
     }
 }

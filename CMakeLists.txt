@@ -118,11 +118,6 @@ else ()
 set (VSOMEIP_ENABLE_DLT 1)
 endif ()
 
-# Signal handling
-if (ENABLE_SIGNAL_HANDLING)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_SIGNAL_HANDLING")
-endif ()
-
 if (NOT MSVC)
     # Sanitizers
     if (ENABLE_SANITIZERS)

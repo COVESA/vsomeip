@@ -3,11 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #include <csignal>
 #if defined(__linux__) || defined(__QNX__)
 #include <pthread.h>
-#endif
 #endif
 #include <chrono>
 #include <condition_variable>
@@ -179,7 +177,6 @@ int main(int argc, char** argv) {
         i++;
     }
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #if defined(__linux__) || defined(__QNX__)
     sigset_t its_signals;
     sigemptyset(&its_signals);
@@ -187,11 +184,9 @@ int main(int argc, char** argv) {
     sigaddset(&its_signals, SIGTERM);
     pthread_sigmask(SIG_BLOCK, &its_signals, nullptr);
 #endif
-#endif
 
     client_sample its_sample(use_tcp, be_quiet, cycle);
     if (its_sample.init()) {
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #if defined(__linux__) || defined(__QNX__)
         std::thread signal_watcher([&its_sample]() {
             sigset_t its_wait_set;
@@ -208,17 +203,11 @@ int main(int argc, char** argv) {
             }
         });
 #endif
-#endif
         its_sample.start();
-#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-        its_sample.stop();
-#endif
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #if defined(__linux__) || defined(__QNX__)
         if (signal_watcher.joinable()) {
             signal_watcher.join();
         }
-#endif
 #endif
         return 0;
     } else {

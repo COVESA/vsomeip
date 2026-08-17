@@ -385,11 +385,6 @@ private:
     service_instance_map<std::map<eventgroup_t, std::pair<subscription_handler_sec_t, async_subscription_handler_sec_t>>> subscription_;
     mutable std::mutex subscription_mutex_;
 
-#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    // Signals
-    boost::asio::signal_set signals_;
-#endif
-
     // Handlers
     mutable std::deque<std::shared_ptr<sync_handler>> handlers_;
     service_instance_map<std::deque<std::shared_ptr<sync_handler>>> availability_handlers_;

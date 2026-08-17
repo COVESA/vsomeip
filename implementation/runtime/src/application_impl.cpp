@@ -54,9 +54,6 @@ application_impl::application_impl(const std::string& _name, const std::string& 
     start_thread_{0},
 #endif
     work_(io_.get_executor()), routing_{nullptr}, state_{state_type_e::ST_DEREGISTERED}, security_mode_{security_mode_e::SM_ON},
-#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    signals_{io_, SIGINT, SIGTERM},
-#endif
     is_dispatching_{false}, max_dispatchers_{VSOMEIP_DEFAULT_MAX_DISPATCHERS}, max_dispatch_time_{VSOMEIP_DEFAULT_MAX_DISPATCH_TIME},
     stopping_{false}, is_routing_manager_host_{false}, watchdog_timer_{io_}, client_side_logging_{false}, has_session_handling_{true} {
 }
@@ -220,28 +217,6 @@ bool application_impl::init() {
 
         is_initialized_ = true;
     }
-
-#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    if (is_initialized_) {
-        signals_.add(SIGINT);
-        signals_.add(SIGTERM);
-
-        // Register signal handler
-        auto its_signal_handler = [this](boost::system::error_code const& _error, int _signal) {
-            if (!_error) {
-                switch (_signal) {
-                case SIGTERM:
-                case SIGINT:
-                    stop();
-                    break;
-                default:
-                    break;
-                }
-            }
-        };
-        signals_.async_wait(its_signal_handler);
-    }
-#endif
 
     if (configuration_) {
         auto its_plugins = configuration_->get_plugins(name_);

@@ -26,8 +26,9 @@ static std::shared_ptr<vsomeip::application> its_application;
  */
 int routingmanagerd_process(bool _is_quiet) {
 #ifdef USE_DLT
-    if (!_is_quiet)
+    if (!_is_quiet) {
         DLT_REGISTER_APP(VSOMEIP_LOG_DEFAULT_APPLICATION_ID, VSOMEIP_LOG_DEFAULT_APPLICATION_NAME);
+    }
 #else
     (void)_is_quiet;
 #endif
@@ -44,8 +45,6 @@ int routingmanagerd_process(bool _is_quiet) {
         its_application.reset();
         return -1;
     }
-
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 
     auto signal_worker_fn = []() {
 #if defined(__linux__) || defined(__QNX__)
@@ -78,11 +77,9 @@ int routingmanagerd_process(bool _is_quiet) {
     };
 
     std::thread sighandler_thread(signal_worker_fn);
-#endif
 
     if (its_application->is_routing()) {
         its_application->start();
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
         if (std::this_thread::get_id() != sighandler_thread.get_id()) {
             if (sighandler_thread.joinable()) {
                 sighandler_thread.join();
@@ -90,13 +87,11 @@ int routingmanagerd_process(bool _is_quiet) {
         } else {
             sighandler_thread.detach();
         }
-#endif
         its_application.reset();
         return 0;
     }
     VSOMEIP_ERROR << "routingmanagerd has not been configured as routing - abort";
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
     if (std::this_thread::get_id() != sighandler_thread.get_id()) {
         if (sighandler_thread.joinable()) {
             sighandler_thread.join();
@@ -104,7 +99,6 @@ int routingmanagerd_process(bool _is_quiet) {
     } else {
         sighandler_thread.detach();
     }
-#endif
     its_application.reset();
     return -1;
 }
@@ -118,12 +112,10 @@ int routingmanagerd_process(bool _is_quiet) {
  * and start processing.
  */
 int main(int argc, char** argv) {
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
     // Block all signals
     sigset_t mask;
     sigfillset(&mask);
     sigprocmask(SIG_SETMASK, &mask, NULL);
-#endif
     bool must_daemonize(false);
     bool is_quiet(false);
     if (argc > 1) {

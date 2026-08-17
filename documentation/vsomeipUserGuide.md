@@ -127,16 +127,6 @@ cmake -DIPC_PORT_WAIT_TIME=50 -DIPC_PORT_MAX_WAIT_TIME=2000 ..
 The `default values are a wait time of 100ms` and a `maximum wait time of 10000ms`.
 These configurations have no effect if local communication uses UDS (default).
 
-### Compilation with signal handling
-
-To compile vsomeip with signal handling (SIGINT/SIGTERM) enabled, call cmake like:
-
-```bash
-cmake -DENABLE_SIGNAL_HANDLING=1 ..
-```
-
-In the default setting, the application has to take care of shutting down vsomeip in case these signals are received.
-
 ### Compilation with user defined "READY" message
 
 To compile vsomeip with a user defined message signal the IP routing to be ready to send/receive messages, call cmake like:
@@ -175,15 +165,13 @@ There are two cmake variables which are used to automatically adapt the json fil
 
 If one of this variables isn't specified, only the tests using local communication exclusively will be runnable.
 
-Additionally the unit tests require enabled signal handling which can be enabled via the `ENABLE_SIGNAL_HANDLING` cmake variable.
-
 **Example, compilation of tests**:
 
 ```bash
 mkdir build
 cd build
 export GTEST_ROOT=$PATH_TO_GTEST/gtest-1.7.0/
-cmake -DENABLE_SIGNAL_HANDLING=1 -DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125 ..
+cmake -DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125 ..
 make check
 ```
 

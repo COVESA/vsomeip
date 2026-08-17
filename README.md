@@ -81,15 +81,6 @@ cmake -DDEFAULT_CONFIGURATION_FILE=<DEFAULT CONFIGURATION FILE> ..
 ```
 The default configuration file is `/etc/vsomeip.json`.
 
-###### Compilation with signal handling
-
-To compile vSomeIP with signal handling (SIGINT/SIGTERM) enabled, call cmake like:
-```bash
-cmake -DENABLE_SIGNAL_HANDLING=1 ..
-```
-In the default setting, the application has to take care of shutting down vSomeIP in case these signals are received.
-
-
 ##### Build Instructions for Android
 
 ###### Dependencies
