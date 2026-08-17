@@ -189,10 +189,11 @@ void fake_tcp_socket_handle::delay_sending(bool _delay) {
 }
 
 void fake_tcp_socket_handle::set_ignore_nothing_to_read_from(bool _ignore) {
+    std::shared_ptr<fake_tcp_socket_handle> remote; // beware: cannot call destructor while holding `mtx`
     auto const lock = std::scoped_lock(mtx_);
     TEST_LOG << "[fake-socket] setting ignore_nothing_to_read_from: " << (_ignore ? "true" : "false") << " on: " << socket_id_;
     ignore_nothing_to_read_from_ = _ignore;
-    if (auto remote = connected_socket_.lock(); !remote && !ignore_nothing_to_read_from_ && receptor_) {
+    if (remote = connected_socket_.lock(); !remote && !ignore_nothing_to_read_from_ && receptor_) {
         TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
         boost::asio::post(io_, [handler = std::move(receptor_->handler_)] { handler(boost::asio::error::connection_reset, 0); });
         // safe to do under the lock, because the handler is already empty and will be destructed after being called on one of the io
@@ -277,11 +278,12 @@ void fake_tcp_socket_handle::clear_handler() {
 }
 
 [[nodiscard]] bool fake_tcp_socket_handle::add_connection(fake_tcp_socket_handle& _connecting) {
+    std::shared_ptr<fake_tcp_socket_handle> remote; // beware: cannot call destructor while holding `mtx`
     // to avoid race-conditions + dead-locks, ensure that both sockets are not altered for the time
     // being. (if one lock is acquired in the stack before acquiring the second lock later, the
     // inverse locking might lead to a dead-lock)
     auto const lock = std::scoped_lock(mtx_, _connecting.mtx_);
-    if (auto connected = connected_socket_.lock(); connected) {
+    if (remote = connected_socket_.lock(); remote) {
         return false;
     }
 
@@ -407,6 +409,7 @@ size_t fake_tcp_socket_handle::held_boardnet_completion_count() const {
 }
 
 void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, rw_handler _handler) {
+    std::shared_ptr<fake_tcp_socket_handle> remote; // beware: cannot call destructor while holding `mtx`
     auto const lock = std::scoped_lock(mtx_);
     if (stashed_ec_) {
         TEST_LOG << "[fake-socket] Injecting on: " << socket_id_ << ", the stashed error: " << stashed_ec_->message();
@@ -414,7 +417,7 @@ void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, 
         stashed_ec_ = std::nullopt;
         return;
     }
-    if (auto remote = connected_socket_.lock(); !remote && pipe_->size() == 0 && !ignore_nothing_to_read_from_) {
+    if (remote = connected_socket_.lock(); !remote && pipe_->size() == 0 && !ignore_nothing_to_read_from_) {
         TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
         boost::asio::post(io_, [handler = std::move(_handler)] { handler(boost::asio::error::connection_reset, 0); });
         return;

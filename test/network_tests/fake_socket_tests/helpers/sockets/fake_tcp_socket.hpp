@@ -120,27 +120,29 @@ private:
     [[nodiscard]] bool can_read_fd_flags() override { return true; }
 #endif
 
-    virtual void async_connect(boost::asio::ip::tcp::endpoint const& _ep, connect_handler handler) override {
-        state_->connect(_ep, std::move(handler));
+    virtual void async_connect(boost::asio::ip::tcp::endpoint const& _ep, connect_handler _handler) override {
+        auto state = state_;
+        state_->connect(_ep, [f = std::move(_handler), state](auto const& _ec) { f(_ec); });
     }
 
     virtual void async_receive(boost::asio::mutable_buffer _buffer, rw_handler _handler) override {
-        state_->async_receive(std::move(_buffer), std::move(_handler));
+        auto state = state_;
+        state_->async_receive(std::move(_buffer), [f = std::move(_handler), state](auto const& _ec, size_t _bytes) { f(_ec, _bytes); });
     }
 
     virtual void async_write(std::vector<boost::asio::const_buffer> const& _buffer, rw_handler _handler) override {
-        state_->write(_buffer, std::move(_handler));
+        auto state = state_;
+        state_->write(_buffer, [f = std::move(_handler), state](auto const& _ec, size_t _bytes) { f(_ec, _bytes); });
     }
 
     virtual void async_write(boost::asio::const_buffer const& _buffer, completion_condition _cc, rw_handler _handler) override {
-
-        auto rw_handler = [cc = std::move(_cc), rw = std::move(_handler), state = state_](boost::system::error_code const& ec,
-                                                                                          size_t size) {
-            auto value = cc(ec, size);
+        auto state = state_;
+        auto rw_handler = [cc = std::move(_cc), rw = std::move(_handler), state](boost::system::error_code const& _ec, size_t _bytes) {
+            auto value = cc(_ec, _bytes);
             if (value != 0) {
                 throw std::runtime_error("fake_tcp_socket::async_write: completion condition did not return 0!");
             }
-            boost::asio::post(state->io_, [rw = std::move(rw), ec, size] { rw(ec, size); });
+            boost::asio::post(state->io_, [rw = std::move(rw), _ec, _bytes] { rw(_ec, _bytes); });
         };
 
         state_->write_boardnet(_buffer, std::move(rw_handler));
@@ -226,8 +228,9 @@ private:
     // (add_connection() runs synchronously before posting the handler), so reading it from
     // the socket handle is always valid — there is no real-network disconnect race to guard against.
     virtual void async_accept(tcp_socket& socket, boost::asio::ip::tcp::endpoint& peer_ep, connect_handler handler) override {
+        auto state = state_;
         auto* socket_impl = dynamic_cast<fake_tcp_socket*>(&socket);
-        state_->async_accept(socket, [socket_impl, &peer_ep, h = std::move(handler)](boost::system::error_code ec) mutable {
+        state_->async_accept(socket, [socket_impl, &peer_ep, h = std::move(handler), state](boost::system::error_code ec) mutable {
             if (!ec && socket_impl) {
                 peer_ep = socket_impl->state_->remote_endpoint();
             }
