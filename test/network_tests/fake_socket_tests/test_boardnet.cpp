@@ -2682,4 +2682,108 @@ TEST_F(two_providers_one_consumer, second_provider_offer_does_not_retrigger_subs
     EXPECT_TRUE(loser_got_subscriber.wait_for_any(true, std::chrono::seconds(10)))
             << "The other server never received the subscription after the subscribed provider stopped offering.";
 }
+
+// ecu_three's routing manager reuses ecu_one's client id — the SIP_RPC_701 violation seen in the field.
+inline ecu_config colliding_consumer_config() {
+    ecu_config cfg{boardnet::ecu_three_config};
+    cfg.apps_ = {application_config{"router_three", 0x6310}};
+    return cfg;
+}
+
+// Two consumer ECUs sharing a client id, one provider ECU. The provider resolves the response target
+// from the SOME/IP header alone (server_endpoint_impl::to_clients_key -> service|method|client), which
+// is identical for both consumers, so the second request overwrites the first one's target.
+struct response_target_collision : public base_fake_socket_fixture {
+    ecu_setup provider_ecu_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
+    ecu_setup consumer_a_ecu_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
+    ecu_setup consumer_b_ecu_{"ecu_three", colliding_consumer_config(), *socket_manager_};
+
+    app* provider_{};
+    app* consumer_a_{};
+    app* consumer_b_{};
+
+    interface const service_ = interfaces::boardnet::service_3344;
+
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    std::vector<std::shared_ptr<vsomeip::message>> pending_requests_;
+
+    void start_ecus() {
+        provider_ecu_.prepare();
+        consumer_a_ecu_.prepare();
+        consumer_b_ecu_.prepare();
+
+        provider_ecu_.start_router();
+        consumer_a_ecu_.start_router();
+        consumer_b_ecu_.start_router();
+
+        provider_ = provider_ecu_.router_;
+        consumer_a_ = consumer_a_ecu_.router_;
+        consumer_b_ = consumer_b_ecu_.router_;
+
+        // Park requests instead of answering them: both must be outstanding before the first
+        // response is sent, otherwise the target map still holds the right entry when consulted.
+        provider_->get_application()->register_message_handler(service_.instance_.service_, service_.instance_.instance_, TEST_METHOD,
+                                                               [this](std::shared_ptr<vsomeip::message> const& _request) {
+                                                                   std::scoped_lock its_lock{mutex_};
+                                                                   pending_requests_.push_back(_request);
+                                                                   cv_.notify_all();
+                                                               });
+    }
+
+    [[nodiscard]] bool await_pending_requests(size_t _count) {
+        std::unique_lock its_lock{mutex_};
+        return cv_.wait_for(its_lock, common::scaled_timeout(std::chrono::seconds(3)), [&] { return pending_requests_.size() >= _count; });
+    }
+
+    // Echoes the request payload back so every response is attributable to its requester.
+    void answer_pending_requests() {
+        std::scoped_lock its_lock{mutex_};
+        for (auto const& its_request : pending_requests_) {
+            auto its_response = vsomeip::runtime::get()->create_response(its_request);
+            its_response->set_payload(vsomeip::runtime::get()->create_payload(its_request->get_payload()->get_data(),
+                                                                              its_request->get_payload()->get_length()));
+            provider_->get_application()->send(its_response);
+        }
+    }
+};
+
+TEST_F(response_target_collision, each_consumer_receives_only_its_own_response) {
+    // SIP_RPC_701: Client ID must be unique vehicle-wide (e.g. via a configurable prefix), not
+    // just ECU-local, so it alone can key a response's target - which the collision here violates.
+    GTEST_SKIP() << "This test is known to fail due to SIP_RPC_701 violation;";
+    start_ecus();
+
+    provider_->offer(service_);
+
+    for (auto* its_consumer : {consumer_a_, consumer_b_}) {
+        its_consumer->request_service(service_.instance_);
+        ASSERT_TRUE(its_consumer->availability_record_.wait_for_last(service_availability::available(service_.instance_)))
+                << "Consumer never saw the service become available.";
+    }
+
+    ASSERT_EQ(consumer_a_->get_client_id(), consumer_b_->get_client_id()) << "Both consumers must share a client id for this test.";
+
+    std::vector<unsigned char> const payload_a{0xA1};
+    std::vector<unsigned char> const payload_b{0xB2};
+
+    consumer_a_->send_request({service_.instance_, TEST_METHOD, vsomeip::message_type_e::MT_REQUEST, false /* UDP */, payload_a});
+    consumer_b_->send_request({service_.instance_, TEST_METHOD, vsomeip::message_type_e::MT_REQUEST, false /* UDP */, payload_b});
+
+    ASSERT_TRUE(await_pending_requests(2)) << "The provider did not receive both requests.";
+    answer_pending_requests();
+
+    message_checker const response_a{std::nullopt, service_.instance_, TEST_METHOD, vsomeip::message_type_e::MT_RESPONSE, payload_a};
+    message_checker const response_b{std::nullopt, service_.instance_, TEST_METHOD, vsomeip::message_type_e::MT_RESPONSE, payload_b};
+
+    EXPECT_TRUE(consumer_a_->message_record_.wait_for(response_a))
+            << "Consumer A never got its response.\nRecord: " << consumer_a_->message_record_;
+    EXPECT_TRUE(consumer_b_->message_record_.wait_for(response_b))
+            << "Consumer B never got its response.\nRecord: " << consumer_b_->message_record_;
+
+    EXPECT_FALSE(consumer_a_->message_record_.wait_for(response_b, std::chrono::milliseconds(500)))
+            << "Consumer A received the response addressed to consumer B.";
+    EXPECT_FALSE(consumer_b_->message_record_.wait_for(response_a, std::chrono::milliseconds(500)))
+            << "Consumer B received the response addressed to consumer A.";
+}
 }
