@@ -292,7 +292,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
         return false;
     }
 
-    {
+    if (configuration_->is_offered_remote(_service, _instance)) {
         // mutex_ locked.
         // Search the time-point-keyed map for an entry matching this service instance.
         const service_instance_t si{_service, _instance};
@@ -1286,7 +1286,8 @@ void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, serv
         del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
 
         if (discovery_) {
-            if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
+            if (its_info->get_major() == _major && its_info->get_minor() == _minor
+                && configuration_->is_offered_remote(_service, _instance)) {
                 if (!is_suspended()) {
                     service_instance_t si{_service, _instance};
                     // Remove any existing entry for this service (stale window from a prior stop-offer).
