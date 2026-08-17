@@ -54,9 +54,12 @@ routing_manager_stub::~routing_manager_stub() { }
 std::string routing_manager_stub::get_client_info(client_t _client) const {
     std::stringstream its_info;
     its_info << "[" << hex4(_client) << ", '" << utility::get_client_name(configuration_, _client) << "'";
-    if (vsomeip_sec_client_t its_sec_client;
-        get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client) && its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
-        its_info << ", uid " << its_sec_client.user;
+    if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
+        if (auto const its_sec_client = its_endpoint->get_sec_client(); its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
+            its_info << ", uid " << its_sec_client.user;
+        } else {
+            its_info << ", " << its_endpoint->peer_endpoint();
+        }
     }
     its_info << "]";
     return its_info.str();
@@ -574,14 +577,11 @@ void routing_manager_stub::on_register_application(client_t _client, const boost
 #ifndef VSOMEIP_DISABLE_SECURITY
     // distribute updated security config to new clients
     send_cached_security_policies(_client);
-    vsomeip_sec_client_t its_sec_client{};
     if (configuration_->is_local_routing()) {
         std::set<std::shared_ptr<policy>> its_policies;
-
-        bool has_mapping = get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
-        if (has_mapping) {
-            if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
-                get_requester_policies(its_sec_client.user, its_sec_client.group, its_policies);
+        if (auto const its_sec_client = find_sec_client(_client); its_sec_client) {
+            if (its_sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
+                get_requester_policies(its_sec_client->user, its_sec_client->group, its_policies);
             }
 
             if (!its_policies.empty()) {
@@ -714,18 +714,15 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
     std::set<client_t> its_requesting_clients = host_->collect_requesters(_service, _instance, ANY_MAJOR);
 
     // search for UID / GID linked with the client ID that offers the requested services
-    vsomeip_sec_client_t its_sec_client;
-    if (get_policy_manager()->get_client_to_sec_client_mapping(_hoster, its_sec_client)) {
+    if (auto const its_sec_client = find_sec_client(_hoster); its_sec_client) {
         std::pair<uid_t, gid_t> its_uid_gid;
-        its_uid_gid.first = its_sec_client.user;
-        its_uid_gid.second = its_sec_client.group;
+        its_uid_gid.first = its_sec_client->user;
+        its_uid_gid.second = its_sec_client->group;
         its_credentials.insert(its_uid_gid);
         for (auto its_requesting_client : its_requesting_clients) {
-            vsomeip_sec_client_t its_requester_sec_client;
-            if (get_policy_manager()->get_client_to_sec_client_mapping(its_requesting_client, its_requester_sec_client)) {
-                if (!utility::compare(its_sec_client, its_requester_sec_client)) {
-                    send_client_credentials(its_requesting_client, its_credentials);
-                }
+            auto const its_requester_sec_client = find_sec_client(its_requesting_client);
+            if (its_requester_sec_client && !utility::compare(*its_sec_client, *its_requester_sec_client)) {
+                send_client_credentials(its_requesting_client, its_credentials);
             }
         }
     }
@@ -910,7 +907,6 @@ bool routing_manager_stub::is_registered(client_t _client) const {
 }
 
 void routing_manager_stub::deregister_client(client_t _client) {
-    get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     VSOMEIP_INFO << "Application/Client " << hex4(_client) << " is deregistering";
     on_deregister_application(_client);
     remove_from_pinged_clients(_client);
@@ -929,8 +925,7 @@ void routing_manager_stub::handle_credentials(const client_t _client, std::set<p
 
     std::scoped_lock its_guard{routing_info_mutex_};
     std::set<std::pair<uid_t, gid_t>> its_credentials;
-    vsomeip_sec_client_t its_requester_sec_client;
-    if (get_policy_manager()->get_client_to_sec_client_mapping(_client, its_requester_sec_client)) {
+    if (auto const its_requester_sec_client = find_sec_client(_client); its_requester_sec_client) {
         // determine credentials of offering clients using current routing info
         std::set<client_t> its_offering_clients;
 
@@ -946,12 +941,10 @@ void routing_manager_stub::handle_credentials(const client_t _client, std::set<p
 
         // search for UID / GID linked with the client ID that offers the requested services
         for (auto its_offering_client : its_offering_clients) {
-            vsomeip_sec_client_t its_sec_client;
-            if (get_policy_manager()->get_client_to_sec_client_mapping(its_offering_client, its_sec_client)) {
-                if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED && !utility::compare(its_sec_client, its_requester_sec_client)) {
-
-                    its_credentials.insert(std::make_pair(its_sec_client.user, its_sec_client.group));
-                }
+            auto const its_sec_client = find_sec_client(its_offering_client);
+            if (its_sec_client && its_sec_client->port == VSOMEIP_SEC_PORT_UNUSED
+                && !utility::compare(*its_sec_client, *its_requester_sec_client)) {
+                its_credentials.insert(std::make_pair(its_sec_client->user, its_sec_client->group));
             }
         }
 
@@ -1123,11 +1116,16 @@ bool routing_manager_stub::add_requester_policies(uid_t _uid, gid_t _gid, const 
         requester_policies_[_uid][_gid] = _policies;
     }
 
-    // Check whether clients with uid/gid are already registered.
+    // Check whether clients with uid/gid are already connected.
     // If yes, update their policy
     std::unordered_set<client_t> its_clients;
-    get_policy_manager()->get_clients(_uid, _gid, its_clients);
-
+    if (auto epm = host_->get_endpoint_manager(); epm) {
+        for (auto const& [its_client, its_sec_client] : epm->get_connected_clients()) {
+            if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED && its_sec_client.user == _uid && its_sec_client.group == _gid) {
+                its_clients.insert(its_client);
+            }
+        }
+    }
     if (!its_clients.empty()) {
         return send_requester_policies(its_clients, _policies);
     }
@@ -1296,9 +1294,10 @@ bool routing_manager_stub::update_security_policy_configuration(uid_t _uid, gid_
 
     // determine currently connected clients
     std::unordered_set<client_t> its_clients_to_inform;
-    auto its_epm = host_->get_endpoint_manager();
-    if (its_epm) {
-        its_clients_to_inform = its_epm->get_connected_clients();
+    if (auto its_epm = host_->get_endpoint_manager(); its_epm) {
+        for (auto const& [its_client, _] : its_epm->get_connected_clients()) {
+            its_clients_to_inform.insert(its_client);
+        }
     }
 
     // add handler
@@ -1353,9 +1352,10 @@ bool routing_manager_stub::remove_security_policy_configuration(uid_t _uid, gid_
 
             // determine currently connected clients
             std::unordered_set<client_t> its_clients_to_inform;
-            auto its_epm = host_->get_endpoint_manager();
-            if (its_epm) {
-                its_clients_to_inform = its_epm->get_connected_clients();
+            if (auto its_epm = host_->get_endpoint_manager(); its_epm) {
+                for (auto const& [its_client, _] : its_epm->get_connected_clients()) {
+                    its_clients_to_inform.insert(its_client);
+                }
             }
 
             if (!its_clients_to_inform.empty()) {
@@ -1480,6 +1480,13 @@ std::shared_ptr<local_endpoint> routing_manager_stub::find_local_routing_endpoin
         return epm->find_routing_endpoint(_client);
     }
     return nullptr;
+}
+
+std::optional<vsomeip_sec_client_t> routing_manager_stub::find_sec_client(client_t _client) const {
+    if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
+        return its_endpoint->get_sec_client();
+    }
+    return std::nullopt;
 }
 
 bool routing_manager_stub::send_local(std::shared_ptr<local_endpoint> const& _ep, std::vector<byte_t> const& _data) {

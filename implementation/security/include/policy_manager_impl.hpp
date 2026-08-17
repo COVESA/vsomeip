@@ -9,7 +9,6 @@
 #include <map>
 #include <mutex>
 #include <shared_mutex>
-#include <unordered_set>
 #include <vector>
 
 #include <boost/property_tree/ptree.hpp>
@@ -60,7 +59,6 @@ public:
     void add_security_credentials(uid_t _uid, uid_t _gid, const std::shared_ptr<policy>& _credentials_policy, client_t _client);
 
     void get_requester_policies(const std::shared_ptr<policy> _policy, std::set<std::shared_ptr<policy>>& _requesters) const;
-    void get_clients(uid_t _uid, gid_t _gid, std::unordered_set<client_t>& _clients) const;
 
     bool is_policy_extension(const std::string& _path) const;
     std::string get_policy_extension_path(const std::string& _client_host) const;
@@ -105,14 +103,6 @@ public:
                            bool _is_request_service = false) const;
     bool is_offer_allowed(const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance) const;
 
-    bool get_sec_client_to_clients_mapping(const vsomeip_sec_client_t* _sec_client, std::set<client_t>& _clients);
-    bool remove_client_to_sec_client_mapping(client_t _client);
-    void cleanup_client_to_sec_client_mappings();
-
-    bool get_client_to_sec_client_mapping(client_t _client, vsomeip_sec_client_t& _sec_client);
-    bool store_client_to_sec_client_mapping(client_t _client, const vsomeip_sec_client_t* _sec_client);
-    void store_sec_client_to_client_mapping(const vsomeip_sec_client_t* _sec_client, client_t _client);
-
 private:
 #ifdef _WIN32
 #pragma warning(push)
@@ -151,26 +141,6 @@ private:
     mutable std::mutex routing_credentials_mutex_;
     std::pair<uid_t, gid_t> routing_credentials_;
 
-    mutable std::mutex ids_mutex_;
-    std::map<client_t, vsomeip_sec_client_t> ids_;
-
-    struct vsomeip_sec_client_comparator_t {
-        bool operator()(const vsomeip_sec_client_t& _lhs, const vsomeip_sec_client_t& _rhs) const {
-            if (_lhs.port < _rhs.port) {
-                return true;
-            } else if (_lhs.port == _rhs.port) {
-                if (_lhs.port == VSOMEIP_SEC_PORT_UNUSED) {
-                    return ((_lhs.user < _rhs.user) || ((_lhs.user == _rhs.user) && (_lhs.group < _rhs.group)));
-                } else {
-                    return ((_lhs.host < _rhs.host) || ((_lhs.host == _rhs.host) && (_lhs.port < _rhs.port)));
-                }
-            }
-            return false;
-        }
-    };
-
-    mutable std::mutex sec_client_to_clients_mutex_;
-    std::map<vsomeip_sec_client_t, std::set<client_t>, vsomeip_sec_client_comparator_t> sec_client_to_clients_;
 #ifdef _WIN32
 #pragma warning(pop)
 #endif

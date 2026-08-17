@@ -1471,7 +1471,6 @@ void routing_manager_client::reconnect() {
 
     // Clean-up Phase
     //
-    get_policy_manager()->cleanup_client_to_sec_client_mappings();
     {
         std::scoped_lock its_lock(provider_mutex_);
         clear_remote_subscriptions(its_lock);
@@ -1986,10 +1985,6 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client, bool 
                 restart_sender(its_lock);
                 return;
             }
-            get_policy_manager()->store_client_to_sec_client_mapping(_client, &sec_client);
-            get_policy_manager()->store_sec_client_to_client_mapping(&sec_client, _client);
-            // TODO why is there no logic to remove this mapping
-            // when there was some problem with the registration?
 #endif
 
             if (!create_and_start_receiver(its_lock, _client)) {
@@ -2108,11 +2103,9 @@ void routing_manager_client::lazy_load(const std::string& _client_host) {
 }
 
 void routing_manager_client::remove_local_provider(client_t _client, bool _due_to_error) {
-
-    vsomeip_sec_client_t its_sec_client;
-    get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
     auto ep = ep_mgr_->find_local_server_endpoint(_client);
     std::string const env = ep ? ep->get_env() : "";
+    auto const its_sec_client = ep ? ep->get_sec_client() : vsomeip_sec_client_t{};
 
     {
         std::scoped_lock its_lock(provider_mutex_);
@@ -2134,7 +2127,6 @@ void routing_manager_client::remove_local_provider(client_t _client, bool _due_t
         // can mess up the book-keeping when checking the endpoint token
         ep_mgr_->remove_provider_endpoint(_client, _due_to_error);
     }
-    remove_sec_client_mapping_if_orphaned(_client);
 }
 
 void routing_manager_client::remove_local_consumer(client_t _client, bool _due_to_error, local_service_table& _requested_services) {
@@ -2149,17 +2141,6 @@ void routing_manager_client::remove_local_consumer(client_t _client, bool _due_t
             on_stop_offer_service(its_service, its_instance, its_major, its_minor, true, its_lock);
         }
         remove_consumer(_client, _due_to_error, its_lock);
-    }
-    remove_sec_client_mapping_if_orphaned(_client);
-}
-
-void routing_manager_client::remove_sec_client_mapping_if_orphaned(client_t _client) {
-    // No role mutex is held here; each lookup takes and releases its own lock (endpoint-manager mtx_ then consumer_mutex_), never
-    // simultaneously.
-    const bool has_any_local_connection = ep_mgr_->find_local_server_endpoint(_client) != nullptr // accepted provider endpoint
-            || find_consumer_ep(_client) != nullptr; // outbound consumer endpoint
-    if (!has_any_local_connection) {
-        get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     }
 }
 

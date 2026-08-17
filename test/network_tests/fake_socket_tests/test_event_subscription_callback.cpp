@@ -703,4 +703,73 @@ TEST_F(test_event_subscription_callback_boardnet, a_broken_connection_to_the_rou
     // the one send message should be the expected subscription
     EXPECT_TRUE(client_->message_record_.wait_for(field_two_checker_)) << client_->message_record_;
 }
+
+struct sec_subscription {
+    client_t client_;
+    vsomeip_sec_client_t sec_client_;
+    bool subscribed_;
+
+    [[nodiscard]] bool operator==(sec_subscription const& _rhs) const {
+        return client_ == _rhs.client_ && subscribed_ == _rhs.subscribed_ && sec_client_.user == _rhs.sec_client_.user
+                && sec_client_.group == _rhs.sec_client_.group && sec_client_.host == _rhs.sec_client_.host
+                && sec_client_.port == _rhs.sec_client_.port;
+    }
+};
+
+inline std::ostream& operator<<(std::ostream& _out, sec_subscription const& _s) {
+    return _out << "{client: 0x" << std::hex << _s.client_ << std::dec << ", uid/gid: " << _s.sec_client_.user << "/"
+                << _s.sec_client_.group << ", host: " << _s.sec_client_.host << ", port: " << _s.sec_client_.port
+                << ", subscribed: " << std::boolalpha << _s.subscribed_ << "}";
+}
+
+struct test_subscription_sec_client : public test_event_subscription_callback_local {
+    void record_subscriptions_of(event_ids const& _ei) {
+        server_->register_group_subscription_handler_sec(
+                _ei, [this](client_t _client, vsomeip_sec_client_t const* _sec_client, std::string const&, bool _subscribed) {
+                    sec_record_.record({_client, _sec_client ? *_sec_client : vsomeip_sec_client_t{}, _subscribed});
+                    return true;
+                });
+    }
+
+    /// Subscribes the client to @p _ei and returns what the server saw.
+    sec_subscription await_subscribe(event_ids const& _ei) {
+        client_->request_service(interface_.instance_);
+        client_->subscribe_field(_ei);
+        EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(_ei)));
+        EXPECT_TRUE(sec_record_.wait_for([](auto const& _r) { return !_r.empty(); })) << sec_record_;
+        return sec_record_.last().value_or(sec_subscription{});
+    }
+
+    attribute_recorder<sec_subscription> sec_record_;
+};
+
+TEST_F(test_subscription_sec_client, sec_client_is_reported_on_subscribe_and_unsubscribe) {
+    start_apps();
+    record_subscriptions_of(field_one_);
+    server_->offer(interface_);
+
+    auto const its_subscribe = await_subscribe(field_one_);
+    EXPECT_EQ(its_subscribe.client_, client_->get_client_id());
+    // local TCP peers are identified by the connection port, never by the zero-initialized default
+    EXPECT_NE(its_subscribe.sec_client_.port, VSOMEIP_SEC_PORT_UNUSED);
+
+    client_->unsubscribe_from_group(field_one_);
+    EXPECT_TRUE(sec_record_.wait_for_any(sec_subscription{its_subscribe.client_, its_subscribe.sec_client_, false})) << sec_record_;
+}
+
+TEST_F(test_subscription_sec_client, sec_client_is_reported_when_the_subscriber_connection_breaks) {
+    start_apps();
+    record_subscriptions_of(field_one_);
+    server_->offer(interface_);
+
+    auto const its_subscribe = await_subscribe(field_one_);
+    ASSERT_NE(its_subscribe.sec_client_.port, VSOMEIP_SEC_PORT_UNUSED);
+
+    // keep the client from reconnecting, so the implicit unsubscribe is the last thing the server sees
+    set_ignore_connections(server_name_, true);
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, boost::asio::error::timed_out));
+
+    // the identity must still come from the dying connection, not from a default-constructed sec_client
+    EXPECT_TRUE(sec_record_.wait_for_any(sec_subscription{its_subscribe.client_, its_subscribe.sec_client_, false})) << sec_record_;
+}
 }

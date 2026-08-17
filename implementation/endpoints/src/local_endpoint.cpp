@@ -625,11 +625,7 @@ bool local_endpoint::is_allowed() {
                             << "/" << peer_data_.sec_client_.group;
             return end();
         }
-    } else {
-        its_pm->store_client_to_sec_client_mapping(peer_data_.id_, &peer_data_.sec_client_);
-        its_pm->store_sec_client_to_client_mapping(&peer_data_.sec_client_, peer_data_.id_);
     }
-
     // For UDS clients that advertised a routing address/port in assign_client_command,
     // verify the claimed port falls within the range configured for their uid/gid.
     // Without this check, any local process could claim an arbitrary TCP endpoint

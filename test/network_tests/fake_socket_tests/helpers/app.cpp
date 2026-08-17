@@ -147,6 +147,11 @@ void app::register_group_subscription_handler(event_ids const& _ei, subscription
     app_->register_subscription_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _handler);
 }
 
+void app::register_group_subscription_handler_sec(event_ids const& _ei, subscription_handler_sec_t const& _handler) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is installing a custom sec handler for: " << _ei;
+    app_->register_subscription_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _handler);
+}
+
 void app::unregister_group_subscription_handler(event_ids const& _ei) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is uninstalling a custom handler for: " << _ei;
     app_->unregister_subscription_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_);

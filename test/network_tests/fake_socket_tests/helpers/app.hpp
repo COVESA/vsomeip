@@ -225,6 +225,11 @@ public:
     void register_group_subscription_handler(event_ids const& _ei, subscription_handler_ext_t const& _handler);
 
     /*
+     * registers the sec_client-aware subscription handler with the application
+     */
+    void register_group_subscription_handler_sec(event_ids const& _ei, subscription_handler_sec_t const& _handler);
+
+    /*
      * unregisters the subscription handler with the application
      */
     void unregister_group_subscription_handler(event_ids const& _ei);

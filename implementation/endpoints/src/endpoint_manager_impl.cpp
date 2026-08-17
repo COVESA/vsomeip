@@ -1338,13 +1338,14 @@ void endpoint_manager_impl::add_local_routing_endpoint(std::shared_ptr<local_end
     }
 }
 
-std::unordered_set<client_t> endpoint_manager_impl::get_connected_clients() const {
+std::unordered_map<client_t, vsomeip_sec_client_t> endpoint_manager_impl::get_connected_clients() const {
     std::scoped_lock its_lock(routing_endpoint_mtx_);
-    std::unordered_set<client_t> clients;
-    for (const auto& [id, _] : routing_endpoints_) {
-        clients.insert(id);
+    std::unordered_map<client_t, vsomeip_sec_client_t> its_clients;
+    its_clients.reserve(routing_endpoints_.size());
+    for (const auto& [its_client, its_endpoint] : routing_endpoints_) {
+        its_clients.insert({its_client, its_endpoint->get_sec_client()});
     }
-    return clients;
+    return its_clients;
 }
 
 bool endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep) {

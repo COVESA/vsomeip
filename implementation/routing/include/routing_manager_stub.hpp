@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <thread>
 #include <atomic>
@@ -164,6 +165,15 @@ private:
     void add_pending_security_update_timer(pending_security_update_id_t _id);
 
     std::shared_ptr<local_endpoint> find_local_routing_endpoint(client_t _client) const;
+
+    /// @brief Returns the security credentials of @p _client, taken from its routing connection.
+    ///
+    /// The sec_client is owned by the local endpoint that accepted the client, which is the only
+    /// authoritative source: it is filled once from the peer credentials of that very connection.
+    ///
+    /// @return the peer's sec_client, or std::nullopt when the client has no routing connection.
+    [[nodiscard]] std::optional<vsomeip_sec_client_t> find_sec_client(client_t _client) const;
+
     static bool send_local(std::shared_ptr<local_endpoint> const& _ep, std::vector<byte_t> const& _data);
 
 private:

@@ -816,41 +816,6 @@ TEST_F(test_configuration_impl, load_security_policies_populates_independent_pol
     EXPECT_FALSE(its_pm_app2.is_offer_allowed(&its_denied, 0x1234, 0x5678));
 }
 
-// init_from_base() (via load_security_policies) must copy only the compiled,
-// immutable policy state - never the per-app runtime maps. This is the core
-// safety property that makes it correct to load the configuration once and
-// share it: each application must own an isolated client<->sec_client mapping
-// table. A regression that shared those maps (e.g. a shallow copy of the same
-// container) would let one app observe another app's client registrations.
-TEST_F(test_configuration_impl, init_from_base_does_not_share_runtime_client_mappings) {
-    scratch_config_dir dir;
-    dir.write("vsomeip_std.json", R"({
-        "routing": { "host": { "name": "routingmanager" } },
-        "applications": [ { "name": "routingmanager", "id": "0x1111" } ],
-        "security": { "check_credentials": "true" }
-    })");
-
-    auto its_config = load(dir, "routingmanager");
-
-    policy_manager_impl its_pm_app1;
-    policy_manager_impl its_pm_app2;
-    its_config->load_security_policies(its_pm_app1);
-    its_config->load_security_policies(its_pm_app2);
-
-    // Register a client->sec_client mapping in app1 only.
-    const vsomeip_v3::client_t its_client = 0x2222;
-    auto its_sec_client = utility::create_uds_client(1000, 1000, 0);
-    ASSERT_TRUE(its_pm_app1.store_client_to_sec_client_mapping(its_client, &its_sec_client));
-
-    // app1 sees its own mapping ...
-    vsomeip_sec_client_t its_readback{};
-    EXPECT_TRUE(its_pm_app1.get_client_to_sec_client_mapping(its_client, its_readback));
-
-    // ... but app2's runtime table must be untouched.
-    vsomeip_sec_client_t its_unused{};
-    EXPECT_FALSE(its_pm_app2.get_client_to_sec_client_mapping(its_client, its_unused));
-}
-
 // In audit mode (check_credentials == "false") the compiled policies are still
 // loaded and policy enforcement is enabled, but every decision falls back to
 // "permit". This must survive init_from_base(): a per-app policy manager must

@@ -103,17 +103,6 @@ bool policy_manager_impl::check_credentials(client_t _client, const vsomeip_sec_
         has_id = (has_uid && has_gid);
 
         if ((has_id && p->allow_who_) || (!has_id && !p->allow_who_)) {
-            // Code is unaccessible due to logic checks.
-            if (!store_client_to_sec_client_mapping(_client, _sec_client)) {
-                std::string security_mode_text = "!";
-                if (!check_credentials_) {
-                    security_mode_text = " but will be allowed due to audit mode is active!";
-                }
-                VSOMEIP_INFO << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << its_uid << "/" << its_gid
-                             << " : Check credentials failed as existing credentials would be overwritten" << security_mode_text;
-                return !check_credentials_;
-            }
-            store_sec_client_to_client_mapping(_sec_client, _client);
             return true;
         }
     }
@@ -1122,16 +1111,6 @@ void policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _
     }
 }
 
-void policy_manager_impl::get_clients(uid_t _uid, gid_t _gid, std::unordered_set<client_t>& _clients) const {
-
-    std::scoped_lock its_lock(ids_mutex_);
-    for (const auto& i : ids_) {
-        if (i.second.port == VSOMEIP_SEC_PORT_UNUSED && i.second.user == _uid && i.second.group == _gid) {
-            _clients.insert(i.first);
-        }
-    }
-}
-
 bool policy_manager_impl::is_policy_extension(const std::string& _path) const {
     auto its_pos = _path.find("vsomeip_policy_extensions.json");
     if (its_pos != std::string::npos) {
@@ -1232,132 +1211,5 @@ bool policy_manager_impl::parse_uid_gid(const byte_t*& _buffer, uint32_t& _buffe
 }
 
 #endif // !VSOMEIP_DISABLE_SECURITY
-
-bool policy_manager_impl::store_client_to_sec_client_mapping(client_t _client, const vsomeip_sec_client_t* _sec_client) {
-
-    if (_sec_client != nullptr && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
-        // store the client -> sec_client mapping
-        std::scoped_lock its_lock(ids_mutex_);
-        auto found_client = ids_.find(_client);
-        if (found_client != ids_.end()) {
-            if (!utility::compare(found_client->second, *_sec_client)) {
-                uid_t its_old_uid = found_client->second.user;
-                gid_t its_old_gid = found_client->second.group;
-                uid_t its_new_uid = _sec_client->user;
-                gid_t its_new_gid = _sec_client->group;
-
-                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << its_new_uid << "/" << its_new_gid
-                              << " : Overwriting existing credentials UID/GID=" << its_old_uid << "/" << its_old_gid;
-
-                found_client->second = *_sec_client;
-                return true;
-            }
-        } else {
-            ids_[_client] = *_sec_client;
-        }
-        return true;
-    }
-
-    return false;
-}
-
-bool policy_manager_impl::get_client_to_sec_client_mapping(client_t _client, vsomeip_sec_client_t& _sec_client) {
-    {
-        // get the UID / GID of the client
-        std::scoped_lock its_lock(ids_mutex_);
-        if (ids_.count(_client) > 0) {
-            _sec_client = ids_[_client];
-            return true;
-        }
-        return false;
-    }
-}
-
-bool policy_manager_impl::remove_client_to_sec_client_mapping(client_t _client) {
-
-    vsomeip_sec_client_t its_sec_client;
-    bool is_client_removed(false);
-    bool is_sec_client_removed(false);
-    {
-        std::scoped_lock its_lock(ids_mutex_);
-        auto found_client = ids_.find(_client);
-        if (found_client != ids_.end()) {
-            its_sec_client = found_client->second;
-            ids_.erase(found_client);
-            is_client_removed = true;
-        }
-    }
-    {
-        std::scoped_lock its_lock(sec_client_to_clients_mutex_);
-        if (is_client_removed) {
-            auto found_sec_client = sec_client_to_clients_.find(its_sec_client);
-            if (found_sec_client != sec_client_to_clients_.end()) {
-                auto its_client = found_sec_client->second.find(_client);
-                if (its_client != found_sec_client->second.end()) {
-                    found_sec_client->second.erase(its_client);
-                    if (found_sec_client->second.empty()) {
-                        sec_client_to_clients_.erase(found_sec_client);
-                    }
-                    is_sec_client_removed = true;
-                }
-            }
-        } else {
-            for (auto it = sec_client_to_clients_.begin(); it != sec_client_to_clients_.end(); ++it) {
-                auto its_client = it->second.find(_client);
-                if (its_client != it->second.end()) {
-                    it->second.erase(its_client);
-                    if (it->second.empty()) {
-                        sec_client_to_clients_.erase(it);
-                    }
-                    is_sec_client_removed = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    return (is_client_removed && is_sec_client_removed);
-}
-
-void policy_manager_impl::cleanup_client_to_sec_client_mappings() {
-    {
-        std::scoped_lock its_lock(ids_mutex_);
-        ids_.clear();
-    }
-    {
-        std::scoped_lock its_lock(sec_client_to_clients_mutex_);
-        sec_client_to_clients_.clear();
-    }
-}
-
-void policy_manager_impl::store_sec_client_to_client_mapping(const vsomeip_sec_client_t* _sec_client, client_t _client) {
-
-    if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
-        // store the uid gid to clients mapping
-        std::scoped_lock its_lock(sec_client_to_clients_mutex_);
-        auto found_sec_client = sec_client_to_clients_.find(*_sec_client);
-        if (found_sec_client != sec_client_to_clients_.end()) {
-            found_sec_client->second.insert(_client);
-        } else {
-            std::set<client_t> mapped_clients;
-            mapped_clients.insert(_client);
-            sec_client_to_clients_.insert(std::make_pair(*_sec_client, mapped_clients));
-        }
-    }
-}
-
-bool policy_manager_impl::get_sec_client_to_clients_mapping(const vsomeip_sec_client_t* _sec_client, std::set<client_t>& _clients) {
-
-    if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
-        // get the clients corresponding to uid, gid
-        std::scoped_lock its_lock(sec_client_to_clients_mutex_);
-        auto found_sec_client = sec_client_to_clients_.find(*_sec_client);
-        if (found_sec_client != sec_client_to_clients_.end()) {
-            _clients = found_sec_client->second;
-            return true;
-        }
-    }
-    return false;
-}
 
 } // namespace vsomeip_v3

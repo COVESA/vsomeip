@@ -119,9 +119,12 @@ std::string const& routing_manager_impl::get_name() const {
 std::string routing_manager_impl::get_client_info(client_t _client) const {
     std::stringstream its_info;
     its_info << "[" << hex4(_client) << ", '" << utility::get_client_name(configuration_, _client) << "'";
-    if (vsomeip_sec_client_t its_sec_client;
-        get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client) && its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
-        its_info << ", uid " << its_sec_client.user;
+    if (auto its_endpoint = ep_mgr_impl_->find_routing_endpoint(_client); its_endpoint) {
+        if (auto const its_sec_client = its_endpoint->get_sec_client(); its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
+            its_info << ", uid " << its_sec_client.user;
+        } else {
+            its_info << ", " << its_endpoint->peer_endpoint();
+        }
     }
     its_info << "]";
     return its_info.str();
