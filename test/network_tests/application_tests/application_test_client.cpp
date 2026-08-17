@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <future>
 #include <atomic>
+#include <unordered_set>
 
 #include <gtest/gtest.h>
 
@@ -84,7 +85,16 @@ public:
     }
 
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
-        ++received_responses_;
+        {
+            std::scoped_lock its_lock{requests_mutex_};
+            if (pending_sessions_.erase(_message->get_session()) == 0) {
+                VSOMEIP_WARNING << "[Client] Ignoring unsolicited response with Client/Session [" << std::hex << std::setfill('0')
+                                << std::setw(4) << _message->get_client() << "/" << std::setw(4) << _message->get_session() << "]";
+                return;
+            }
+            ++received_responses_;
+        }
+        responses_condition_.notify_one();
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.method_id, _message->get_method());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
@@ -107,8 +117,12 @@ public:
                     its_req->set_service(service_info_.service_id);
                     its_req->set_instance(service_info_.instance_id);
                     its_req->set_method(service_info_.method_id);
-                    app_->send(its_req);
-                    ++sent_requests_;
+                    {
+                        std::scoped_lock its_requests_lock{requests_mutex_};
+                        app_->send(its_req);
+                        ++sent_requests_;
+                        pending_sessions_.insert(its_req->get_session());
+                    }
                     VSOMEIP_INFO << "[Client] Sent a request to the service!";
                 }
             }
@@ -133,15 +147,19 @@ public:
         stop_called_ = true;
         std::scoped_lock its_lock{stop_mutex_};
         wait_for_stop_ = false;
+
+        {
+            std::scoped_lock its_send_lock{mutex_};
+            condition_.notify_all();
+        }
+
+        std::unique_lock its_requests_lock{requests_mutex_};
+        responses_condition_.wait_for(its_requests_lock, std::chrono::seconds(2), [this] { return received_responses_ >= sent_requests_; });
+
         VSOMEIP_INFO << "[Client] Going down. Sent " << sent_requests_ << " requests and received " << received_responses_
                      << " responses. Delta: " << sent_requests_ - received_responses_;
 
         if (check) {
-            while (sent_requests_ == 0 || sent_requests_ < received_responses_) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            }
-            // time to be sure the sent message is sent by routing manager
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             EXPECT_GT(sent_requests_, 0u);
             EXPECT_GT(received_responses_, 0u);
             EXPECT_EQ(sent_requests_, received_responses_);
@@ -165,6 +183,11 @@ private:
     std::atomic<uint32_t> received_responses_;
     std::atomic<uint32_t> sent_requests_;
     std::atomic<bool> stop_called_;
+
+    std::mutex requests_mutex_;
+    std::condition_variable responses_condition_;
+
+    std::unordered_set<vsomeip::session_t> pending_sessions_;
 
     std::thread stop_thread_;
     std::thread send_thread_;
