@@ -352,7 +352,6 @@ vsomeip_sec_client_t make_tcp_client(uid_t _uid, gid_t _gid) {
 struct test_configuration_impl : ::testing::Test {
     std::shared_ptr<configuration_impl> load(const scratch_config_dir& _dir, const std::string& _app_name) {
         auto its_config = std::make_shared<configuration_impl>(_dir.path());
-        its_config->set_configuration_path(_dir.path());
         EXPECT_TRUE(its_config->load(_app_name));
         // Mirrors application_impl::determine_routing_host(): the election is
         // decided on the mandatory view, and the optional configuration is
@@ -416,8 +415,6 @@ TEST_F(test_configuration_impl, load_alone_resolves_routing_host_in_non_mandator
     })");
 
     auto its_config = std::make_shared<configuration_impl>(dir.path());
-    its_config->set_configuration_path(dir.path());
-
     EXPECT_TRUE(its_config->load("routingmanager"));
 
     EXPECT_EQ(its_config->get_routing_host_name(), "routingmanager");
@@ -437,7 +434,6 @@ TEST_F(test_configuration_impl, client_primed_config_is_completed_by_load_option
     dir.write("extra_optional.json", R"({ "unicast": "10.10.10.10" })");
 
     auto its_config = std::make_shared<configuration_impl>(dir.path());
-    its_config->set_configuration_path(dir.path());
 
     // Plain client loads first: optional file not read yet.
     EXPECT_TRUE(its_config->load("client_app"));
@@ -478,7 +474,6 @@ TEST_F(test_configuration_impl, concurrent_reads_during_load_optional_see_stable
     })");
 
     auto its_config = std::make_shared<configuration_impl>(dir.path());
-    its_config->set_configuration_path(dir.path());
     ASSERT_TRUE(its_config->load("client_app"));
 
     // Counted rather than EXPECT_EQ'd inside the threads: a mismatch is reported
@@ -567,7 +562,6 @@ TEST_F(test_configuration_impl, concurrent_init_from_base_during_load_optional) 
     })");
 
     auto its_config = std::make_shared<configuration_impl>(dir.path());
-    its_config->set_configuration_path(dir.path());
     ASSERT_TRUE(its_config->load("client_app"));
 
     std::atomic<unsigned> its_mismatches{0};

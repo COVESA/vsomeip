@@ -70,8 +70,8 @@ configuration_impl::configuration_impl(const std::string& _path) :
     external_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT}, external_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE},
     external_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL}, external_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT},
     tcp_restart_aborts_max_{VSOMEIP_MAX_TCP_RESTART_ABORTS}, tcp_connect_time_max_{VSOMEIP_MAX_TCP_CONNECT_TIME},
-    has_issued_methods_warning_{false}, has_issued_clients_warning_{false}, udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE},
-    npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO}, npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE}, npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
     npdu_default_max_retention_requ_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO},
     npdu_default_max_retention_resp_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO}, log_statistics_{true},
     statistics_interval_{VSOMEIP_DEFAULT_STATISTICS_INTERVAL}, statistics_min_freq_{VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ},
@@ -92,104 +92,6 @@ configuration_impl::configuration_impl(const std::string& _path) :
     routing_.guests_.unicast_ = routing_.host_.unicast_;
     routing_.guests_.ports_[{ANY_UID, ANY_GID}].emplace(31492, 31999);
 #endif
-}
-
-configuration_impl::configuration_impl(const configuration_impl& _other) :
-    std::enable_shared_from_this<configuration_impl>(_other), default_unicast_{_other.default_unicast_}, is_loaded_{_other.is_loaded_},
-    is_logging_loaded_{_other.is_logging_loaded_}, mandatory_{_other.mandatory_}, has_console_log_{_other.has_console_log_.load()},
-    has_file_log_{_other.has_file_log_.load()}, has_dlt_log_{_other.has_dlt_log_.load()},
-    max_configured_message_size_{_other.max_configured_message_size_}, max_local_message_size_{_other.max_local_message_size_},
-    max_reliable_message_size_{_other.max_reliable_message_size_}, max_unreliable_message_size_{_other.max_unreliable_message_size_},
-    buffer_shrink_threshold_{_other.buffer_shrink_threshold_}, permissions_uds_{VSOMEIP_DEFAULT_UDS_PERMISSIONS},
-    endpoint_queue_limit_external_{_other.endpoint_queue_limit_external_}, endpoint_queue_limit_local_{_other.endpoint_queue_limit_local_},
-    tcp_restart_aborts_max_{_other.tcp_restart_aborts_max_}, tcp_connect_time_max_{_other.tcp_connect_time_max_},
-    udp_receive_buffer_size_{_other.udp_receive_buffer_size_}, npdu_default_debounce_requ_{_other.npdu_default_debounce_requ_},
-    npdu_default_debounce_resp_{_other.npdu_default_debounce_resp_},
-    npdu_default_max_retention_requ_{_other.npdu_default_max_retention_requ_},
-    npdu_default_max_retention_resp_{_other.npdu_default_max_retention_resp_}, path_{_other.path_},
-    initial_routing_state_{_other.initial_routing_state_}, request_debounce_time_{_other.request_debounce_time_},
-    default_max_dispatch_time_{_other.default_max_dispatch_time_}, default_max_dispatchers_{_other.default_max_dispatchers_} {
-
-    applications_.insert(_other.applications_.begin(), _other.applications_.end());
-    client_identifiers_ = _other.client_identifiers_;
-    services_.insert(_other.services_.begin(), _other.services_.end());
-    clients_ = _other.clients_;
-
-    unicast_ = _other.unicast_;
-    netmask_ = _other.netmask_;
-    device_ = _other.device_;
-    diagnosis_ = _other.diagnosis_;
-    diagnosis_mask_ = _other.diagnosis_mask_;
-
-    logfile_ = _other.logfile_;
-
-    loglevel_ = _other.loglevel_;
-
-    routing_ = _other.routing_;
-
-    is_sd_enabled_ = _other.is_sd_enabled_;
-    sd_multicast_ = _other.sd_multicast_;
-    sd_port_ = _other.sd_port_;
-    sd_protocol_ = _other.sd_protocol_;
-
-    is_suppress_events_enabled_ = _other.is_suppress_events_enabled_;
-
-    sd_initial_delay_min_ = _other.sd_initial_delay_min_;
-    sd_initial_delay_max_ = _other.sd_initial_delay_max_;
-    sd_repetitions_base_delay_ = _other.sd_repetitions_base_delay_;
-    sd_repetitions_max_ = _other.sd_repetitions_max_;
-    sd_ttl_ = _other.sd_ttl_;
-    sd_cyclic_offer_delay_ = _other.sd_cyclic_offer_delay_;
-    sd_find_initial_debounce_reps_ = _other.sd_find_initial_debounce_reps_;
-    sd_find_initial_debounce_time_ = _other.sd_find_initial_debounce_time_;
-    sd_offer_debounce_time_ = _other.sd_offer_debounce_time_;
-    sd_find_debounce_time_ = _other.sd_find_debounce_time_;
-    sd_wait_route_netlink_notification_ = _other.sd_wait_route_netlink_notification_;
-
-    trace_ = std::make_shared<trace>(*_other.trace_);
-    supported_selective_addresses = _other.supported_selective_addresses;
-    internal_service_ranges_ = _other.internal_service_ranges_;
-    log_version_ = _other.log_version_;
-    log_version_interval_ = _other.log_version_interval_;
-
-    magic_cookies_.insert(_other.magic_cookies_.begin(), _other.magic_cookies_.end());
-    message_sizes_ = _other.message_sizes_;
-
-    for (auto i = 0; i < ET_MAX; i++) {
-        is_configured_[i] = _other.is_configured_[i];
-    }
-
-    network_ = _other.network_;
-    configuration_path_ = _other.configuration_path_;
-
-    e2e_enabled_ = _other.e2e_enabled_;
-    e2e_configuration_ = _other.e2e_configuration_;
-
-    log_memory_ = _other.log_memory_;
-    log_memory_interval_ = _other.log_memory_interval_;
-    log_status_interval_ = _other.log_status_interval_;
-
-    ttl_factors_offers_ = _other.ttl_factors_offers_;
-    ttl_factors_subscriptions_ = _other.ttl_factors_subscriptions_;
-
-    debounces_ = _other.debounces_;
-    endpoint_queue_limits_ = _other.endpoint_queue_limits_;
-
-    sd_acceptance_rules_ = _other.sd_acceptance_rules_;
-
-    has_issued_methods_warning_ = _other.has_issued_methods_warning_;
-    has_issued_clients_warning_ = _other.has_issued_clients_warning_;
-
-    log_statistics_ = _other.log_statistics_;
-    statistics_interval_ = _other.statistics_interval_;
-    statistics_min_freq_ = _other.statistics_min_freq_;
-    statistics_max_messages_ = _other.statistics_max_messages_;
-    max_remote_subscribers_ = _other.max_remote_subscribers_;
-
-    is_security_enabled_ = _other.is_security_enabled_.load();
-    is_security_external_ = _other.is_security_external_.load();
-    is_security_audit_ = _other.is_security_audit_.load();
-    is_remote_access_allowed_ = _other.is_remote_access_allowed_.load();
 }
 
 configuration_impl::~configuration_impl() { }
@@ -697,21 +599,23 @@ bool configuration_impl::load_logging(const configuration_element& _element, std
                     _warnings.insert("Multiple definitions for logging.level. Ignoring definition from " + _element.name_);
                 } else {
                     std::string its_value(i->second.data());
-                    std::scoped_lock lock(mutex_loglevel_);
-                    loglevel_ =
-                            (its_value == "trace"
-                                     ? vsomeip_v3::logger::level_e::LL_VERBOSE
-                                     : (its_value == "debug"
-                                                ? vsomeip_v3::logger::level_e::LL_DEBUG
-                                                : (its_value == "info"
-                                                           ? vsomeip_v3::logger::level_e::LL_INFO
-                                                           : (its_value == "warning"
-                                                                      ? vsomeip_v3::logger::level_e::LL_WARNING
-                                                                      : (its_value == "error"
-                                                                                 ? vsomeip_v3::logger::level_e::LL_ERROR
-                                                                                 : (its_value == "fatal"
-                                                                                            ? vsomeip_v3::logger::level_e::LL_FATAL
-                                                                                            : vsomeip_v3::logger::level_e::LL_INFO))))));
+                    if (its_value == "trace") {
+                        loglevel_ = vsomeip_v3::logger::level_e::LL_VERBOSE;
+                    } else if (its_value == "debug") {
+                        loglevel_ = vsomeip_v3::logger::level_e::LL_DEBUG;
+                    } else if (its_value == "info") {
+                        loglevel_ = vsomeip_v3::logger::level_e::LL_INFO;
+                    } else if (its_value == "warning") {
+                        loglevel_ = vsomeip_v3::logger::level_e::LL_WARNING;
+                    } else if (its_value == "error") {
+                        loglevel_ = vsomeip_v3::logger::level_e::LL_ERROR;
+                    } else if (its_value == "fatal") {
+                        loglevel_ = vsomeip_v3::logger::level_e::LL_FATAL;
+                    } else {
+                        _warnings.insert("Unrecognized logging level '" + its_value + "', will default to 'info'");
+                        loglevel_ = vsomeip_v3::logger::level_e::LL_INFO;
+                    }
+
                     is_configured_[ET_LOGGING_LEVEL] = true;
                 }
             } else if (its_key == "version") {
@@ -1390,15 +1294,9 @@ void configuration_impl::load_trace_filter_expressions(const boost::property_tre
             _filter->matches_.push_back(its_match);
         }
     } else if (_criteria == "methods") {
-        if (!has_issued_methods_warning_) {
-            VSOMEIP_ERROR_P << "\"method\" entry in filter configuration has no effect!";
-            has_issued_methods_warning_ = true;
-        }
+        VSOMEIP_ERROR_P << "\"method\" entry in filter configuration has no effect!";
     } else if (_criteria == "clients") {
-        if (!has_issued_clients_warning_) {
-            VSOMEIP_ERROR_P << "\"clients\" entry in filter configuration has no effect!";
-            has_issued_clients_warning_ = true;
-        }
+        VSOMEIP_ERROR_P << "\"clients\" entry in filter configuration has no effect!";
     } else if (_criteria == "matches") {
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             vsomeip_v3::trace::match_t its_match;
@@ -2767,7 +2665,6 @@ void configuration_impl::load_partition(const boost::property_tree::ptree& _tree
         }
 
         if (!its_partition_members.empty()) {
-            std::scoped_lock its_lock(partitions_mutex_);
             its_partition_id++;
 
             std::stringstream its_log;
@@ -2878,7 +2775,6 @@ const std::string& configuration_impl::get_logfile() const {
 }
 
 vsomeip_v3::logger::level_e configuration_impl::get_loglevel() const {
-    std::unique_lock its_lock(mutex_loglevel_);
     return loglevel_;
 }
 
@@ -3642,10 +3538,6 @@ std::map<plugin_type_e, std::set<std::string>> configuration_impl::get_plugins(c
     return its_plugins;
 }
 
-void configuration_impl::set_configuration_path(const std::string& _path) {
-    configuration_path_ = _path;
-}
-
 std::map<std::string, std::string> configuration_impl::get_additional_data(const std::string& _application_name,
                                                                            const std::string& _plugin_name) {
 
@@ -4375,7 +4267,6 @@ void configuration_impl::load_udp_receive_buffer_size(const configuration_elemen
 }
 
 void configuration_impl::load_secure_services(const configuration_element& _element) {
-    std::scoped_lock its_lock(secure_services_mutex_);
     try {
         auto its_services = _element.tree_.get_child("secure-services");
         for (auto i = its_services.begin(); i != its_services.end(); ++i) {
@@ -4743,7 +4634,6 @@ void configuration_impl::set_sd_acceptance_rules_active(const boost::asio::ip::a
 }
 
 bool configuration_impl::is_secure_service(service_t _service, instance_t _instance) const {
-    std::scoped_lock its_lock(secure_services_mutex_);
     const auto its_service = secure_services_.find(_service);
     if (its_service != secure_services_.end()) {
         return (its_service->second.count(_instance) > 0);
@@ -4841,7 +4731,6 @@ partition_id_t configuration_impl::get_partition_id(service_t _service, instance
 
     partition_id_t its_id(VSOMEIP_DEFAULT_PARTITION_ID);
 
-    std::scoped_lock its_lock(partitions_mutex_);
     const auto search = partitions_.find(service_instance_t{_service, _instance});
     if (search != partitions_.end()) {
         its_id = search->second;

@@ -65,7 +65,6 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
 
         static constexpr char const* path = "uds_local_endpoint_config.json";
         configuration_ = std::make_shared<vsomeip_v3::cfg::configuration_impl>(path);
-        configuration_->set_configuration_path(path);
         configuration_->load("stub");
 
         ON_CALL(*server_routing_host_, get_policy_manager()).WillByDefault(::testing::Return(policy_manager_));

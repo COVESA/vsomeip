@@ -184,12 +184,6 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     EXPECT_TRUE(its_configuration->check_suppress_events(0x0024, 0x5555, 0x8011)); // "ANY" INSTANCE
     EXPECT_FALSE(its_configuration->check_suppress_events(0x0024, 0x5555, 0x8016)); // "ANY" INSTANCE
 
-    vsomeip::cfg::configuration_impl its_copied_config(static_cast<vsomeip::cfg::configuration_impl&>(*its_configuration));
-    vsomeip::cfg::configuration_impl* its_new_config = new vsomeip::cfg::configuration_impl(its_copied_config);
-    delete its_new_config;
-
-    its_configuration->set_configuration_path("/my/test/path");
-
     // 3. Check host address
     boost::asio::ip::address its_host_unicast_address = its_configuration->get_unicast_address();
     EXPECT_TRUE(check<std::string>(its_host_unicast_address.to_string(), _expected_unicast_address, "UNICAST ADDRESS"));

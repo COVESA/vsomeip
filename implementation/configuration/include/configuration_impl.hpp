@@ -18,9 +18,9 @@
 
 #include <boost/property_tree/ptree.hpp>
 
-#include "application_configuration.hpp"
 #include "configuration.hpp"
 #include "configuration_element.hpp"
+#include "debounce_filter_impl.hpp"
 #include "e2e.hpp"
 #include "routing.hpp"
 #include "service_instance_range.hpp"
@@ -38,6 +38,20 @@ struct service;
 struct servicegroup;
 struct event;
 struct eventgroup;
+
+struct application_configuration {
+    client_t client_;
+    size_t max_dispatchers_;
+    size_t max_dispatch_time_;
+    size_t thread_count_;
+    uint32_t log_status_interval_;
+    uint32_t log_version_interval_;
+    size_t request_debounce_time_;
+    std::map<plugin_type_e, std::set<std::string>> plugins_;
+    int nice_level_;
+    debounce_configuration_t debounces_;
+    bool has_session_handling_;
+};
 
 struct suppress_t {
     service_t service;
@@ -60,8 +74,7 @@ struct suppress_t {
 
 class configuration_impl : public configuration, public std::enable_shared_from_this<configuration_impl> {
 public:
-    configuration_impl(const std::string& _path);
-    configuration_impl(const configuration_impl& _other);
+    explicit configuration_impl(const std::string& _path);
     virtual ~configuration_impl();
 
     bool load(const std::string& _name);
@@ -75,8 +88,6 @@ public:
                                   bool* _still_offered_remote);
 
     const std::string& get_network() const;
-
-    void set_configuration_path(const std::string& _path);
 
     const boost::asio::ip::address& get_unicast_address() const;
     const boost::asio::ip::address& get_netmask() const;
@@ -430,11 +441,10 @@ protected:
     diagnosis_t diagnosis_;
     diagnosis_t diagnosis_mask_;
 
-    std::atomic_bool has_console_log_;
-    std::atomic_bool has_file_log_;
-    std::atomic_bool has_dlt_log_;
+    bool has_console_log_;
+    bool has_file_log_;
+    bool has_dlt_log_;
     std::string logfile_;
-    mutable std::mutex mutex_loglevel_;
     vsomeip_v3::logger::level_e loglevel_;
 
     std::map<std::string, application_configuration> applications_;
@@ -553,7 +563,6 @@ protected:
     uint32_t permissions_uds_;
 
     std::string network_;
-    std::string configuration_path_;
 
     bool e2e_enabled_;
     std::map<e2exf::data_identifier_t, std::shared_ptr<cfg::e2e>> e2e_configuration_;
@@ -588,9 +597,6 @@ protected:
     sd_acceptance_rules_t sd_acceptance_rules_;
     std::set<boost::asio::ip::address> sd_acceptance_rules_active_;
 
-    bool has_issued_methods_warning_;
-    bool has_issued_clients_warning_;
-
     int udp_receive_buffer_size_;
 
     std::chrono::nanoseconds npdu_default_debounce_requ_;
@@ -598,7 +604,6 @@ protected:
     std::chrono::nanoseconds npdu_default_max_retention_requ_;
     std::chrono::nanoseconds npdu_default_max_retention_resp_;
 
-    mutable std::mutex secure_services_mutex_;
     std::map<service_t, std::set<instance_t>> secure_services_;
 
     bool log_statistics_;
@@ -608,17 +613,16 @@ protected:
 
     uint8_t max_remote_subscribers_;
 
-    mutable std::mutex partitions_mutex_;
     service_instance_map<partition_id_t> partitions_;
 
     std::string path_;
 
     std::map<std::string, std::map<std::string, std::map<std::string, std::string>>> plugins_additional_;
 
-    std::atomic_bool is_security_enabled_;
-    std::atomic_bool is_security_external_;
-    std::atomic_bool is_security_audit_;
-    std::atomic_bool is_remote_access_allowed_;
+    bool is_security_enabled_;
+    bool is_security_external_;
+    bool is_security_audit_;
+    bool is_remote_access_allowed_;
 
     routing_state_e initial_routing_state_;
 

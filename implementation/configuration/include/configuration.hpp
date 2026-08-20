@@ -200,8 +200,6 @@ public:
     // Plugins
     virtual std::map<plugin_type_e, std::set<std::string>> get_plugins(const std::string& _name) const = 0;
 
-    virtual void set_configuration_path(const std::string& _path) = 0;
-
     virtual std::map<std::string, std::string> get_additional_data(const std::string& _application_name,
                                                                    const std::string& _plugin_name) = 0;
 
