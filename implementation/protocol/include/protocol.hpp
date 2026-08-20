@@ -12,7 +12,6 @@ namespace vsomeip_v3 {
 namespace protocol {
 
 typedef uint16_t version_t;
-typedef uint32_t command_size_t;
 
 enum class id_e : uint8_t {
     ASSIGN_CLIENT_ID = 0x00,
@@ -37,8 +36,8 @@ enum class id_e : uint8_t {
     NOTIFY_ONE_ID = 0x1A,
     REGISTER_EVENT_ID = 0x1B,
     UNREGISTER_EVENT_ID = 0x1C,
-    ID_RESPONSE_ID = 0x1D,
-    ID_REQUEST_ID = 0x1E,
+    // ID_RESPONSE_ID = 0x1D, (never used)
+    // ID_REQUEST_ID = 0x1E, (never used)
     OFFERED_SERVICES_REQUEST_ID = 0x1F,
     OFFERED_SERVICES_RESPONSE_ID = 0x20,
     UNSUBSCRIBE_ACK_ID = 0x21,
@@ -54,16 +53,6 @@ enum class id_e : uint8_t {
     // SUSPEND_ID = 0x30, (deprecated since 3.7.6)
     CONFIG_ID = 0x31,
     UNKNOWN_ID = 0xFF
-};
-
-enum class error_e : uint8_t {
-    ERROR_OK = 0x00,
-    ERROR_NOT_ENOUGH_BYTES = 0x01,
-    ERROR_MAX_COMMAND_SIZE_EXCEEDED = 0x02,
-    ERROR_MISMATCH = 0x04,
-    ERROR_MALFORMED = 0x08,
-    ERROR_NOT_ALLOWED = 0x10,
-    ERROR_UNKNOWN = 0xff
 };
 
 enum class routing_info_entry_type_e : uint8_t {
@@ -95,7 +84,6 @@ struct service {
 
 static constexpr version_t IPC_VERSION = 3;
 
-static const size_t TAG_SIZE = 4;
 static const size_t COMMAND_HEADER_SIZE = 9;
 static const size_t SEND_COMMAND_HEADER_SIZE = 15;
 static const size_t ROUTING_INFO_ENTRY_HEADER_SIZE = 7;

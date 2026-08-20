@@ -46,10 +46,6 @@ char const* to_string(id_e _id) {
         return "REGISTER_EVENT_ID";
     case protocol::id_e::UNREGISTER_EVENT_ID:
         return "UNREGISTER_EVENT_ID";
-    case protocol::id_e::ID_RESPONSE_ID:
-        return "ID_RESPONSE_ID";
-    case protocol::id_e::ID_REQUEST_ID:
-        return "ID_REQUEST_ID";
     case protocol::id_e::OFFERED_SERVICES_REQUEST_ID:
         return "OFFERED_SERVICES_REQUEST_ID";
     case protocol::id_e::OFFERED_SERVICES_RESPONSE_ID:
