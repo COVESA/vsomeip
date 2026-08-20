@@ -275,6 +275,13 @@ public:
      */
     void set_routing_state(vsomeip::routing_state_e _state);
 
+    template<class... Args>
+    void set_sd_acceptance_required(Args... args) {
+        app_->set_sd_acceptance_required(std::forward<Args>(args)...);
+    }
+
+    void register_sd_acceptance_handler(sd_acceptance_handler_t const& _handler);
+
     /**
      * After app::start() has been called this helper can be used to await the registration
      * of the application

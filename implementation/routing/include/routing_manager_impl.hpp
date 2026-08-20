@@ -168,10 +168,8 @@ public:
     void on_remote_unsubscribe(std::shared_ptr<remote_subscription>& _subscription);
 
     void expire_subscriptions(const boost::asio::ip::address& _address);
-    void expire_subscriptions(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable);
     void expire_subscriptions(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable);
     void expire_services(const boost::asio::ip::address& _address);
-    void expire_services(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable);
     void expire_services(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable);
 
     std::chrono::steady_clock::time_point expire_subscriptions(bool _force);

@@ -40,16 +40,18 @@ data_pipe_state someip_gate::operator()(someip_message const& _msg) {
 
         bool matched = false;
         if (auto const* t = std::get_if<trigger>(&search_->trigger_)) {
-            if (!_msg.msg_)
+            if (!_msg.msg_) {
                 return data_pipe_state::OPEN;
+            }
             bool const service_match = (_msg.msg_->get_service() == t->service_);
             bool const method_match = (_msg.msg_->get_method() == t->method_);
             bool const type_match = (!t->type_ || _msg.msg_->get_message_type() == *t->type_);
             bool const payload_match = (!t->payload_ || (*t->payload_)(_msg.msg_->get_payload()));
             matched = service_match && method_match && type_match && payload_match;
         } else if (auto const* t = std::get_if<sd_trigger>(&search_->trigger_)) {
-            if (!_msg.sd_)
+            if (!_msg.sd_) {
                 return data_pipe_state::OPEN;
+            }
             for (auto const& entry : _msg.sd_->get_entries()) {
                 if (t->id_ == entry->get_type() && t->ttl_ == entry->get_ttl()) {
                     matched = true;

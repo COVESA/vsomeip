@@ -59,6 +59,33 @@ struct client_port_config {
     port_range client_ports_;
 };
 
+/// The port ranges vsomeip falls back to when an "acceptances" entry does not list any range.
+namespace default_ports {
+inline constexpr port_range optional_client{30491, 30499};
+inline constexpr port_range optional_client_spare{30898, 30998};
+inline constexpr port_range optional_server{30501, 30599};
+inline constexpr port_range secure_client{32491, 32499};
+inline constexpr port_range secure_client_spare{32898, 32998};
+inline constexpr port_range secure_server{32501, 32599};
+}
+
+/// Classification of a port range inside an "acceptances" entry. Secure services may only be
+/// offered on a `secure` port; `optional` ports are the ones that may carry unprotected traffic.
+enum class port_type { optional, secure };
+
+struct acceptance_port_range {
+    std::optional<port_range> ports_;
+    port_type type_{port_type::optional};
+};
+
+/// One entry of the "acceptances" array, i.e. the SD acceptance rules for a single remote device.
+struct acceptance_config {
+    boost::asio::ip::address address_;
+    std::vector<std::string> activation_paths_;
+    std::vector<acceptance_port_range> unreliable_;
+    std::vector<acceptance_port_range> reliable_;
+};
+
 struct service_discovery_config {
     uint32_t initial_delay_min_{10};
     uint32_t initial_delay_max_{100};
@@ -86,12 +113,21 @@ struct ecu_config {
 
     ecu_config& with_initial_delay(uint32_t min, uint32_t max);
 
+    /// Adds an "acceptances" entry, i.e. the SD acceptance rules of one remote device.
+    ecu_config& add_acceptance(acceptance_config rule);
+
+    /// Marks a service instance as secure: offers of it are only accepted when they arrive from a
+    /// secure port of a device that has acceptance rules configured.
+    ecu_config& add_secure_service(service_instance si);
+
     std::vector<application_config> apps_;
     std::vector<service_config> services_;
     std::string network_;
     boost::asio::ip::address unicast_ip_{boost::asio::ip::make_address("127.0.0.1")};
     std::optional<std::variant<local_tcp_config, std::string>> routing_config_ = std::string("routingmanagerd"); // defaults to uds
     std::optional<client_port_config> client_ports_ = client_port_config{.remote_ports_ = {30501, 30599}, .client_ports_ = {30491, 30499}};
+    std::vector<acceptance_config> acceptances_;
+    std::vector<service_instance> secure_services_;
     bool sd_{true};
     service_discovery_config service_discovery_;
     bool uds_preferred_{false};

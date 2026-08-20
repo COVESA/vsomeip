@@ -1896,10 +1896,6 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address& _addr
     expire_services(_address, port_range_t(ANY_PORT, ANY_PORT), false);
 }
 
-void routing_manager_impl::expire_services(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) {
-    expire_services(_address, port_range_t(_port, _port), _reliable);
-}
-
 void routing_manager_impl::expire_services(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable) {
     std::map<service_t, std::vector<instance_t>> its_expired_offers;
 
@@ -1918,11 +1914,19 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address& _addr
                     && its_client_endpoint->get_remote_address(its_address) && its_address == _address) {
                     if (discovery_) {
                         discovery_->unsubscribe_all(service, instance);
+                        if (!expire_all) {
+                            discovery_->remove_remote_offer_type_by_ip(_address, its_client_endpoint->get_remote_port(), _reliable);
+                        }
                     }
                     its_expired_offers[service].push_back(instance);
                 }
             }
         }
+    }
+
+    // Remove all offers for the given IP address if the port range is ANY_PORT. Otherwise, only remove the offers for the given port.
+    if (expire_all && discovery_) {
+        discovery_->remove_remote_offer_type_by_ip(_address, ANY_PORT, _reliable);
     }
 
     for (auto& [service, instances] : its_expired_offers) {
@@ -1936,10 +1940,6 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address& _addr
 
 void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address& _address) {
     expire_subscriptions(_address, port_range_t(ANY_PORT, ANY_PORT), false);
-}
-
-void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) {
-    expire_subscriptions(_address, port_range_t(_port, _port), _reliable);
 }
 
 void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable) {
@@ -2053,12 +2053,7 @@ void routing_manager_impl::on_remote_subscribe(std::shared_ptr<remote_subscripti
     remote_subscription_id_t its_id;
     std::set<client_t> its_added;
     std::unique_lock its_update_lock{update_remote_subscription_mutex_};
-    if (_subscription->is_expired()) {
-        VSOMEIP_WARNING_P << "Remote subscription already expired";
-        return;
-    } else {
-        _subscription->set_forwarded();
-    }
+    _subscription->set_forwarded();
 
     auto its_result = its_eventgroupinfo->update_remote_subscription(_subscription, its_expiration, its_added, its_id, true);
     if (its_result) {
@@ -2126,19 +2121,6 @@ void routing_manager_impl::on_remote_unsubscribe(std::shared_ptr<remote_subscrip
     const auto its_instance = its_info->get_instance();
     const auto its_eventgroup = its_info->get_eventgroup();
     const auto its_major = its_info->get_major();
-
-    // Get remote port(s)
-    auto its_reliable = _subscription->get_reliable();
-    if (its_reliable) {
-        uint16_t its_port = configuration_->get_reliable_port(its_service, its_instance);
-        its_reliable->set_remote_port(its_port);
-    }
-
-    auto its_unreliable = _subscription->get_unreliable();
-    if (its_unreliable) {
-        uint16_t its_port = configuration_->get_unreliable_port(its_service, its_instance);
-        its_unreliable->set_remote_port(its_port);
-    }
 
     remote_subscription_id_t its_id(0);
     std::set<client_t> its_removed;

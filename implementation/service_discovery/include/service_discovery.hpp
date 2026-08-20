@@ -62,6 +62,7 @@ public:
     virtual void register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler) = 0;
     virtual void register_reboot_notification_handler(const reboot_notification_handler_t& _handler) = 0;
     virtual std::recursive_mutex& get_subscribed_mutex() = 0;
+    virtual void remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) = 0;
 };
 
 } // namespace sd

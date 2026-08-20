@@ -77,6 +77,17 @@ ecu_config& ecu_config::with_initial_delay(uint32_t min, uint32_t max) {
     service_discovery_.initial_delay_max_ = max;
     return *this;
 }
+
+ecu_config& ecu_config::add_acceptance(acceptance_config rule) {
+    acceptances_.push_back(std::move(rule));
+    return *this;
+}
+
+ecu_config& ecu_config::add_secure_service(service_instance si) {
+    secure_services_.push_back(si);
+    return *this;
+}
+
 namespace {
 
 template<typename T>
@@ -154,6 +165,39 @@ void to_json(std::ostringstream& o, const service_config& svc) {
         o << "}]" << "}";
     }
     o << " }";
+}
+
+void to_json(std::ostringstream& o, const std::string& value) {
+    o << '"' << value << '"';
+}
+
+void to_json(std::ostringstream& o, const acceptance_port_range& range) {
+    o << "{";
+    if (range.ports_) {
+        o << R"( "first" : ")" << range.ports_->first_ << R"(", "last" : ")" << range.ports_->last_ << "\",";
+    }
+    o << R"( "type" : ")" << (range.type_ == port_type::secure ? "secure" : "optional") << "\" }";
+}
+
+void to_json(std::ostringstream& o, const acceptance_config& acceptance) {
+    o << R"({ "address" : ")" << acceptance.address_.to_string() << "\"";
+    if (!acceptance.activation_paths_.empty()) {
+        o << R"(, "path" : )";
+        write_array(o, acceptance.activation_paths_);
+    }
+    if (!acceptance.unreliable_.empty()) {
+        o << R"(, "unreliable" : )";
+        write_array(o, acceptance.unreliable_);
+    }
+    if (!acceptance.reliable_.empty()) {
+        o << R"(, "reliable" : )";
+        write_array(o, acceptance.reliable_);
+    }
+    o << " }";
+}
+
+void to_json(std::ostringstream& o, const service_instance& si) {
+    o << R"({ "service" : ")" << to_hex(si.service_) << R"(", "instance" : ")" << to_hex(si.instance_) << "\" }";
 }
 
 template<typename T>
@@ -241,6 +285,18 @@ std::string to_json_string(const ecu_config& cfg) {
     if (cfg.client_ports_) {
         o << " ";
         write_client_ports(o, *cfg.client_ports_);
+        o << ",";
+    }
+
+    if (!cfg.acceptances_.empty()) {
+        o << R"( "acceptances" : )";
+        write_array(o, cfg.acceptances_);
+        o << ",";
+    }
+
+    if (!cfg.secure_services_.empty()) {
+        o << R"( "secure-services" : )";
+        write_array(o, cfg.secure_services_);
         o << ",";
     }
 

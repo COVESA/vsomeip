@@ -117,6 +117,8 @@ public:
     void register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler);
     void register_reboot_notification_handler(const reboot_notification_handler_t& _handler);
 
+    void remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) override;
+
 private:
     std::pair<session_t, bool> get_session(const boost::asio::ip::address& _address);
     void increment_session(const boost::asio::ip::address& _address);
@@ -143,12 +145,7 @@ private:
                                           const std::shared_ptr<eventgroupinfo>& _info, ttl_t _ttl,
                                           const std::shared_ptr<endpoint_definition>& _target, const std::set<client_t>& _clients);
 
-    typedef std::set<std::pair<bool, uint16_t>> expired_ports_t;
     struct sd_acceptance_state_t {
-        explicit sd_acceptance_state_t(expired_ports_t& _expired_ports) :
-            expired_ports_(_expired_ports), sd_acceptance_required_(false), accept_entries_(false) { }
-
-        expired_ports_t& expired_ports_;
         bool sd_acceptance_required_;
         bool accept_entries_;
     };
@@ -275,8 +272,6 @@ private:
                                   bool _received_via_multicast);
     void remove_remote_offer_type(service_t _service, instance_t _instance, const boost::asio::ip::address& _reliable_address,
                                   uint16_t _reliable_port, const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port);
-    void remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address);
-    void remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable);
 
     // Returns true if the state changes from unicast -> multicast, false any of the other 3 cases
     bool set_offer_multicast_state(service_t _service, instance_t _instance, reliability_type_e _offer_type,

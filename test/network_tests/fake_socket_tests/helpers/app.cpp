@@ -335,4 +335,8 @@ void app::offer(service_instance _si, event_spec const& _ei, vsomeip::event_type
 void app::set_routing_state(vsomeip::routing_state_e _state) {
     app_->set_routing_state(_state);
 }
+
+void app::register_sd_acceptance_handler(sd_acceptance_handler_t const& _handler) {
+    app_->register_sd_acceptance_handler(_handler);
+}
 }

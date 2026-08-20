@@ -1014,7 +1014,6 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
             VSOMEIP_INFO << "Reboot detected: IP=" << _sender.to_string();
             VSOMEIP_INFO << "Reboot message: " << utility::dump(_data, _length);
 
-            remove_remote_offer_type_by_ip(_sender);
             host_->expire_subscriptions(_sender);
             host_->expire_services(_sender);
             if (reboot_notification_handler_) {
@@ -1060,8 +1059,7 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
         bool force_initial_events(false);
 
         bool sd_acceptance_queried(false);
-        expired_ports_t expired_ports;
-        sd_acceptance_state_t accept_state(expired_ports);
+        sd_acceptance_state_t accept_state{false, false};
 
         for (auto iter = its_entries.begin(); iter != its_end; iter++) {
             if (!sd_acceptance_queried) {
@@ -1386,50 +1384,15 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
         return;
     }
 
-    if (_sd_ac_state.sd_acceptance_required_) {
-
-        auto expire_subscriptions_and_services = [this, &service_str, &_sd_ac_state](const boost::asio::ip::address& _address,
-                                                                                     uint16_t _port, bool _reliable) {
-            const auto its_port_pair = std::make_pair(_reliable, _port);
-            if (_sd_ac_state.expired_ports_.count(its_port_pair) == 0) {
-                VSOMEIP_WARNING << "sdi::process_offerservice_serviceentry: Dropping offer of " << service_str() << " @ "
-                                << (_reliable ? "tcp:" : "udp:") << _address.to_string() << ":" << _port << " due to no-acceptance";
-
-                remove_remote_offer_type_by_ip(_address, _port, _reliable);
-                host_->expire_subscriptions(_address, _port, _reliable);
-                host_->expire_services(_address, _port, _reliable);
-                _sd_ac_state.expired_ports_.insert(its_port_pair);
-            }
-        };
-
-        // return if the registered sd_acceptance handler returned false
-        // and for the provided port sd_acceptance is necessary
-        switch (offer_type) {
-        case reliability_type_e::RT_UNRELIABLE:
-            if (!_sd_ac_state.accept_entries_ && configuration_->is_protected_port(_unreliable_address, _unreliable_port, false)) {
-                expire_subscriptions_and_services(_unreliable_address, _unreliable_port, false);
-                return;
-            }
-            break;
-        case reliability_type_e::RT_RELIABLE:
-            if (!_sd_ac_state.accept_entries_ && configuration_->is_protected_port(_reliable_address, _reliable_port, true)) {
-                expire_subscriptions_and_services(_reliable_address, _reliable_port, true);
-                return;
-            }
-            break;
-        case reliability_type_e::RT_BOTH:
-            if (!_sd_ac_state.accept_entries_
-                && (configuration_->is_protected_port(_unreliable_address, _unreliable_port, false)
-                    || configuration_->is_protected_port(_reliable_address, _reliable_port, true))) {
-                expire_subscriptions_and_services(_unreliable_address, _unreliable_port, false);
-                expire_subscriptions_and_services(_reliable_address, _reliable_port, true);
-                return;
-            }
-            break;
-        case reliability_type_e::RT_UNKNOWN:
-        default:
-            break;
-        }
+    // return if the registered sd_acceptance handler returned false
+    // and for the provided port sd_acceptance is necessary
+    if (_sd_ac_state.sd_acceptance_required_ && !_sd_ac_state.accept_entries_
+        && (configuration_->is_protected_port(_unreliable_address, _unreliable_port, false)
+            || configuration_->is_protected_port(_reliable_address, _reliable_port, true))) {
+        VSOMEIP_WARNING << "sdi::process_offerservice_serviceentry: Dropping offer of " << service_address_str() << " @ "
+                        << (_reliable_port != ILLEGAL_PORT ? _reliable_address.to_string() : _unreliable_address.to_string())
+                        << " due to no-acceptance";
+        return;
     }
 
     if (update_remote_offer_type(_service, _instance, offer_type, _reliable_address, _reliable_port, _unreliable_address, _unreliable_port,
@@ -3117,10 +3080,6 @@ void service_discovery_impl::remove_remote_offer_type(service_t _service, instan
     }
 }
 
-void service_discovery_impl::remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address) {
-    remove_remote_offer_type_by_ip(_address, ANY_PORT, false);
-}
-
 void service_discovery_impl::remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) {
     std::scoped_lock its_lock(remote_offer_types_mutex_);
     const auto found_address = remote_offers_by_ip_.find(_address);
@@ -3152,7 +3111,7 @@ bool service_discovery_impl::set_offer_multicast_state(service_t _service, insta
                                                        const boost::asio::ip::address& _reliable_address, port_t _reliable_port,
                                                        const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
                                                        bool _received_via_multicast) {
-
+    std::scoped_lock its_lock(remote_offer_types_mutex_);
     bool was_unicast = false;
 
     auto check_offer_info = [this, &was_unicast, _received_via_multicast](const boost::asio::ip::address& address, bool reliable,

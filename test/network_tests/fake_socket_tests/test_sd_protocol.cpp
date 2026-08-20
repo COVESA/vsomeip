@@ -473,4 +473,137 @@ TEST_F(sd_header_validation, prs_someipsd_00154_sd_offer_with_nonzero_client_id_
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)))
             << "SD OFFER with Client-ID = 0x0000 was not accepted";
 }
+
+struct test_sd_acceptance : public base_fake_socket_fixture {
+
+    // Acceptance rules for a single remote device: the optional (never-secure) ranges are dropped.
+    // Only the default secure ranges remain subject to SD acceptance_required.
+    acceptance_config secure_only_acceptance_for(boost::asio::ip::address const& _address) {
+        acceptance_config rule;
+        rule.address_ = _address;
+        rule.unreliable_ = {acceptance_port_range{.ports_ = std::nullopt, .type_ = port_type::optional}};
+        rule.reliable_ = {acceptance_port_range{.ports_ = std::nullopt, .type_ = port_type::optional}};
+        return rule;
+    }
+
+    interface const secure_iface{0x3348, {event_spec{0x8010, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}}, {}};
+
+    ecu_config ecu_one_cfg_ = [this] {
+        ecu_config cfg{boardnet::ecu_one_config};
+        cfg.client_ports_ = client_port_config{.remote_ports_ = {default_ports::secure_server.first_, default_ports::secure_server.last_},
+                                               .client_ports_ = {default_ports::secure_client.first_, default_ports::secure_client.last_}};
+        cfg.add_secure_service(secure_iface.instance_);
+        cfg.add_acceptance(secure_only_acceptance_for(boardnet::ecu_two_config.unicast_ip_));
+        return cfg;
+    }();
+
+    ecu_config ecu_two_cfg_ = [this] {
+        ecu_config cfg{boardnet::ecu_two_config};
+        cfg.client_ports_ = client_port_config{.remote_ports_ = {default_ports::secure_server.first_, default_ports::secure_server.last_},
+                                               .client_ports_ = {default_ports::secure_client.first_, default_ports::secure_client.last_}};
+        cfg.add_secure_service(secure_iface.instance_);
+        cfg.add_acceptance(secure_only_acceptance_for(boardnet::ecu_one_config.unicast_ip_));
+        return cfg;
+    }();
+
+    ecu_setup ecu_one_{"ecu_one", ecu_one_cfg_.add_interface({secure_iface}, default_ports::secure_server.first_), *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", ecu_two_cfg_.add_interface({secure_iface}, default_ports::secure_server.first_), *socket_manager_};
+
+    event_ids udp_event_{secure_iface.instance_, secure_iface.events_[0]};
+
+    std::shared_ptr<someip_gate> ecu_one_sd_send_gate_ = someip_gate::create();
+    std::shared_ptr<someip_gate> ecu_two_sd_send_gate_ = someip_gate::create();
+
+    void prepare_ecus_and_apps() {
+        ecu_one_.prepare();
+        ecu_two_.prepare();
+
+        ASSERT_TRUE(setup_data_pipe(ecu_one_.sd_endpoint(), router_one_name_, socket_role::server, ecu_one_sd_send_gate_->get_data_pipe()));
+        ASSERT_TRUE(setup_data_pipe(ecu_two_.sd_endpoint(), router_two_name_, socket_role::server, ecu_two_sd_send_gate_->get_data_pipe()));
+
+        ecu_one_.start_apps();
+        ecu_two_.start_apps();
+    }
+};
+
+TEST_F(test_sd_acceptance, expire_offer) {
+    // Enabling SD acceptance for a remote device must expire everything that was established with
+    // that device on the port ranges its acceptance rules cover. Here the service is offered on a
+    // secure port, so switching acceptance on for ecu_one must drop the client's availability.
+    prepare_ecus_and_apps();
+
+    auto* router_one = ecu_one_.router_;
+    auto* router_two = ecu_two_.router_;
+
+    router_two->offer(secure_iface);
+    router_one->request_service(secure_iface.instance_);
+    router_one->subscribe_event({udp_event_});
+    ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(secure_iface.instance_)));
+
+    router_one->availability_record_.clear();
+    remote_info_t enable_acceptance{{.address_ = boardnet::ecu_two_config.unicast_ip_.to_v4().to_bytes(), .is_v4_ = true},
+                                    std::numeric_limits<port_t>::max(),
+                                    0,
+                                    true,
+                                    false};
+    // Enable SD acceptance for router_one on router_two. This will not cause expiration, will only enable ipsec rules for secure ports of
+    // remote partner.
+    router_one->register_sd_acceptance_handler([&](const remote_info_t& _remote) -> bool {
+        if (_remote.ip_.is_v4_ && _remote.ip_.address_.v4_ == boardnet::ecu_two_config.unicast_ip_.to_v4().to_bytes()) {
+            return false;
+        }
+
+        return true;
+    });
+    // Mimick ipsec plugin allow_offer.
+    router_one->set_sd_acceptance_required(enable_acceptance, "", true);
+
+    // Force scenario of an IKE SA toggle, forcing expiration of services and subscriptions.
+    enable_acceptance.last_ = std::numeric_limits<port_t>::max();
+    router_one->set_sd_acceptance_required(enable_acceptance);
+    ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::unavailable(secure_iface.instance_)));
+    ASSERT_FALSE(router_one->availability_record_.wait_for_last(service_availability::available(secure_iface.instance_),
+                                                                common::scaled_timeout(std::chrono::milliseconds(500))));
+}
+
+TEST_F(test_sd_acceptance, expire_remote_subscription) {
+    // Enabling SD acceptance for a remote device must expire everything that was established with
+    // that device on the port ranges its acceptance rules cover. Here the service is subscribed on a
+    // secure port, so switching acceptance on for ecu_two must drop the remote subscriptions and reject following ones.
+    prepare_ecus_and_apps();
+
+    auto* router_one = ecu_one_.router_;
+    auto* router_two = ecu_two_.router_;
+
+    router_two->offer(secure_iface);
+    router_one->request_service(secure_iface.instance_);
+    router_one->subscribe_event({udp_event_});
+    ASSERT_TRUE(router_one->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_event_)));
+
+    router_one->subscription_record_.clear();
+    ecu_two_sd_send_gate_->sd_record_.clear();
+    remote_info_t enable_acceptance{{.address_ = boardnet::ecu_one_config.unicast_ip_.to_v4().to_bytes(), .is_v4_ = true},
+                                    std::numeric_limits<port_t>::max(),
+                                    0,
+                                    true,
+                                    false};
+    // Enable SD acceptance for router_two on router_one. This will not cause expiration, will only enable ipsec rules for secure ports of
+    // remote partner.
+    router_two->register_sd_acceptance_handler([&](const remote_info_t& _remote) -> bool {
+        if (_remote.ip_.is_v4_ && _remote.ip_.address_.v4_ == boardnet::ecu_one_config.unicast_ip_.to_v4().to_bytes()) {
+            return false;
+        }
+
+        return true;
+    });
+    // Mimick ipsec plugin allow_offer.
+    router_two->set_sd_acceptance_required(enable_acceptance, "", true);
+
+    // Force scenario of an IKE SA toggle, forcing expiration of services and subscriptions.
+    enable_acceptance.last_ = std::numeric_limits<port_t>::max();
+    router_two->set_sd_acceptance_required(enable_acceptance);
+    ASSERT_FALSE(router_one->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_event_),
+                                                               common::scaled_timeout(std::chrono::milliseconds(500))));
+    ASSERT_TRUE(ecu_two_sd_send_gate_->sd_record_.wait_for_any({sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 0}));
+}
 }
