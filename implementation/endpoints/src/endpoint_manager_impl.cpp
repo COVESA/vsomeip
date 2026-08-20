@@ -583,18 +583,6 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
     }
 }
 
-bool endpoint_manager_impl::supports_selective(service_t _service, instance_t _instance) const {
-    bool supports_selective(false);
-    std::scoped_lock its_lock(endpoint_mutex_);
-
-    if (const auto its_si = remote_service_info_.find({_service, _instance}); its_si != remote_service_info_.end()) {
-        for (const auto& [is_reliable, its_ep_def] : its_si->second) {
-            supports_selective |= configuration_->supports_selective_broadcasts(its_ep_def->get_address());
-        }
-    }
-    return supports_selective;
-}
-
 void endpoint_manager_impl::print_status() const {
     {
         std::scoped_lock const its_lock{routing_endpoint_mtx_};

@@ -18,10 +18,6 @@
         "permissions-shm" : "0444",
         "permissions-uds" : "0222"
     },
-    "supports_selective_broadcasts" :
-    [
-       "160.160.160.160"
-    ],
     "tracing" :
     {
         "enable" : "true",

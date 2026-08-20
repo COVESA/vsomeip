@@ -213,9 +213,6 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     // file permissions
     EXPECT_EQ(0222u, its_configuration->get_permissions_uds());
 
-    // selective broadcasts
-    EXPECT_TRUE(its_configuration->supports_selective_broadcasts(boost::asio::ip::make_address("160.160.160.160")));
-
     // tracing
     std::shared_ptr<vsomeip::cfg::trace> its_trace = its_configuration->get_trace();
     EXPECT_TRUE(its_trace->is_enabled_);

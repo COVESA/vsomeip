@@ -148,8 +148,6 @@ public:
     virtual uint32_t get_max_message_size_unreliable() const = 0;
     virtual uint32_t get_buffer_shrink_threshold() const = 0;
 
-    virtual bool supports_selective_broadcasts(const boost::asio::ip::address& _address) const = 0;
-
     virtual bool is_offered_remote(service_t _service, instance_t _instance) const = 0;
 
     virtual bool is_local_service(service_t _service, instance_t _instance) const = 0;

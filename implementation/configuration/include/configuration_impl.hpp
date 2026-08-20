@@ -156,8 +156,6 @@ public:
     uint32_t get_max_message_size_unreliable() const;
     uint32_t get_buffer_shrink_threshold() const;
 
-    bool supports_selective_broadcasts(const boost::asio::ip::address& _address) const;
-
     bool is_offered_remote(service_t _service, instance_t _instance) const;
 
     bool log_version() const;
@@ -354,8 +352,6 @@ private:
     void load_permissions(const configuration_element& _element);
 
     void load_security(const configuration_element& _element);
-
-    void load_selective_broadcasts_support(const configuration_element& _element);
 
     void load_debounce(const configuration_element& _element);
     void load_service_debounce(const boost::property_tree::ptree& _tree, debounce_configuration_t& _debounces);

@@ -1346,22 +1346,6 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 </details>
 
-## Selective Broadcasts Support
-
-- **supports_selective_broadcasts** (optional array) - This nodes allow to add a list of IP addresses on which CAPI-Selective-Broadcasts feature is supported. If not specified the feature can't be used and the subscription behavior of the stack is same as with normal events.
-    - **address** - Specifies an IP-Address (in IPv4 or IPv6 notation) on which the "selective"-feature is supported. Multiple addresses can be configured.
-
-<details><summary>Selective Broadcasts Support configuration</summary>
-
-```json
-"supports_selective_broadcasts" :
-{
-    "address" : "10.10.3.10"
-}
-```
-
-</details>
-
 ## E2E
 
 - **e2e** - Used to configure the E2E protection for the specified events

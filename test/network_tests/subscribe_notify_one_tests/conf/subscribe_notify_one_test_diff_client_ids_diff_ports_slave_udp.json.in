@@ -53,9 +53,5 @@
         "repetitions_max" : "3",
         "cyclic_offer_delay" : "1000",
         "ttl" : "3"
-    },
-    "supports_selective_broadcasts" :
-    {
-        "address" : "@TEST_IP_MASTER@"
     }
 }

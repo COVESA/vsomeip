@@ -539,7 +539,6 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
             load_npdu_default_timings(e);
             load_internal_services(e);
             load_clients(e);
-            load_selective_broadcasts_support(e);
             load_e2e(e);
             load_debounce(e);
             load_acceptances(e);
@@ -2596,18 +2595,6 @@ void configuration_impl::load_security(const configuration_element& _element) {
     }
 }
 
-void configuration_impl::load_selective_broadcasts_support(const configuration_element& _element) {
-    try {
-        auto its_service_discovery = _element.tree_.get_child("supports_selective_broadcasts");
-        for (auto i = its_service_discovery.begin(); i != its_service_discovery.end(); ++i) {
-            std::string its_value(i->second.data());
-            supported_selective_addresses.insert(its_value);
-        }
-    } catch (...) {
-        // intentionally left empty
-    }
-}
-
 void configuration_impl::load_partitions(const configuration_element& _element) {
 
     try {
@@ -3420,10 +3407,6 @@ uint32_t configuration_impl::get_max_message_size_unreliable() const {
 
 uint32_t configuration_impl::get_buffer_shrink_threshold() const {
     return buffer_shrink_threshold_;
-}
-
-bool configuration_impl::supports_selective_broadcasts(const boost::asio::ip::address& _address) const {
-    return supported_selective_addresses.count(_address.to_string()) > 0;
 }
 
 bool configuration_impl::log_version() const {
