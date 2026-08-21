@@ -51,34 +51,26 @@ namespace sd {
 service_discovery_impl::service_discovery_impl(service_discovery_host* _host, const std::shared_ptr<configuration>& _configuration) :
     io_(_host->get_io()), host_(_host), configuration_(_configuration), port_(VSOMEIP_SD_DEFAULT_PORT), reliable_(false),
     serializer_(std::make_shared<serializer>(configuration_->get_buffer_shrink_threshold())),
-    deserializer_(std::make_shared<deserializer>(configuration_->get_buffer_shrink_threshold())), ttl_timer_(_host->get_io()),
-    ttl_timer_runtime_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 2), ttl_(VSOMEIP_SD_DEFAULT_TTL),
-    subscription_expiration_timer_(_host->get_io()), offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
-    repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY), repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX),
-    cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY), offer_debounce_timer_(_host->get_io()),
-    find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
+    deserializer_(std::make_shared<deserializer>(configuration_->get_buffer_shrink_threshold())), ttl_timer_(io_),
+    ttl_timer_runtime_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 2), ttl_(VSOMEIP_SD_DEFAULT_TTL), subscription_expiration_timer_(io_),
+    offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME), repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY),
+    repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX), cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
+    offer_debounce_timer_(io_), find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
     remaining_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
-    find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME), find_debounce_timer_(_host->get_io()), main_phase_timer_(_host->get_io()),
-    is_suspended_(false), must_start_last_msg_received_timer_(true), last_msg_received_timer_(_host->get_io()),
+    find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME), find_debounce_timer_(io_), main_phase_timer_(io_), is_suspended_(false),
+    must_start_last_msg_received_timer_(true), last_msg_received_timer_(io_),
     last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY + (VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 10)),
-    suspend_stop_offer_watchdog_{_host->get_io()}, stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME},
-    offers_watchdog_{_host->get_io()}, offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME}, offers_received_after_last_resume_{0},
-    offers_received_{0} {
+    suspend_stop_offer_watchdog_{io_}, stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME}, offers_watchdog_{io_},
+    offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME}, offers_received_after_last_resume_{0}, offers_received_{0} {
 
     next_subscription_expiration_ = std::chrono::steady_clock::now() + std::chrono::hours(24);
 }
 
 service_discovery_impl::~service_discovery_impl() { }
 
-boost::asio::io_context& service_discovery_impl::get_io() {
-    return io_;
-}
-
 void service_discovery_impl::init() {
     unicast_ = configuration_->get_unicast_address();
     sd_multicast_ = configuration_->get_sd_multicast();
-    boost::system::error_code ec;
-    sd_multicast_address_ = boost::asio::ip::make_address(sd_multicast_, ec);
 
     port_ = configuration_->get_sd_port();
     reliable_ = (configuration_->get_sd_protocol() == "tcp");
@@ -249,10 +241,6 @@ void service_discovery_impl::update_request(service_t _service, instance_t _inst
     if (auto find_instance = requested_.find({_service, _instance}); find_instance != requested_.end()) {
         find_instance->second->set_sent_counter(uint8_t(repetitions_max_ + 1));
     }
-}
-
-std::recursive_mutex& service_discovery_impl::get_subscribed_mutex() {
-    return subscribed_mutex_;
 }
 
 void service_discovery_impl::subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
@@ -1034,7 +1022,7 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
             std::stringstream log;
             log << "SD messages lost from " << _sender.to_string() << " to ";
             if (_is_multicast) {
-                log << sd_multicast_address_.to_string();
+                log << sd_multicast_;
             } else {
                 log << unicast_.to_string();
             }
@@ -2462,7 +2450,7 @@ void service_discovery_impl::on_find_debounce_timer_expired(const boost::system:
     std::chrono::milliseconds its_delay(repetitions_base_delay_);
     uint8_t its_repetitions(1);
 
-    auto its_timer = std::make_shared<boost::asio::steady_timer>(host_->get_io());
+    auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
     {
         std::scoped_lock its_lock(find_repetition_phase_timers_mutex_);
         find_repetition_phase_timers_[its_timer] = repetition_phase_finds;
@@ -2536,7 +2524,7 @@ void service_discovery_impl::on_offer_debounce_timer_expired(const boost::system
         its_repetitions = 0;
     }
 
-    auto its_timer = std::make_shared<boost::asio::steady_timer>(host_->get_io());
+    auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
 
     {
         std::scoped_lock its_lock(repetition_phase_timers_mutex_);

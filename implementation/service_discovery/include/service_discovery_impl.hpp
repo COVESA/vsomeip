@@ -74,9 +74,6 @@ public:
     service_discovery_impl(service_discovery_host* _host, const std::shared_ptr<configuration>& _configuration);
     virtual ~service_discovery_impl();
 
-    boost::asio::io_context& get_io();
-    std::recursive_mutex& get_subscribed_mutex();
-
     void init();
     void start();
     void stop();
@@ -377,7 +374,6 @@ private:
     uint8_t remaining_find_initial_debounce_reps_;
 
     std::chrono::milliseconds find_debounce_time_;
-    std::mutex find_debounce_timer_mutex_;
     boost::asio::steady_timer find_debounce_timer_;
 
     // this map contains the offers and their timers currently in repetition phase
@@ -394,15 +390,11 @@ private:
     std::atomic<bool> is_suspended_;
 
     std::string sd_multicast_;
-    boost::asio::ip::address sd_multicast_address_;
 
     boost::asio::ip::address current_remote_address_;
 
     std::mutex pending_remote_subscriptions_mutex_;
     std::map<std::shared_ptr<remote_subscription>, std::shared_ptr<remote_subscription_ack>> pending_remote_subscriptions_;
-    std::mutex acknowledgement_mutex_;
-
-    std::mutex response_mutex_;
 
     configuration::ttl_map_t ttl_factor_offers_;
     configuration::ttl_map_t ttl_factor_subscriptions_;
