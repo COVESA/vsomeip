@@ -350,8 +350,8 @@ private:
     pending_remote_offer_id_t pending_remote_offer_add(service_t _service, instance_t _instance);
     std::pair<service_t, instance_t> pending_remote_offer_remove(pending_remote_offer_id_t _id);
 
-    bool insert_event_statistics(service_t _service, instance_t _instance, method_t _method, length_t _length);
-    void statistics_log_timer_cbk(boost::system::error_code const& _error);
+    bool insert_event_statistics(service_t _service, instance_t _instance, method_t _method, length_t _length, uint32_t _forwarded);
+    void print_event_statistics(boost::system::error_code const& _error);
 
     bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const;
 
@@ -490,7 +490,6 @@ private:
 
     std::mutex message_statistics_mutex_;
     std::map<std::tuple<service_t, instance_t, method_t>, msg_statistic_t> message_statistics_;
-    std::tuple<service_t, instance_t, method_t> message_to_discard_;
     uint32_t ignored_statistics_counter_;
 
     // synchronize update_remote_subscription() and send_(un)subscription()

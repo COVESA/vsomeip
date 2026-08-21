@@ -46,6 +46,7 @@ enum class subscription_outcome_e : uint16_t {
 
 struct msg_statistic_t {
     uint32_t counter_;
+    uint32_t forwarded_counter_;
     length_t avg_length_;
 };
 

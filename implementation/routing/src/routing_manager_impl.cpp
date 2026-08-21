@@ -237,7 +237,7 @@ void routing_manager_impl::start() {
 
         if (configuration_->log_statistics()) {
             statistics_log_timer_.expires_after(std::chrono::seconds(0));
-            statistics_log_timer_.async_wait(std::bind(&routing_manager_impl::statistics_log_timer_cbk, this, std::placeholders::_1));
+            statistics_log_timer_.async_wait(std::bind(&routing_manager_impl::print_event_statistics, this, std::placeholders::_1));
         }
     }
 
@@ -1394,12 +1394,14 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
         auto its_length = utility::get_payload_size(_data, _length);
         auto its_payload = runtime::get()->create_payload(&_data[VSOMEIP_PAYLOAD_POS], its_length);
 
-        // incoming events statistics
-        (void)insert_event_statistics(_service, _instance, its_event_id, its_length);
-
         // Ignore the filter for messages coming from other local clients
         // as the filter was already applied there.
         auto its_subscribers = its_event->update_and_get_filtered_subscribers(its_payload, _is_from_remote);
+
+        // incoming events statistics: track both received and (post-debounce) forwarded counts
+        const bool its_forwarded = (its_event->get_type() != event_type_e::ET_SELECTIVE_EVENT) ? !its_subscribers.empty() : true;
+        (void)insert_event_statistics(_service, _instance, its_event_id, its_length, its_forwarded ? 1u : 0u);
+
         if (its_event->get_type() != event_type_e::ET_SELECTIVE_EVENT) {
             for (const auto its_local_client : its_subscribers) {
                 if (std::shared_ptr<local_endpoint> its_local_target = find_routing_endpoint(its_local_client); its_local_target) {
@@ -3699,7 +3701,8 @@ bool routing_manager_impl::remove_security_policy_configuration(uid_t _uid, gid_
 }
 #endif // !VSOMEIP_DISABLE_SECURITY
 
-bool routing_manager_impl::insert_event_statistics(service_t _service, instance_t _instance, method_t _method, length_t _length) {
+bool routing_manager_impl::insert_event_statistics(service_t _service, instance_t _instance, method_t _method, length_t _length,
+                                                   uint32_t _forwarded) {
 
     uint32_t its_max_messages = configuration_->get_statistics_max_messages();
     std::scoped_lock its_lock{message_statistics_mutex_};
@@ -3710,52 +3713,38 @@ bool routing_manager_impl::insert_event_statistics(service_t _service, instance_
         its_main_s->second.avg_length_ =
                 (its_main_s->second.avg_length_ * its_main_s->second.counter_ + _length) / (its_main_s->second.counter_ + 1);
         its_main_s->second.counter_++;
-
-        if (its_tuple == message_to_discard_) {
-            // check list for entry with least counter value
+        its_main_s->second.forwarded_counter_ += _forwarded;
+    } else {
+        if (message_statistics_.size() >= its_max_messages) {
+            // Map is full, delete the events with the lowest notifications received
             uint32_t its_min_count(0xFFFFFFFF);
-            auto its_tuple_to_discard = std::make_tuple(0xFFFF, 0xFFFF, 0xFFFF);
             for (const auto& s : message_statistics_) {
                 if (s.second.counter_ < its_min_count) {
                     its_min_count = s.second.counter_;
-                    its_tuple_to_discard = s.first;
                 }
             }
-            if (its_min_count != 0xFFFF && its_min_count < its_main_s->second.counter_) {
-                // update message to discard with current message
-                message_to_discard_ = its_tuple;
-            }
+            std::erase_if(message_statistics_, [its_min_count](const auto& s) { return s.second.counter_ == its_min_count; });
         }
-    } else {
-        if (message_statistics_.size() < its_max_messages) {
-            message_statistics_[its_tuple] = {1, _length};
-            message_to_discard_ = its_tuple;
-        } else {
-            // no slot empty
-            const auto it = message_statistics_.find(message_to_discard_);
-            if (it != message_statistics_.end() && it->second.counter_ == 1) {
-                message_statistics_.erase(message_to_discard_);
-                message_statistics_[its_tuple] = {1, _length};
-                message_to_discard_ = its_tuple;
-            } else {
-                // ignore message
-                ignored_statistics_counter_++;
-                return false;
-            }
-        }
+        message_statistics_[its_tuple] = {1, _forwarded, _length};
     }
     return true;
 }
 
-void routing_manager_impl::statistics_log_timer_cbk(boost::system::error_code const& _error) {
+void routing_manager_impl::print_event_statistics(boost::system::error_code const& _error) {
     if (!_error) {
         uint32_t its_interval = configuration_->get_statistics_interval();
         its_interval = its_interval >= 1000 ? its_interval : 1000;
         uint32_t its_min_freq = configuration_->get_statistics_min_freq();
-        std::stringstream its_log;
+
+        std::scoped_lock its_lock{message_statistics_mutex_};
+
+        // Collects the events above the min freq before logging
+        std::vector<std::pair<const std::pair<const std::tuple<service_t, instance_t, method_t>, msg_statistic_t>*, uint16_t>> its_entries;
+        its_entries.reserve(message_statistics_.size());
+
         {
-            std::scoped_lock its_lock{message_statistics_mutex_};
-            for (const auto& [key, stats] : message_statistics_) {
+            for (const auto& its_entry : message_statistics_) {
+                const auto& [key, stats] = its_entry;
                 if (stats.counter_ / (its_interval / 1000) > its_min_freq) {
                     uint16_t its_subscribed(0);
                     auto [service, instance, method] = key;
@@ -3765,28 +3754,37 @@ void routing_manager_impl::statistics_log_timer_cbk(boost::system::error_code co
                             its_subscribed = static_cast<uint16_t>(its_event->get_subscribers().size());
                         }
                     }
-                    its_log << hex4(service) << "." << hex4(instance) << "." << hex4(method) << ": #=" << stats.counter_
-                            << " L=" << stats.avg_length_ << " S=" << its_subscribed << ", ";
+                    its_entries.push_back({&its_entry, its_subscribed});
                 }
             }
 
-            if (ignored_statistics_counter_) {
-                its_log << " #ignored: " << ignored_statistics_counter_;
+            // Sort the entries by decreasing number of notifications received.
+            std::sort(its_entries.begin(), its_entries.end(),
+                      [](const auto& _lhs, const auto& _rhs) { return _lhs.first->second.counter_ > _rhs.first->second.counter_; });
+
+            // Print 10 events per each line
+            for (std::size_t i = 0; i < its_entries.size(); i += 10) {
+                std::stringstream its_log;
+                for (std::size_t j = i; j < i + 10 && j < its_entries.size(); j++) {
+                    const auto& [key, stats] = *its_entries[j].first;
+                    auto [service, instance, method] = key;
+                    its_log << hex4(service) << "." << hex4(instance) << "." << hex4(method) << ": R=" << stats.counter_
+                            << " F=" << stats.forwarded_counter_ << " L=" << stats.avg_length_ << " S=" << its_entries[j].second << ", ";
+                }
+                if (ignored_statistics_counter_) {
+                    its_log << "#ignored: " << ignored_statistics_counter_;
+                }
+                VSOMEIP_INFO_P << "Received events statistics: [" << its_log.str() << "]";
             }
 
             message_statistics_.clear();
-            message_to_discard_ = std::make_tuple(0x00, 0x00, 0x00);
             ignored_statistics_counter_ = 0;
-        }
-
-        if (its_log.str().length() > 0) {
-            VSOMEIP_INFO_P << "Received events statistics: [" << its_log.str() << "]";
         }
 
         {
             std::scoped_lock its_lock{log_timer_mutex_};
             statistics_log_timer_.expires_after(std::chrono::milliseconds(its_interval));
-            statistics_log_timer_.async_wait(std::bind(&routing_manager_impl::statistics_log_timer_cbk, this, std::placeholders::_1));
+            statistics_log_timer_.async_wait(std::bind(&routing_manager_impl::print_event_statistics, this, std::placeholders::_1));
         }
     }
 }
