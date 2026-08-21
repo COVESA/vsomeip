@@ -44,45 +44,41 @@ add_custom_test(
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_multiple_init
 )
 
-if (NOT ${TESTS_BAT})
+# Configure necessary files and copy them to the build folder.
+set(configuration_files
+    application_test_availability_starter.sh
+)
+configure_files("${configuration_files}")
 
-    # Configure necessary files and copy them to the build folder.
-    set(configuration_files
-        application_test_availability_starter.sh
+add_executable(application_test_single_process
+    application_test_single_process.cpp
+)
+
+if(QNX)
+    target_compile_definitions(application_test_single_process
+        PRIVATE _QNX_SOURCE
     )
-    configure_files("${configuration_files}")
-
-    add_executable(application_test_single_process
-        application_test_single_process.cpp
-    )
-
-    if(QNX)
-        target_compile_definitions(application_test_single_process
-            PRIVATE _QNX_SOURCE
-        )
-    endif()
-
-    add_executable(application_test_availability
-        application_test_availability.cpp
-    )
-
-    # Add build dependencies and link libraries to executables.
-    set(executable_targets
-        application_test_single_process
-        application_test_availability
-    )
-    targets_add_default_dependencies("${executable_targets}")
-    targets_link_default_libraries("${executable_targets}")
-
-    add_custom_test(
-        NAME application_test_single_process
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process
-        ENVIRONMENT "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process.json"
-    )
-
-    add_custom_test(
-        NAME application_test_availability
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_availability_starter.sh
-    )
-
 endif()
+
+add_executable(application_test_availability
+    application_test_availability.cpp
+)
+
+# Add build dependencies and link libraries to executables.
+set(executable_targets
+    application_test_single_process
+    application_test_availability
+)
+targets_add_default_dependencies("${executable_targets}")
+targets_link_default_libraries("${executable_targets}")
+
+add_custom_test(
+    NAME application_test_single_process
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process
+    ENVIRONMENT "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process.json"
+)
+
+add_custom_test(
+    NAME application_test_availability
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_availability_starter.sh
+)

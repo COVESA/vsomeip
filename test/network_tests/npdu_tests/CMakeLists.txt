@@ -5,7 +5,7 @@
 
 project(npdu_tests LANGUAGES CXX)
 
-if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
 
     # Configure necessary files into the build folder.
     set(configuration_files

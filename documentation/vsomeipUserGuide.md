@@ -183,27 +183,6 @@ Additional make targets for the tests:
 * To list all available tests run `ctest -N`.
 * For further information about the tests please have a look at the `readme.txt` in the `test` subdirectory.
 
-For development purposes two cmake variables exist which control if the json files and test scripts are copied (default) or symlinked into the build directory.
-These settings are ignored on Windows.
-
-* `TEST_SYMLINK_CONFIG_FILES`: Controls if the json and scripts needed to run the tests are copied or symlinked into the build directory.
-  (`Default`: OFF, ignored on Windows)
-* `TEST_SYMLINK_CONFIG_FILES_RELATIVE`: Controls if the json and scripts needed to run the tests are symlinked relatively into the build directory.
-  (`Default`: OFF, ignored on Windows)
-
-**Example cmake call**:
-
-```bash
-cmake  -DTEST_SYMLINK_CONFIG_FILES=ON -DTEST_SYMLINK_CONFIG_FILES_RELATIVE=ON ..
-```
-
-For compilation of only a subset of tests (for a quick functionality check) the cmake variable `TESTS_BAT` has to be set:
-
-**Example cmake call**:
-```bash
-cmake  -DTESTS_BAT=ON ..
-```
-
 ### Generating the documentation
 
 To generate the documentation call cmake as described in [Compilation](#compilation) and then call `make doc`.

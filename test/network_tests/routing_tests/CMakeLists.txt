@@ -41,23 +41,19 @@ add_custom_test(
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/local_routing_test_starter.sh
 )
 
-if(NOT TESTS_BAT)
+add_executable(external_local_routing_test_service
+    external_local_routing_test_service.cpp
+)
 
-    add_executable(external_local_routing_test_service
-        external_local_routing_test_service.cpp
-    )
+# Add build dependencies and link libraries to executables.
+set(executables
+    external_local_routing_test_service
+)
+targets_add_default_dependencies("${executables}")
+targets_link_default_libraries("${executables}")
 
-    # Add build dependencies and link libraries to executables.
-    set(executables
-        external_local_routing_test_service
-    )
-    targets_add_default_dependencies("${executables}")
-    targets_link_default_libraries("${executables}")
-
-    add_custom_test(
-        NAME external_local_routing_test
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_routing_test_starter.sh
-        SLAVES 1
-    )
-
-endif()
+add_custom_test(
+    NAME external_local_routing_test
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_routing_test_starter.sh
+    SLAVES 1
+)

@@ -7,8 +7,6 @@ project("unit_tests_message_payload_impl_tests" LANGUAGES CXX)
 
 file(GLOB SRCS ../main.cpp *.cpp)
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-
 # ----------------------------------------------------------------------------
 # Executable and libraries to link
 # ----------------------------------------------------------------------------

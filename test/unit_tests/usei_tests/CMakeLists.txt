@@ -5,8 +5,6 @@
 
 project(unit_tests_usei_tests LANGUAGES CXX)
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-
 file(GLOB SRCS *.cpp ../main.cpp)
 add_executable(${PROJECT_NAME} ${SRCS})
 

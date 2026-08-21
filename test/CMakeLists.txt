@@ -71,13 +71,6 @@ include_directories(${VSOMEIP_CONFIG_INCLUDE_DIR})
 ##############################################################################
 # build tests
 
-SET(TESTS_BAT "OFF" CACHE BOOL
-"Controls whether only BAT tests should be build or not")
-SET(TEST_SYMLINK_CONFIG_FILES "OFF" CACHE BOOL
-"Controls if the json and scripts needed needed to run the tests are copied or symlinked into the build directroy (ignored on Windows)")
-SET(TEST_SYMLINK_CONFIG_FILES_RELATIVE "OFF" CACHE BOOL
-    "Controls if the json and scripts needed needed to run the tests are symlinked relatively into the build directroy (ignored on Windows)")
-
 SET(TEST_IP_DEFAULT_VALUE "127.0.0.1")
 SET(TEST_IP_MASTER "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
     "The IP address of the interface which will act as test master")
@@ -94,20 +87,13 @@ endif()
 
 SET(TEST_IP_SLAVE_SECOND "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
 "The second IP address of the interface which will act as test slave")
-set(TEST_SECOND_ADDRESS "OFF" CACHE BOOL
-    "Controls whether second address tests should run or not")
 
 if(${TEST_IP_SLAVE_SECOND} STREQUAL ${TEST_IP_DEFAULT_VALUE})
     message(WARNING "TEST_IP_SLAVE_SECOND isn't set. "
                     "Test with more than one IP address on same interface is not enabled."
                     "Please specify them via for example "
                     "-TEST_IP_SLAVE_SECOND=10.0.3.126")
-else()
-    set(TEST_SECOND_ADDRESS "ON")
 endif()
-
-set(TEST_E2E_PROFILE_04 "ON")
-set(TEST_E2E_PROFILE_07 "ON")
 
 SET(TEST_UID_DEFAULT_VALUE "123456789")
 SET(TEST_UID "${TEST_UID_DEFAULT_VALUE}" CACHE STRING
@@ -153,11 +139,9 @@ add_dependencies(build_tests build_benchmark_tests)
 
 add_subdirectory(common EXCLUDE_FROM_ALL)
 add_subdirectory(network_tests EXCLUDE_FROM_ALL)
+add_subdirectory(unit_tests EXCLUDE_FROM_ALL)
 
-if (NOT DISABLE_SECURITY)
-    add_subdirectory(unit_tests EXCLUDE_FROM_ALL)
-
-    if(benchmark_FOUND)
-        add_subdirectory(benchmark_tests EXCLUDE_FROM_ALL)
-    endif()
+if(benchmark_FOUND)
+    add_subdirectory(benchmark_tests EXCLUDE_FROM_ALL)
 endif()
+

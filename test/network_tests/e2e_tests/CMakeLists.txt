@@ -35,72 +35,64 @@ add_custom_test(
     SLAVES 1
 )
 
-if(TEST_E2E_PROFILE_04)
+# Configure necessary files into the build directory.
+set(configuration_files
+    e2e_profile_04_test_client_external.json
+    e2e_profile_04_test_external_master_start.sh
+    e2e_profile_04_test_external_slave_start.sh
+    e2e_profile_04_test_service_external.json
+)
+configure_files("${configuration_files}")
 
-    # Configure necessary files into the build directory.
-    set(configuration_files
-        e2e_profile_04_test_client_external.json
-        e2e_profile_04_test_external_master_start.sh
-        e2e_profile_04_test_external_slave_start.sh
-        e2e_profile_04_test_service_external.json
-    )
-    configure_files("${configuration_files}")
+add_executable(e2e_profile_04_test_client
+    e2e_profile_04_test_client.cpp
+)
 
-    add_executable(e2e_profile_04_test_client
-        e2e_profile_04_test_client.cpp
-    )
+add_executable(e2e_profile_04_test_service
+    e2e_profile_04_test_service.cpp
+)
 
-    add_executable(e2e_profile_04_test_service
-        e2e_profile_04_test_service.cpp
-    )
+# Add build dependencies and link libraries to executables.
+set(executables
+    e2e_profile_04_test_client
+    e2e_profile_04_test_service
+)
+targets_link_default_libraries("${executables}")
+targets_add_default_dependencies("${executables}")
 
-    # Add build dependencies and link libraries to executables.
-    set(executables
-        e2e_profile_04_test_client
-        e2e_profile_04_test_service
-    )
-    targets_link_default_libraries("${executables}")
-    targets_add_default_dependencies("${executables}")
+add_custom_test(
+    NAME e2e_profile_04_test_external
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/e2e_profile_04_test_external_master_start.sh e2e_profile_04_test_client_external.json
+    SLAVES 1
+)
 
-    add_custom_test(
-        NAME e2e_profile_04_test_external
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/e2e_profile_04_test_external_master_start.sh e2e_profile_04_test_client_external.json
-        SLAVES 1
-    )
+# Configure necessary files into the build directory.
+set(configuration_files
+    e2e_profile_07_test_client_external.json
+    e2e_profile_07_test_external_master_start.sh
+    e2e_profile_07_test_external_slave_start.sh
+    e2e_profile_07_test_service_external.json
+)
+configure_files("${configuration_files}")
 
-endif()
+add_executable(e2e_profile_07_test_client
+    e2e_profile_07_test_client.cpp
+)
 
-if(TEST_E2E_PROFILE_07)
+add_executable(e2e_profile_07_test_service
+    e2e_profile_07_test_service.cpp
+)
 
-    # Configure necessary files into the build directory.
-    set(configuration_files
-        e2e_profile_07_test_client_external.json
-        e2e_profile_07_test_external_master_start.sh
-        e2e_profile_07_test_external_slave_start.sh
-        e2e_profile_07_test_service_external.json
-    )
-    configure_files("${configuration_files}")
+# Add build dependencies and link libraries to executables.
+set(executables
+    e2e_profile_07_test_client
+    e2e_profile_07_test_service
+)
+targets_link_default_libraries("${executables}")
+targets_add_default_dependencies("${executables}")
 
-    add_executable(e2e_profile_07_test_client
-        e2e_profile_07_test_client.cpp
-    )
-
-    add_executable(e2e_profile_07_test_service
-        e2e_profile_07_test_service.cpp
-    )
-
-    # Add build dependencies and link libraries to executables.
-    set(executables
-        e2e_profile_07_test_client
-        e2e_profile_07_test_service
-    )
-    targets_link_default_libraries("${executables}")
-    targets_add_default_dependencies("${executables}")
-
-    add_custom_test(
-        NAME e2e_profile_07_test_external
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/e2e_profile_07_test_external_master_start.sh e2e_profile_07_test_client_external.json
-        SLAVES 1
-    )
-
-endif()
+add_custom_test(
+    NAME e2e_profile_07_test_external
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/e2e_profile_07_test_external_master_start.sh e2e_profile_07_test_client_external.json
+    SLAVES 1
+)

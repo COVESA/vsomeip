@@ -288,8 +288,6 @@ if (NOT GIT_BRANCH_RESULT EQUAL 0)
 endif()
 add_compile_definitions(VSOMEIP_GIT_COMMIT="${VSOMEIP_GIT_COMMIT}@${VSOMEIP_GIT_BRANCH}")
 
-
-
 if (MSVC)
     message("using MSVC Compiler")
     # add_definitions(-DVSOMEIP_DLL_COMPILATION) now it is controlled per target

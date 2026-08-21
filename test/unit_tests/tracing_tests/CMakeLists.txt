@@ -7,8 +7,6 @@ project("unit_tests_tracing_tests" LANGUAGES CXX)
 
 file(GLOB SRCS ../main.cpp *.cpp)
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-
 add_executable(${PROJECT_NAME} ${SRCS})
 target_link_libraries(
     ${PROJECT_NAME}
