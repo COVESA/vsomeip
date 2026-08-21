@@ -5,9 +5,6 @@
 
 #pragma once
 
-#include <atomic>
-#include <map>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -17,44 +14,37 @@
 #include "enumeration_types.hpp"
 #include "types.hpp"
 
-namespace vsomeip_v3 {
-namespace trace {
+#ifdef USE_DLT
+#include <dlt/dlt.h>
+#else
+struct DltContext;
+#endif
 
+namespace vsomeip_v3::trace {
+
+// Note: Nothing in this class is thread-safe.
+// Instances are expected to be created and configured from connector_impl's ctor only.
 class channel_impl {
 public:
-    channel_impl(const std::string& _id, const std::string& _name);
+    channel_impl(const std::string& _id, DltContext* _log_context);
 
     std::string get_id() const;
-    std::string get_name() const;
+    DltContext* get_log_context() const;
 
-    filter_id_t add_filter(const match_t& _match, filter_type_e _type);
-
-    filter_id_t add_filter(const match_t& _match, bool _is_positive);
-
-    filter_id_t add_filter(const std::vector<match_t>& _matches, bool _is_positive);
-
-    filter_id_t add_filter(const std::vector<match_t>& _matches, filter_type_e _type);
-
-    filter_id_t add_filter(const match_t& _from, const match_t& _to, bool _is_positive);
-
-    filter_id_t add_filter(const match_t& _from, const match_t& _to, filter_type_e _type);
-
-    void remove_filter(filter_id_t _id);
+    void add_filter(const match_t& _match, filter_type_e _type);
+    void add_filter(const std::vector<match_t>& _matches, filter_type_e _type);
+    void add_filter(const match_t& _from, const match_t& _to, filter_type_e _type);
 
     trace_result_e matches(service_t _service, instance_t _instance, method_t _method);
 
 private:
-    filter_id_t add_filter_intern(const filter_func_t& _func, filter_type_e _type);
+    void add_filter_intern(filter_func_t _func, filter_type_e _type);
 
     std::string id_;
-    std::string name_;
+    DltContext* log_context_;
 
-    std::atomic<filter_id_t> current_filter_id_;
-
-    std::map<filter_id_t, trace_filter_entry> positive_; // POSITIVE, HEADER_ONLY, FULL_PAYLOAD
-    std::map<filter_id_t, filter_func_t> negative_;
-    std::mutex mutex_; // protects positive_ & negative_
+    std::vector<trace_filter_entry> positive_; // POSITIVE, HEADER_ONLY, FULL_PAYLOAD
+    std::vector<filter_func_t> negative_;
 };
 
-} // namespace trace
-} // namespace vsomeip_v3
+} // namespace vsomeip_v3::trace

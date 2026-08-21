@@ -65,7 +65,7 @@ class routing_manager_impl : public boardnet_routing_host,
                              public event_dispatcher,
                              public std::enable_shared_from_this<routing_manager_impl> {
 public:
-    routing_manager_impl(routing_manager_host* _host);
+    routing_manager_impl(routing_manager_host* _host, std::shared_ptr<trace::connector_impl> _trace_connector);
     ~routing_manager_impl();
 
     boost::asio::io_context& get_io();

@@ -63,4 +63,66 @@ Useful options:
 - `--benchmark_repetitions=5 --benchmark_report_aggregates_only=true` — report
   mean / median / stddev across repetitions.
 - `--benchmark_out=results.json --benchmark_out_format=json` — write results to
-  a file (e.g. for before/after comparison with Google Benchmark's `compare.py`).
+  a file, e.g. for comparison with `compare.py` (see below).
+
+## Comparing before/after
+
+Eyeballing two runs is unreliable — machine noise easily produces double-digit
+percent swings between runs of identical code. For a real "did this help"
+answer, use Google Benchmark's `compare.py` (available on `PATH` in this
+devcontainer).
+
+1. Build both revisions with **identical** cmake flags (e.g. into two
+   `git worktree` checkouts) — comparing different build types/flags is
+   meaningless.
+2. Run the same filter against both binaries with enough repetitions for a
+   meaningful statistical test (`compare.py`'s U test needs at least 9):
+
+   ```bash
+   <before-build>/.../benchmark_tests_bin --benchmark_filter='BM_trace' \
+     --benchmark_repetitions=10 --benchmark_out=before.json --benchmark_out_format=json
+   <after-build>/.../benchmark_tests_bin --benchmark_filter='BM_trace' \
+     --benchmark_repetitions=10 --benchmark_out=after.json --benchmark_out_format=json
+   ```
+
+3. Compare:
+
+   ```bash
+   compare.py benchmarks before.json after.json
+   ```
+
+Reading the output: each benchmark gets one row per statistic (mean, median,
+stddev, cv) plus a `_pvalue` row for the Mann-Whitney U test. Time/CPU columns
+are the *fractional* change (e.g. `-0.93` ≈ 93% reduction, roughly 14x faster;
+positive means slower). Treat a delta as noise, not a real effect, unless its
+`_pvalue` is below ~0.05 — a large-looking delta with a high p-value (as seen
+below for a single thread) is not evidence of anything.
+
+For threaded benchmarks, "Time" (wall-clock, via `UseRealTime()`, as ours use)
+is the metric lock-contention removal improves. "CPU" is *not* summed across
+threads by default — Google Benchmark only measures the main thread's CPU time
+unless the benchmark registers `->MeasureProcessCPUTime()` (ours don't), so for
+a threaded benchmark its behavior is not a reliable per-message-cost signal.
+Read "Time" for concurrency questions; ignore "CPU" here.
+
+Also build both revisions into **separate, clean build directories** — e.g. via
+`git worktree add` — rather than checking out in place and doing an incremental
+rebuild. An incremental in-place rebuild risks stale objects or a missed
+rebuild step silently mixing old and new code into one of the two results,
+which quietly shrinks or hides the effect you're trying to measure.
+
+Worked example (comparing the lock-removal refactor, non-DLT, 10 repetitions,
+two clean build directories):
+
+```
+Benchmark                                                Time             CPU
+------------------------------------------------------------------------------
+BM_trace_small_concurrent/real_time/threads:1_pvalue    0.6776          0.6776  (not significant)
+BM_trace_small_concurrent/real_time/threads:1_mean     -0.0052         -0.0052  (no real change)
+BM_trace_small_concurrent/real_time/threads:8_pvalue    0.0002          0.0002  (highly significant)
+BM_trace_small_concurrent/real_time/threads:8_mean     -0.9379         -0.6707  (~94% less wall time)
+```
+
+Single-threaded shows no significant change (expected: an uncontended mutex is
+cheap), while 8 threads shows a large, statistically significant improvement —
+exactly what removing lock contention should produce.

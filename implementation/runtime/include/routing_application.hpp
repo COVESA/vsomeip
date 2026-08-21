@@ -22,10 +22,15 @@ namespace vsomeip_v3 {
 
 class routing_manager_impl;
 
+namespace trace {
+class connector_impl;
+}
+
 class routing_application : public routing_manager_host {
 public:
     routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name,
-                        std::shared_ptr<policy_manager_impl> _policy_manager, std::shared_ptr<security> _security);
+                        std::shared_ptr<policy_manager_impl> _policy_manager, std::shared_ptr<security> _security,
+                        std::shared_ptr<trace::connector_impl> _trace_connector);
     ~routing_application();
 
     void start() const;

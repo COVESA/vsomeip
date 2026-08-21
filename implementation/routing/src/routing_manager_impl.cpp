@@ -67,12 +67,12 @@ namespace vsomeip_v3 {
 
 #define VSOMEIP_LOG_PREFIX "rmi"
 
-routing_manager_impl::routing_manager_impl(routing_manager_host* _host) :
+routing_manager_impl::routing_manager_impl(routing_manager_host* _host, std::shared_ptr<trace::connector_impl> _trace_connector) :
     host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()), env_([] {
         char h[1024];
         return gethostname(h, sizeof(h)) == 0 ? std::string(h) : std::string{};
     }()),
-    tc_(trace::connector_impl::get()), version_log_timer_(_host->get_io()), if_state_running_(false), sd_route_set_(false),
+    tc_(std::move(_trace_connector)), version_log_timer_(_host->get_io()), if_state_running_(false), sd_route_set_(false),
     routing_running_(false), routing_state_(configuration_->get_initial_routing_state()), status_log_timer_(_host->get_io()),
     memory_log_timer_(_host->get_io()), ep_mgr_impl_(std::make_shared<endpoint_manager_impl>(this, io_, configuration_)),
     pending_remote_offer_id_(0), last_resume_(std::chrono::steady_clock::time_point::min()), statistics_log_timer_(_host->get_io()),

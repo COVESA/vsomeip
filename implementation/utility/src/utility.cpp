@@ -14,11 +14,11 @@
 #else
 #include <dlfcn.h>
 #include <cerrno>
-#include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <thread>
+#include <fstream>
 #include <sstream>
 #endif
 

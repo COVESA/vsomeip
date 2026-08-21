@@ -6,18 +6,13 @@
 #pragma once
 
 #include <algorithm>
-#include <atomic>
-#include <chrono>
-#include <string_view>
+#include <array>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <set>
-#include <vector>
-#include <sstream>
 #include <ostream>
-#include <iomanip>
-#include <fstream>
+#include <span>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -189,13 +184,47 @@ inline utility::Hex hex8(uint32_t _v) {
     return utility::Hex(_v, 8);
 }
 
-inline std::ostream& operator<<(std::ostream& os, utility::Hex v) {
-    auto flags = os.flags();
-    auto fill = os.fill();
+// Precomputed "00".."ff" hex-pair table, shared by operator<<(ostream&, utility::Hex) and
+// utility::dump() below, and usable directly by any hot path that needs to format bytes as hex.
+inline constexpr std::array<char, 512> hex_byte_table = [] {
+    std::array<char, 512> table{};
+    constexpr char digits[] = "0123456789abcdef";
+    for (unsigned i = 0; i < 256; ++i) {
+        table[i * 2] = digits[i >> 4];
+        table[i * 2 + 1] = digits[i & 0xf];
+    }
+    return table;
+}();
 
-    os << std::hex << std::setfill('0') << std::setw(v.get_width()) << v.get();
-    os.flags(flags);
-    os.fill(fill);
+// The two hex characters for a single byte, e.g. "0a" for 0x0a (no separator, no null terminator).
+inline constexpr std::span<const char, 2> hex_chars(uint8_t _byte) {
+    return std::span<const char, 2>{&hex_byte_table[static_cast<size_t>(_byte) * 2], 2};
+}
+
+// Appends the two hex characters for a single byte to _out, e.g. "0a" for 0x0a.
+inline void append_hex_byte(std::string& _out, uint8_t _byte) {
+    const auto pair = hex_chars(_byte);
+    _out.append(pair.data(), pair.size());
+}
+
+// Appends the hex representation of _data to _out, e.g. "0a1b2c" - no separators.
+inline void append_hex(std::string& _out, std::span<const byte_t> _data) {
+    _out.reserve(_out.size() + _data.size() * 2);
+    for (byte_t b : _data) {
+        append_hex_byte(_out, b);
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, utility::Hex v) {
+    std::array<char, 8> buf{};
+    uint32_t value = v.get();
+    for (uint16_t i = v.get_width(); i > 0; i -= 2) {
+        const auto pair = hex_chars(static_cast<uint8_t>(value & 0xff));
+        buf[i - 2] = pair[0];
+        buf[i - 1] = pair[1];
+        value >>= 8;
+    }
+    os.write(buf.data(), v.get_width());
     return os;
 }
 
@@ -207,17 +236,18 @@ inline std::ostream& operator<<(std::ostream& os, utility::Hex v) {
 inline std::string utility::dump(const byte_t* _data, size_t _length) {
     // way under 1390, or DLT might blow up; see `DLT_USER_BUF_MAX_SIZE`
     constexpr size_t max_dump_length = 512; // *2 = 1024
-    std::ostringstream s;
     size_t show_length = std::min<size_t>(_length, max_dump_length);
-    for (size_t i = 0; i < show_length; ++i) {
-        s << hex2(_data[i]);
-    }
+
+    std::string s;
+    append_hex(s, std::span<const byte_t>(_data, show_length));
 
     if (_length > max_dump_length) {
-        s << " (truncated, total length: " << _length << ")";
+        s += " (truncated, total length: ";
+        s += std::to_string(_length);
+        s += ")";
     }
 
-    return s.str();
+    return s;
 }
 
 } // namespace vsomeip_v3

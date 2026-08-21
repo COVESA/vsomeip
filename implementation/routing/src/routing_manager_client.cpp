@@ -59,12 +59,13 @@ namespace vsomeip_v3 {
 #define VSOMEIP_LOG_PREFIX "rmc"
 
 routing_manager_client::routing_manager_client(routing_manager_host* _host, bool _client_side_logging,
-                                               const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter) :
+                                               const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter,
+                                               std::shared_ptr<trace::connector_impl> _trace_connector) :
     host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()), env_([] {
         char h[1024];
         return gethostname(h, sizeof(h)) == 0 ? std::string(h) : std::string{};
     }()),
-    tc_(trace::connector_impl::get()), sender_(nullptr), tcp_receiver_(nullptr), uds_receiver_(nullptr),
+    tc_(std::move(_trace_connector)), sender_(nullptr), tcp_receiver_(nullptr), uds_receiver_(nullptr),
     client_side_logging_(_client_side_logging), client_side_logging_filter_(_client_side_logging_filter),
     routing_mode_(configuration_->is_local_routing()           ? routing_mode_e::UDS_ONLY
                           : configuration_->is_uds_preferred() ? routing_mode_e::UDS_AND_TCP

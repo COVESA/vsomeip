@@ -21,8 +21,10 @@
 namespace vsomeip_v3 {
 
 routing_application::routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name,
-                                         std::shared_ptr<policy_manager_impl> _policy_manager, std::shared_ptr<security> _security) :
-    io_(_io), name_(std::move(_name)), configuration_(std::move(_configuration)), routing_(std::make_shared<routing_manager_impl>(this)),
+                                         std::shared_ptr<policy_manager_impl> _policy_manager, std::shared_ptr<security> _security,
+                                         std::shared_ptr<trace::connector_impl> _trace_connector) :
+    io_(_io), name_(std::move(_name)), configuration_(std::move(_configuration)),
+    routing_(std::make_shared<routing_manager_impl>(this, std::move(_trace_connector))),
     has_session_handling_(configuration_->has_session_handling(name_)), policy_manager_(std::move(_policy_manager)),
     security_(std::move(_security)) {
 

@@ -40,6 +40,10 @@ class routing_manager_client;
 class routing_manager_stub;
 class plugin_manager_impl;
 
+namespace trace {
+class connector_impl;
+}
+
 class application_impl : public application, public routing_manager_host, public std::enable_shared_from_this<application_impl> {
 public:
     application_impl(const std::string& _name, const std::string& _path);
@@ -424,6 +428,8 @@ private:
 
     bool client_side_logging_;
     std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
+
+    std::shared_ptr<trace::connector_impl> trace_connector_;
 
     vsomeip_sec_client_t sec_client_{};
 

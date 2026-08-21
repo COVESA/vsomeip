@@ -4,81 +4,66 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "../include/channel_impl.hpp"
+
 #include <vsomeip/internal/logger.hpp>
 
-namespace vsomeip_v3 {
-namespace trace {
+namespace vsomeip_v3::trace {
 
-constexpr filter_id_t FILTER_ID_ERROR = 0;
-
-channel_impl::channel_impl(const std::string& _id, const std::string& _name) : id_(_id), name_(_name), current_filter_id_(1) { }
+channel_impl::channel_impl(const std::string& _id, DltContext* _log_context) : id_(_id), log_context_(_log_context) { }
 
 std::string channel_impl::get_id() const {
     return id_;
 }
 
-std::string channel_impl::get_name() const {
-    return name_;
+DltContext* channel_impl::get_log_context() const {
+    return log_context_;
 }
 
-filter_id_t channel_impl::add_filter(const match_t& _match, bool _is_positive) {
-    filter_type_e its_filter_type = (_is_positive ? filter_type_e::POSITIVE : filter_type_e::NEGATIVE);
-
-    return add_filter(_match, its_filter_type);
-}
-
-filter_id_t channel_impl::add_filter(const match_t& _match, filter_type_e _type) {
-
+void channel_impl::add_filter(const match_t& _match, filter_type_e _type) {
     // Create a filter function
-    std::function<bool(service_t, instance_t, method_t)> its_filter_func;
+    std::function<bool(service_t, instance_t, method_t)> filter_func;
     if (std::get<0>(_match) != ANY_SERVICE) {
         if (std::get<1>(_match) != ANY_INSTANCE) {
             if (std::get<2>(_match) != ANY_METHOD) {
-                its_filter_func = [_match](service_t _s, instance_t _i, method_t _m) {
+                filter_func = [_match](service_t _s, instance_t _i, method_t _m) {
                     return (std::get<0>(_match) == _s && std::get<1>(_match) == _i && std::get<2>(_match) == _m);
                 };
             } else {
-                its_filter_func = [_match](service_t _s, instance_t _i, method_t) {
+                filter_func = [_match](service_t _s, instance_t _i, method_t) {
                     return (std::get<0>(_match) == _s && std::get<1>(_match) == _i);
                 };
             }
         } else {
             if (std::get<2>(_match) != ANY_METHOD) {
-                its_filter_func = [_match](service_t _s, instance_t, method_t _m) {
+                filter_func = [_match](service_t _s, instance_t, method_t _m) {
                     return (std::get<0>(_match) == _s && std::get<1>(_match) == _m);
                 };
             } else {
-                its_filter_func = [_match](service_t _s, instance_t, method_t) { return (std::get<0>(_match) == _s); };
+                filter_func = [_match](service_t _s, instance_t, method_t) { return (std::get<0>(_match) == _s); };
             }
         }
     } else {
         if (std::get<1>(_match) != ANY_INSTANCE) {
             if (std::get<2>(_match) != ANY_METHOD) {
-                its_filter_func = [_match](service_t, instance_t _i, method_t _m) {
+                filter_func = [_match](service_t, instance_t _i, method_t _m) {
                     return (std::get<1>(_match) == _i && std::get<2>(_match) == _m);
                 };
             } else {
-                its_filter_func = [_match](service_t, instance_t _i, method_t) { return (std::get<1>(_match) == _i); };
+                filter_func = [_match](service_t, instance_t _i, method_t) { return (std::get<1>(_match) == _i); };
             }
         } else {
             if (std::get<2>(_match) != ANY_METHOD) {
-                its_filter_func = [_match](service_t, instance_t, method_t _m) { return (std::get<2>(_match) == _m); };
+                filter_func = [_match](service_t, instance_t, method_t _m) { return (std::get<2>(_match) == _m); };
             } else {
-                its_filter_func = [](service_t, instance_t, method_t) { return true; };
+                filter_func = [](service_t, instance_t, method_t) { return true; };
             }
         }
     }
 
-    return add_filter_intern(its_filter_func, _type);
+    add_filter_intern(std::move(filter_func), _type);
 }
 
-filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, bool _is_positive) {
-    filter_type_e its_filter_type = (_is_positive ? filter_type_e::POSITIVE : filter_type_e::NEGATIVE);
-
-    return add_filter(_matches, its_filter_type);
-}
-
-filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filter_type_e _type) {
+void channel_impl::add_filter(const std::vector<match_t>& _matches, filter_type_e _type) {
     bool has_service(false);
     bool has_instance(false);
     bool has_method(false);
@@ -96,11 +81,11 @@ filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filte
     }
 
     // Create a filter function
-    std::function<bool(service_t, instance_t, method_t)> its_filter_func;
+    std::function<bool(service_t, instance_t, method_t)> filter_func;
     if (has_service) {
         if (has_instance) {
             if (has_method) {
-                its_filter_func = [_matches](service_t _s, instance_t _i, method_t _m) {
+                filter_func = [_matches](service_t _s, instance_t _i, method_t _m) {
                     for (const auto& m : _matches) {
                         if ((std::get<0>(m) == _s || std::get<0>(m) == ANY_SERVICE)
                             && (std::get<1>(m) == _i || std::get<1>(m) == ANY_INSTANCE)
@@ -111,7 +96,7 @@ filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filte
                     return false;
                 };
             } else {
-                its_filter_func = [_matches](service_t _s, instance_t _i, method_t) {
+                filter_func = [_matches](service_t _s, instance_t _i, method_t) {
                     for (const auto& m : _matches) {
                         if ((std::get<0>(m) == _s || std::get<0>(m) == ANY_SERVICE)
                             && (std::get<1>(m) == _i || std::get<1>(m) == ANY_INSTANCE)) {
@@ -123,7 +108,7 @@ filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filte
             }
         } else {
             if (has_method) {
-                its_filter_func = [_matches](service_t _s, instance_t, method_t _m) {
+                filter_func = [_matches](service_t _s, instance_t, method_t _m) {
                     for (const auto& m : _matches) {
                         if ((std::get<0>(m) == _s || std::get<0>(m) == ANY_SERVICE)
                             && (std::get<2>(m) == _m || std::get<2>(m) == ANY_METHOD)) {
@@ -133,7 +118,7 @@ filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filte
                     return false;
                 };
             } else {
-                its_filter_func = [_matches](service_t _s, instance_t, method_t) {
+                filter_func = [_matches](service_t _s, instance_t, method_t) {
                     for (auto& m : _matches) {
                         if (std::get<0>(m) == _s || std::get<0>(m) == ANY_SERVICE) {
                             return true;
@@ -146,7 +131,7 @@ filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filte
     } else {
         if (has_instance) {
             if (has_method) {
-                its_filter_func = [_matches](service_t, instance_t _i, method_t _m) {
+                filter_func = [_matches](service_t, instance_t _i, method_t _m) {
                     for (auto& m : _matches) {
                         if ((std::get<1>(m) == _i || std::get<1>(m) == ANY_INSTANCE)
                             && (std::get<2>(m) == _m || std::get<2>(m) == ANY_METHOD)) {
@@ -156,7 +141,7 @@ filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filte
                     return false;
                 };
             } else {
-                its_filter_func = [_matches](service_t, instance_t _i, method_t) {
+                filter_func = [_matches](service_t, instance_t _i, method_t) {
                     for (auto& m : _matches) {
                         if (std::get<1>(m) == _i || std::get<1>(m) == ANY_INSTANCE) {
                             return true;
@@ -167,7 +152,7 @@ filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filte
             }
         } else {
             if (has_method) {
-                its_filter_func = [_matches](service_t, instance_t, method_t _m) {
+                filter_func = [_matches](service_t, instance_t, method_t _m) {
                     for (auto& m : _matches) {
                         if (std::get<2>(m) == _m || std::get<2>(m) == ANY_METHOD) {
                             return true;
@@ -176,21 +161,21 @@ filter_id_t channel_impl::add_filter(const std::vector<match_t>& _matches, filte
                     return false;
                 };
             } else {
-                its_filter_func = [](service_t, instance_t, method_t) { return true; };
+                filter_func = [](service_t, instance_t, method_t) { return true; };
             }
         }
     }
 
-    return add_filter_intern(its_filter_func, _type);
+    add_filter_intern(std::move(filter_func), _type);
 }
 
-filter_id_t channel_impl::add_filter(const match_t& _from, const match_t& _to, filter_type_e _type) {
+void channel_impl::add_filter(const match_t& _from, const match_t& _to, filter_type_e _type) {
 
     // Check usage of ANY_* which is forbidden here
     if (std::get<0>(_from) == ANY_SERVICE || std::get<1>(_from) == ANY_INSTANCE || std::get<2>(_from) == ANY_METHOD
         || std::get<0>(_to) == ANY_SERVICE || std::get<1>(_to) == ANY_INSTANCE || std::get<2>(_to) == ANY_METHOD) {
         VSOMEIP_ERROR << "Trace filter configuration error: You must not use wildcards in range filters.";
-        return FILTER_ID_ERROR;
+        return;
     }
 
     std::function<bool(service_t, instance_t, method_t)> its_filter_func = [_from, _to](service_t _s, instance_t _i, method_t _m) {
@@ -198,42 +183,24 @@ filter_id_t channel_impl::add_filter(const match_t& _from, const match_t& _to, f
                 && std::get<2>(_from) <= _m && _m <= std::get<2>(_to));
     };
 
-    return add_filter_intern(its_filter_func, _type);
+    add_filter_intern(its_filter_func, _type);
 }
 
-filter_id_t channel_impl::add_filter(const match_t& _from, const match_t& _to, bool _is_positive) {
-    filter_type_e its_filter_type = (_is_positive ? filter_type_e::POSITIVE : filter_type_e::NEGATIVE);
-
-    return add_filter(_from, _to, its_filter_type);
-}
-
-void channel_impl::remove_filter(filter_id_t _id) {
-    std::scoped_lock its_lock(mutex_);
-    positive_.erase(_id);
-    negative_.erase(_id);
-}
-
-filter_id_t channel_impl::add_filter_intern(const filter_func_t& _func, filter_type_e _type) {
-    filter_id_t its_id = current_filter_id_.fetch_add(1);
-
-    std::scoped_lock its_lock(mutex_);
+void channel_impl::add_filter_intern(filter_func_t _func, filter_type_e _type) {
     switch (_type) {
     case filter_type_e::NEGATIVE:
-        negative_[its_id] = _func;
+        negative_.emplace_back(std::move(_func));
         break;
     default: // POSITIVE, HEADER_ONLY, FULL_PAYLOAD
-        positive_[its_id] = trace_filter_entry{_func, _type};
+        positive_.emplace_back(trace_filter_entry{std::move(_func), _type});
+        break;
     }
-
-    return its_id;
 }
 
 trace_result_e channel_impl::matches(service_t _service, instance_t _instance, method_t _method) {
-    std::scoped_lock its_lock(mutex_);
-
     // If a negative filter matches --> drop!
-    for (auto& its_filter : negative_) {
-        if (its_filter.second(_service, _instance, _method)) {
+    for (const auto& filter : negative_) {
+        if (filter(_service, _instance, _method)) {
             return trace_result_e::DROP;
         }
     }
@@ -242,15 +209,14 @@ trace_result_e channel_impl::matches(service_t _service, instance_t _instance, m
     // POSITIVE and FULL_PAYLOAD log the full payload (POSITIVE_FILTER),
     // HEADER_ONLY logs the header only.
     bool has_positive(false);
-    for (auto& its_filter : positive_) {
-        if (its_filter.second.func(_service, _instance, _method)) {
-            return its_filter.second.type == filter_type_e::HEADER_ONLY ? trace_result_e::HEADER_ONLY_FILTER
-                                                                        : trace_result_e::POSITIVE_FILTER;
+    for (const auto& filter : positive_) {
+        if (filter.func(_service, _instance, _method)) {
+            return filter.type == filter_type_e::HEADER_ONLY ? trace_result_e::HEADER_ONLY_FILTER : trace_result_e::POSITIVE_FILTER;
         }
 
         // Only a POSITIVE filter restricts the channel to an allow-list;
         // HEADER_ONLY and FULL_PAYLOAD leave other messages on the default path.
-        if (its_filter.second.type == filter_type_e::POSITIVE) {
+        if (filter.type == filter_type_e::POSITIVE) {
             has_positive = true;
         }
     }
@@ -265,5 +231,4 @@ trace_result_e channel_impl::matches(service_t _service, instance_t _instance, m
     return trace_result_e::DROP;
 }
 
-} // namespace trace
-} // namespace vsomeip_v3
+} // namespace vsomeip_v3::trace

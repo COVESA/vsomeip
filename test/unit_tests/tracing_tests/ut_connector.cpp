@@ -46,6 +46,25 @@
 // throwing and does not leak anything onto the console. Both variants are
 // selected through the expect_* helpers below.
 
+// connector_impl's sole friend (see connector_impl.hpp); must live directly in
+// this namespace for the friend decl to resolve. Inline here since only this
+// file needs it.
+namespace vsomeip_v3::trace {
+struct connector_impl_test_peer {
+    static void set_enabled(connector_impl& _connector, bool _enabled) { _connector.set_enabled(_enabled); }
+
+    static void set_sd_enabled(connector_impl& _connector, bool _enabled) { _connector.set_sd_enabled(_enabled); }
+
+    static bool add_channel(connector_impl& _connector, const std::string& _id, const std::string& _description) {
+        return _connector.add_channel(_id, _description);
+    }
+
+    static std::shared_ptr<channel_impl> get_channel(const connector_impl& _connector, const std::string& _id) {
+        return _connector.get_channel(_id);
+    }
+};
+} // namespace vsomeip_v3::trace
+
 namespace {
 
 using vsomeip_v3::byte_t;
@@ -58,6 +77,8 @@ using vsomeip_v3::ANY_METHOD;
 
 using ::testing::HasSubstr;
 using ::testing::Not;
+
+using peer = vsomeip_v3::trace::connector_impl_test_peer;
 
 constexpr uint16_t trace_header_size = 10; // VSOMEIP_TRACE_HEADER_SIZE
 const std::string default_channel_id{"TC"}; // VSOMEIP_TC_DEFAULT_CHANNEL_ID
@@ -177,6 +198,22 @@ void expect_dropped(const std::string& _output) {
     EXPECT_TRUE(_output.empty());
 }
 
+#ifndef USE_DLT
+// Returns the console line that trace() produced for the given channel, or an
+// empty string if that channel did not log anything. Each channel logs its own
+// line prefixed with its id, which is what tells the per-channel output apart.
+std::string channel_line(const std::string& _output, const std::string& _channel_id) {
+    std::istringstream stream{_output};
+    std::string line;
+    while (std::getline(stream, line)) {
+        if (line.find(_channel_id + ":") != std::string::npos) {
+            return line;
+        }
+    }
+    return {};
+}
+#endif
+
 class connector_test : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -192,7 +229,9 @@ protected:
         DLT_REGISTER_APP("VSIP", "vSomeIP tracing unit test");
 #endif
 
-        connector_ = std::make_shared<vsomeip_v3::trace::connector_impl>();
+        // A default configuration leaves the connector disabled; the individual
+        // tests enable it and add channels/filters as needed.
+        connector_ = std::make_shared<vsomeip_v3::trace::connector_impl>(std::make_shared<vsomeip_v3::cfg::trace>());
     }
 
     void TearDown() override {
@@ -204,6 +243,14 @@ protected:
 
     // Traces a message and returns whatever trace() wrote to std::cout.
     std::string trace(const std::array<byte_t, trace_header_size>& _header, const std::vector<byte_t>& _data) {
+        cout_capture capture;
+        connector_->trace(_header.data(), static_cast<uint16_t>(_header.size()), _data.data(), static_cast<uint32_t>(_data.size()));
+        return capture.str();
+    }
+
+    // Same as trace(), but for buffers whose size deliberately deviates from what
+    // a well formed trace header / SOME/IP message would have.
+    std::string trace_raw(const std::vector<byte_t>& _header, const std::vector<byte_t>& _data) {
         cout_capture capture;
         connector_->trace(_header.data(), static_cast<uint16_t>(_header.size()), _data.data(), static_cast<uint32_t>(_data.size()));
         return capture.str();
@@ -227,7 +274,7 @@ TEST_F(connector_test, disabled_connector_produces_no_trace) {
 
 // Enabling the connector but passing an empty payload must not produce output.
 TEST_F(connector_test, empty_data_produces_no_trace) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
 
     const auto header = make_header(0x9abc);
     const std::vector<byte_t> empty_data;
@@ -238,7 +285,7 @@ TEST_F(connector_test, empty_data_produces_no_trace) {
 // With the default channel (no filters) an enabled connector traces the full
 // header followed by the full payload.
 TEST_F(connector_test, enabled_connector_traces_header_and_data) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
 
     const auto header = make_header(0x9abc);
     const auto data = make_message(0x1234, 0x5678, {0xde, 0xad});
@@ -252,7 +299,7 @@ TEST_F(connector_test, enabled_connector_traces_header_and_data) {
 // Service discovery messages must be dropped while SD tracing is disabled
 // (the connector default).
 TEST_F(connector_test, sd_message_dropped_when_sd_disabled) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
     ASSERT_FALSE(connector_->is_sd_enabled());
 
     const auto header = make_header(0x0001);
@@ -263,8 +310,8 @@ TEST_F(connector_test, sd_message_dropped_when_sd_disabled) {
 
 // Once SD tracing is enabled, service discovery messages are traced as well.
 TEST_F(connector_test, sd_message_traced_when_sd_enabled) {
-    connector_->set_enabled(true);
-    connector_->set_sd_enabled(true);
+    peer::set_enabled(*connector_, true);
+    peer::set_sd_enabled(*connector_, true);
 
     const auto header = make_header(0x0001);
     const auto data = make_message(0xffff, 0x8100);
@@ -274,11 +321,12 @@ TEST_F(connector_test, sd_message_traced_when_sd_enabled) {
 
 // A negative filter must drop matching messages while still forwarding others.
 TEST_F(connector_test, negative_filter_drops_matching_message) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
 
-    auto channel = connector_->get_channel(default_channel_id);
+    auto channel = peer::get_channel(*connector_, default_channel_id);
     ASSERT_TRUE(channel);
-    channel->add_filter(std::make_tuple(static_cast<service_t>(0x1111), ANY_INSTANCE, ANY_METHOD), false);
+    channel->add_filter(std::make_tuple(static_cast<service_t>(0x1111), ANY_INSTANCE, ANY_METHOD),
+                        vsomeip_v3::trace::filter_type_e::NEGATIVE);
 
     const auto header = make_header(0x0001);
 
@@ -291,11 +339,12 @@ TEST_F(connector_test, negative_filter_drops_matching_message) {
 
 // A positive filter must trace only matching messages and drop the rest.
 TEST_F(connector_test, positive_filter_traces_only_matching_message) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
 
-    auto channel = connector_->get_channel(default_channel_id);
+    auto channel = peer::get_channel(*connector_, default_channel_id);
     ASSERT_TRUE(channel);
-    channel->add_filter(std::make_tuple(static_cast<service_t>(0x3333), ANY_INSTANCE, ANY_METHOD), true);
+    channel->add_filter(std::make_tuple(static_cast<service_t>(0x3333), ANY_INSTANCE, ANY_METHOD),
+                        vsomeip_v3::trace::filter_type_e::POSITIVE);
 
     const auto header = make_header(0x0001);
 
@@ -309,9 +358,9 @@ TEST_F(connector_test, positive_filter_traces_only_matching_message) {
 // A header-only filter must trace the header and only the first
 // VSOMEIP_FULL_HEADER_SIZE bytes of the data, truncating the payload.
 TEST_F(connector_test, header_only_filter_truncates_payload) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
 
-    auto channel = std::dynamic_pointer_cast<vsomeip_v3::trace::channel_impl>(connector_->get_channel(default_channel_id));
+    auto channel = peer::get_channel(*connector_, default_channel_id);
     ASSERT_TRUE(channel);
     channel->add_filter(std::make_tuple(static_cast<service_t>(0x1234), ANY_INSTANCE, ANY_METHOD),
                         vsomeip_v3::trace::filter_type_e::HEADER_ONLY);
@@ -332,20 +381,20 @@ TEST_F(connector_test, header_only_filter_truncates_payload) {
 TEST_F(connector_test, enable_flag_round_trips) {
     EXPECT_FALSE(connector_->is_enabled());
 
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
     EXPECT_TRUE(connector_->is_enabled());
 
-    connector_->set_enabled(false);
+    peer::set_enabled(*connector_, false);
     EXPECT_FALSE(connector_->is_enabled());
 }
 
 TEST_F(connector_test, sd_flag_round_trips) {
     EXPECT_FALSE(connector_->is_sd_enabled());
 
-    connector_->set_sd_enabled(true);
+    peer::set_sd_enabled(*connector_, true);
     EXPECT_TRUE(connector_->is_sd_enabled());
 
-    connector_->set_sd_enabled(false);
+    peer::set_sd_enabled(*connector_, false);
     EXPECT_FALSE(connector_->is_sd_enabled());
 }
 
@@ -370,55 +419,27 @@ TEST_F(connector_test, is_sd_message_detection) {
 // ---------------------------------------------------------------------------
 
 TEST_F(connector_test, default_channel_exists) {
-    EXPECT_TRUE(connector_->get_channel(default_channel_id));
-    EXPECT_FALSE(connector_->get_channel("does-not-exist"));
+    EXPECT_TRUE(peer::get_channel(*connector_, default_channel_id));
+    EXPECT_FALSE(peer::get_channel(*connector_, "does-not-exist"));
 }
 
 TEST_F(connector_test, add_channel_creates_unique_channel) {
-    auto channel = connector_->add_channel("CH1", "first channel");
+    ASSERT_TRUE(peer::add_channel(*connector_, "CH1", "first channel"));
+
+    auto channel = peer::get_channel(*connector_, "CH1");
     ASSERT_TRUE(channel);
     EXPECT_EQ(channel->get_id(), "CH1");
-    EXPECT_TRUE(connector_->get_channel("CH1"));
 
     // Re-adding an existing id (custom or default) must fail.
-    EXPECT_FALSE(connector_->add_channel("CH1", "duplicate"));
-    EXPECT_FALSE(connector_->add_channel(default_channel_id, "duplicate default"));
-}
-
-TEST_F(connector_test, remove_channel_removes_only_non_default) {
-    ASSERT_TRUE(connector_->add_channel("CH1", "first channel"));
-
-    EXPECT_TRUE(connector_->remove_channel("CH1"));
-    EXPECT_FALSE(connector_->get_channel("CH1"));
-
-    // The default channel must not be removable.
-    EXPECT_FALSE(connector_->remove_channel(default_channel_id));
-    EXPECT_TRUE(connector_->get_channel(default_channel_id));
+    EXPECT_FALSE(peer::add_channel(*connector_, "CH1", "duplicate"));
+    EXPECT_FALSE(peer::add_channel(*connector_, default_channel_id, "duplicate default"));
 }
 
 // ---------------------------------------------------------------------------
-// reset
+// Construction from configuration
 // ---------------------------------------------------------------------------
 
-TEST_F(connector_test, reset_clears_channels_and_stops_forwarding) {
-    connector_->set_enabled(true);
-    ASSERT_TRUE(connector_->add_channel("CH1", "first channel"));
-
-    connector_->reset();
-
-    EXPECT_FALSE(connector_->get_channel("CH1"));
-    EXPECT_FALSE(connector_->get_channel(default_channel_id));
-
-    // With no channels left, an enabled connector no longer forwards anything.
-    const auto header = make_header(0x0001);
-    expect_dropped(trace(header, make_message(0x1234, 0x5678, {0xde, 0xad})));
-}
-
-// ---------------------------------------------------------------------------
-// configure
-// ---------------------------------------------------------------------------
-
-TEST_F(connector_test, configure_applies_settings) {
+TEST_F(connector_test, constructor_applies_configuration) {
     auto config = std::make_shared<vsomeip_v3::cfg::trace>();
     config->is_enabled_ = true;
     config->is_sd_enabled_ = true;
@@ -429,17 +450,20 @@ TEST_F(connector_test, configure_applies_settings) {
     channel_cfg->name_ = "configured channel";
     config->channels_.push_back(channel_cfg);
 
-    connector_->configure(config);
+    auto connector = std::make_shared<vsomeip_v3::trace::connector_impl>(config);
 
-    EXPECT_TRUE(connector_->is_enabled());
-    EXPECT_TRUE(connector_->is_sd_enabled());
-    EXPECT_TRUE(connector_->get_channel("CFG"));
+    EXPECT_TRUE(connector->is_enabled());
+    EXPECT_TRUE(connector->is_sd_enabled());
+    EXPECT_TRUE(peer::get_channel(*connector, "CFG"));
 
     // With the threshold disabled, an oversized default-path payload is still
     // logged in full.
     const auto header = make_header(0x0001);
     const auto data = make_message(0x1234, 0x5678, oversized_payload());
-    expect_forwarded(trace(header, data), {payload_marker_token});
+
+    cout_capture capture;
+    connector->trace(header.data(), static_cast<std::uint16_t>(header.size()), data.data(), static_cast<std::uint32_t>(data.size()));
+    expect_forwarded(capture.str(), {payload_marker_token});
 }
 
 // ---------------------------------------------------------------------------
@@ -447,7 +471,7 @@ TEST_F(connector_test, configure_applies_settings) {
 // ---------------------------------------------------------------------------
 
 TEST_F(connector_test, small_payload_logged_in_full_by_default) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
 
     const auto header = make_header(0x0001);
     const auto data = make_message(0x1234, 0x5678, {0xde, 0xad, 0xbe, 0xef});
@@ -456,7 +480,7 @@ TEST_F(connector_test, small_payload_logged_in_full_by_default) {
 }
 
 TEST_F(connector_test, oversized_default_payload_is_truncated_to_header) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
 
     const auto header = make_header(0x0001);
     const auto data = make_message(0x1234, 0x5678, oversized_payload());
@@ -467,11 +491,12 @@ TEST_F(connector_test, oversized_default_payload_is_truncated_to_header) {
 }
 
 TEST_F(connector_test, positive_filter_bypasses_threshold) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
 
-    auto channel = connector_->get_channel(default_channel_id);
+    auto channel = peer::get_channel(*connector_, default_channel_id);
     ASSERT_TRUE(channel);
-    channel->add_filter(std::make_tuple(static_cast<service_t>(0x1234), ANY_INSTANCE, ANY_METHOD), true);
+    channel->add_filter(std::make_tuple(static_cast<service_t>(0x1234), ANY_INSTANCE, ANY_METHOD),
+                        vsomeip_v3::trace::filter_type_e::POSITIVE);
 
     const auto header = make_header(0x0001);
     const auto data = make_message(0x1234, 0x5678, oversized_payload());
@@ -481,9 +506,9 @@ TEST_F(connector_test, positive_filter_bypasses_threshold) {
 }
 
 TEST_F(connector_test, full_payload_filter_forces_full_logging) {
-    connector_->set_enabled(true);
+    peer::set_enabled(*connector_, true);
 
-    auto channel = std::dynamic_pointer_cast<vsomeip_v3::trace::channel_impl>(connector_->get_channel(default_channel_id));
+    auto channel = peer::get_channel(*connector_, default_channel_id);
     ASSERT_TRUE(channel);
     channel->add_filter(std::make_tuple(static_cast<service_t>(0x1234), ANY_INSTANCE, ANY_METHOD),
                         vsomeip_v3::trace::filter_type_e::FULL_PAYLOAD);
@@ -493,6 +518,137 @@ TEST_F(connector_test, full_payload_filter_forces_full_logging) {
 
     // A full-payload filter forces full logging just like a positive filter.
     expect_forwarded(trace(header, data), {payload_marker_token});
+}
+
+// ---------------------------------------------------------------------------
+// Per-channel logging decisions
+// ---------------------------------------------------------------------------
+
+// Whether a message is logged in full or header-only is decided per channel, so
+// one channel truncating its output must not affect any other channel. The
+// channels are iterated in id order, hence the ids chosen here: the truncating
+// channel is visited before the one that expects the full payload.
+TEST_F(connector_test, header_only_channel_does_not_truncate_later_channel) {
+    peer::set_enabled(*connector_, true);
+
+    ASSERT_TRUE(peer::add_channel(*connector_, "AAA", "header-only channel"));
+    auto truncating_channel = peer::get_channel(*connector_, "AAA");
+    ASSERT_TRUE(truncating_channel);
+    truncating_channel->add_filter(std::make_tuple(static_cast<service_t>(0x1234), ANY_INSTANCE, ANY_METHOD),
+                                   vsomeip_v3::trace::filter_type_e::HEADER_ONLY);
+
+    // The default channel has no filters and the payload stays below the
+    // threshold, so it must log the message in full.
+    const auto header = make_header(0x0001);
+    const auto data = make_message(0x1234, 0x5678, {0xde, 0xad, 0xbe, 0xef});
+
+    const auto output = trace(header, data);
+#ifdef USE_DLT
+    EXPECT_TRUE(output.empty());
+#else
+    const auto truncated_output = channel_line(output, "AAA");
+    const auto full_output = channel_line(output, default_channel_id);
+    ASSERT_FALSE(truncated_output.empty());
+    ASSERT_FALSE(full_output.empty());
+
+    EXPECT_THAT(truncated_output, HasSubstr("12 34 56 78"));
+    EXPECT_THAT(truncated_output, Not(HasSubstr(payload_marker_token)));
+    EXPECT_THAT(full_output, HasSubstr(payload_marker_token));
+#endif
+}
+
+// Mirror of the test above with the roles swapped: a channel that logs in full
+// must not widen the output of a header-only channel visited after it.
+TEST_F(connector_test, full_channel_does_not_widen_later_header_only_channel) {
+    peer::set_enabled(*connector_, true);
+
+    ASSERT_TRUE(peer::add_channel(*connector_, "ZZZ", "header-only channel"));
+    auto truncating_channel = peer::get_channel(*connector_, "ZZZ");
+    ASSERT_TRUE(truncating_channel);
+    truncating_channel->add_filter(std::make_tuple(static_cast<service_t>(0x1234), ANY_INSTANCE, ANY_METHOD),
+                                   vsomeip_v3::trace::filter_type_e::HEADER_ONLY);
+
+    const auto header = make_header(0x0001);
+    const auto data = make_message(0x1234, 0x5678, {0xde, 0xad, 0xbe, 0xef});
+
+    const auto output = trace(header, data);
+#ifdef USE_DLT
+    EXPECT_TRUE(output.empty());
+#else
+    const auto truncated_output = channel_line(output, "ZZZ");
+    const auto full_output = channel_line(output, default_channel_id);
+    ASSERT_FALSE(truncated_output.empty());
+    ASSERT_FALSE(full_output.empty());
+
+    EXPECT_THAT(truncated_output, Not(HasSubstr(payload_marker_token)));
+    EXPECT_THAT(full_output, HasSubstr(payload_marker_token));
+#endif
+}
+
+// The same independence must hold for the size threshold: a channel taking the
+// forward-everything default path truncates an oversized payload, while a
+// channel with an explicit positive filter still logs it in full - regardless of
+// which of the two is visited first.
+TEST_F(connector_test, threshold_truncation_does_not_affect_positive_filter_channel) {
+    peer::set_enabled(*connector_, true);
+
+    ASSERT_TRUE(peer::add_channel(*connector_, "ZZZ", "positive filter channel"));
+    auto full_channel = peer::get_channel(*connector_, "ZZZ");
+    ASSERT_TRUE(full_channel);
+    full_channel->add_filter(std::make_tuple(static_cast<service_t>(0x1234), ANY_INSTANCE, ANY_METHOD),
+                             vsomeip_v3::trace::filter_type_e::POSITIVE);
+
+    const auto header = make_header(0x0001);
+    const auto data = make_message(0x1234, 0x5678, oversized_payload());
+
+    const auto output = trace(header, data);
+#ifdef USE_DLT
+    EXPECT_TRUE(output.empty());
+#else
+    const auto truncated_output = channel_line(output, default_channel_id);
+    const auto full_output = channel_line(output, "ZZZ");
+    ASSERT_FALSE(truncated_output.empty());
+    ASSERT_FALSE(full_output.empty());
+
+    EXPECT_THAT(truncated_output, Not(HasSubstr(payload_marker_token)));
+    EXPECT_THAT(full_output, HasSubstr(payload_marker_token));
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// Undersized buffers
+// ---------------------------------------------------------------------------
+
+// trace() reads the service and method ids from the SOME/IP header; data too
+// short to carry them must be dropped rather than read out of bounds.
+TEST_F(connector_test, undersized_data_is_dropped) {
+    peer::set_enabled(*connector_, true);
+
+    const std::vector<byte_t> header(trace_header_size, 0x00);
+
+    // One byte short of holding the method id.
+    const std::vector<byte_t> short_data{0x12, 0x34, 0x56};
+    expect_dropped(trace_raw(header, short_data));
+
+    // Service and method ids complete: this is the smallest data still traced.
+    const std::vector<byte_t> minimal_data{0x12, 0x34, 0x56, 0x78};
+    expect_forwarded(trace_raw(header, minimal_data), {"12 34 56 78"});
+}
+
+// The instance id is read from the trace header; a header too short to carry it
+// must be dropped rather than read out of bounds.
+TEST_F(connector_test, undersized_header_is_dropped) {
+    peer::set_enabled(*connector_, true);
+
+    const auto data = make_message(0x1234, 0x5678, {0xde, 0xad});
+
+    // One byte short of holding the instance id.
+    const std::vector<byte_t> short_header(VSOMEIP_TC_INSTANCE_POS_MAX, 0x00);
+    expect_dropped(trace_raw(short_header, data));
+
+    // Instance id complete: traced again.
+    const std::vector<byte_t> minimal_header(VSOMEIP_TC_INSTANCE_POS_MAX + 1, 0x00);
+    expect_forwarded(trace_raw(minimal_header, data), {"12 34 56 78"});
 }
 
 // ---------------------------------------------------------------------------
@@ -507,8 +663,8 @@ TEST_F(connector_test, full_payload_filter_forces_full_logging) {
 // Only trace() is exercised concurrently: construction, configuration and
 // channel handling are intentionally left single threaded.
 TEST_F(connector_test, concurrent_trace_calls_are_race_free) {
-    connector_->set_enabled(true);
-    connector_->set_sd_enabled(true);
+    peer::set_enabled(*connector_, true);
+    peer::set_sd_enabled(*connector_, true);
 
     // Shared, read-only inputs. Sharing them across threads also asserts that
     // trace() never writes to its input buffers.

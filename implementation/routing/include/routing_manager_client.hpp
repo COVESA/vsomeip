@@ -72,7 +72,8 @@ public:
     using available_t = std::map<service_t, std::map<instance_t, std::map<major_version_t, minor_version_t>>>;
 
     routing_manager_client(routing_manager_host* _host, bool _client_side_logging,
-                           const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter);
+                           const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter,
+                           std::shared_ptr<trace::connector_impl> _trace_connector);
     virtual ~routing_manager_client();
 
     void init();

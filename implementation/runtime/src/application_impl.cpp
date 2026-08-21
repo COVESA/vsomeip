@@ -194,23 +194,21 @@ bool application_impl::init() {
             VSOMEIP_INFO << "Application: " << name_ << " has session handling switched off!";
         }
 
+        // Tracing
+        trace_connector_ = std::make_shared<trace::connector_impl>(its_configuration->get_trace());
+
         if (is_routing_manager_host_) {
             VSOMEIP_INFO << "Instantiating routing manager [Host].";
             if (client_ == VSOMEIP_CLIENT_UNSET) {
                 client_ = static_cast<client_t>((configuration_->get_diagnosis_address() << 8) & configuration_->get_diagnosis_mask());
                 utility::request_client_id(configuration_, name_, client_);
             }
-            routing_app_ = std::make_unique<routing_application>(io_, configuration_, name_, policy_manager_, security_);
+            routing_app_ = std::make_unique<routing_application>(io_, configuration_, name_, policy_manager_, security_, trace_connector_);
         }
         VSOMEIP_INFO << "Instantiating routing manager [Proxy].";
-        routing_ = std::make_shared<routing_manager_client>(this, client_side_logging_, client_side_logging_filter_);
+        routing_ = std::make_shared<routing_manager_client>(this, client_side_logging_, client_side_logging_filter_, trace_connector_);
 
         routing_->init();
-
-        // Tracing
-        std::shared_ptr<trace::connector_impl> its_connector = trace::connector_impl::get();
-        std::shared_ptr<cfg::trace> its_trace_configuration = its_configuration->get_trace();
-        its_connector->configure(its_trace_configuration);
 
         VSOMEIP_INFO << "Application(" << (name_ != "" ? name_ : "unnamed") << ", " << hex4(client_) << ") is initialized ("
                      << max_dispatchers_ << ", " << max_dispatch_time_ << ").";

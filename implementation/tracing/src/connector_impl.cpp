@@ -6,11 +6,11 @@
 #include <algorithm>
 #include <climits>
 #include <ctime>
+#include <span>
 
 #ifdef USE_DLT
+#include <dlt/dlt.h>
 #include "logger_ext.hpp"
-#else
-#include <sstream>
 #endif
 
 #include <vsomeip/constants.hpp>
@@ -21,6 +21,7 @@
 #include "../include/channel_impl.hpp"
 #include "../include/connector_impl.hpp"
 #include "../include/defines.hpp"
+#include "../include/log_context.hpp"
 #include "../include/tracing_policy.hpp"
 #include "../../configuration/include/trace.hpp"
 #include "../../utility/include/bithelper.hpp"
@@ -42,60 +43,35 @@
 
 #define VSOMEIP_LOG_PREFIX "connector_impl"
 
-namespace vsomeip_v3 {
-namespace trace {
+namespace vsomeip_v3::trace {
 
-const char* VSOMEIP_TC_DEFAULT_CHANNEL_ID = "TC";
+constexpr const char* VSOMEIP_TC_DEFAULT_CHANNEL_ID = "TC";
 
-static std::mutex connector_impl_get;
+connector_impl::connector_impl(const std::shared_ptr<cfg::trace>& _configuration) :
+    full_logging_threshold_{VSOMEIP_TC_DEFAULT_FULL_LOGGING_THRESHOLD} {
 
-std::shared_ptr<connector_impl> connector_impl::get() {
-    std::scoped_lock lk{connector_impl_get};
-    static std::shared_ptr<connector_impl> instance = std::make_shared<connector_impl>();
-    return instance;
-}
+    add_channel(VSOMEIP_TC_DEFAULT_CHANNEL_ID, VSOMEIP_TC_DEFAULT_CHANNEL_NAME);
 
-connector_impl::connector_impl() :
-    is_enabled_(false), is_sd_enabled_(false), full_logging_threshold_(VSOMEIP_TC_DEFAULT_FULL_LOGGING_THRESHOLD) {
-
-    channels_[VSOMEIP_TC_DEFAULT_CHANNEL_ID] =
-            std::make_shared<channel_impl>(VSOMEIP_TC_DEFAULT_CHANNEL_ID, VSOMEIP_TC_DEFAULT_CHANNEL_NAME);
-#ifdef USE_DLT
-    std::shared_ptr<DltContext> its_default_context = std::make_shared<DltContext>();
-
-    contexts_[VSOMEIP_TC_DEFAULT_CHANNEL_ID] = its_default_context;
-    DLT_REGISTER_CONTEXT_LL_TS(*(its_default_context.get()), VSOMEIP_TC_DEFAULT_CHANNEL_ID, VSOMEIP_TC_DEFAULT_CHANNEL_NAME, DLT_LOG_INFO,
-                               DLT_TRACE_STATUS_ON);
-#endif
-}
-
-connector_impl::~connector_impl() {
-    reset();
-}
-
-void connector_impl::configure(const std::shared_ptr<cfg::trace>& _configuration) {
-    std::scoped_lock lk{configure_mutex_};
     if (_configuration) {
         is_enabled_ = _configuration->is_enabled_;
         is_sd_enabled_ = _configuration->is_sd_enabled_;
         full_logging_threshold_ = _configuration->full_logging_threshold_;
     }
 
-    if (is_enabled_) { // No need to create filters if tracing is disabled!
-        for (auto& its_channel : _configuration->channels_) {
-            if (!add_channel(its_channel->id_, its_channel->name_)) {
-                VSOMEIP_ERROR << "Channel " << its_channel->id_ << " has multiple definitions.";
+    if (_configuration && is_enabled_) { // No need to create filters if tracing is disabled!
+        for (const auto& channel : _configuration->channels_) {
+            if (!add_channel(channel->id_, channel->name_)) {
+                VSOMEIP_ERROR << "Channel " << channel->id_ << " has multiple definitions.";
             }
         }
 
-        for (auto& its_filter : _configuration->filters_) {
-            for (auto& its_channel : its_filter->channels_) {
-                auto its_channel_ptr = get_channel_impl(its_channel);
-                if (its_channel_ptr) {
-                    if (its_filter->is_range_) {
-                        its_channel_ptr->add_filter(its_filter->matches_[0], its_filter->matches_[1], its_filter->ftype_);
+        for (const auto& filter : _configuration->filters_) {
+            for (const auto& channel : filter->channels_) {
+                if (auto p = get_channel(channel)) {
+                    if (filter->is_range_) {
+                        p->add_filter(filter->matches_[0], filter->matches_[1], filter->ftype_);
                     } else {
-                        its_channel_ptr->add_filter(its_filter->matches_, its_filter->ftype_);
+                        p->add_filter(filter->matches_, filter->ftype_);
                     }
                 }
             }
@@ -107,20 +83,6 @@ void connector_impl::configure(const std::shared_ptr<cfg::trace>& _configuration
                  << (full_logging_threshold_ == 0 ? " (disabled, always full)." : " bytes (larger payloads logged header-only).");
 }
 
-void connector_impl::reset() {
-    // reset to default
-    {
-        std::scoped_lock its_lock_channels(channels_mutex_);
-        channels_.clear();
-    }
-#ifdef USE_DLT
-    {
-        std::scoped_lock its_contexts_lock(contexts_mutex_);
-        contexts_.clear();
-    }
-#endif
-}
-
 void connector_impl::set_enabled(bool _enabled) {
     is_enabled_ = _enabled;
 }
@@ -130,12 +92,10 @@ bool connector_impl::is_enabled() const {
 }
 
 void connector_impl::set_sd_enabled(bool _sd_enabled) {
-    std::scoped_lock lk{configure_mutex_};
     is_sd_enabled_ = _sd_enabled;
 }
 
 bool connector_impl::is_sd_enabled() const {
-    std::scoped_lock lk{configure_mutex_};
     return is_sd_enabled_;
 }
 
@@ -147,170 +107,109 @@ bool connector_impl::is_sd_message(const byte_t* _data, uint16_t _data_size) con
     return false;
 }
 
-std::shared_ptr<channel_impl> connector_impl::add_channel(const trace_channel_t& _id, const std::string& _name) {
-
-    std::shared_ptr<channel_impl> its_channel;
-    {
-        std::scoped_lock its_channels_lock(channels_mutex_);
-
-        // check whether we already know the requested channel
-        if (channels_.count(_id) > 0) {
-            return nullptr;
-        }
-
-        // create new channel
-        its_channel = std::make_shared<channel_impl>(_id, _name);
-
-        // add channel
-        channels_[_id] = its_channel;
-    }
-
-    // register context
-#ifdef USE_DLT
-    {
-        std::scoped_lock its_contexts_lock(contexts_mutex_);
-        std::shared_ptr<DltContext> its_context = std::make_shared<DltContext>();
-        contexts_[_id] = its_context;
-        DLT_REGISTER_CONTEXT_LL_TS(*(its_context.get()), _id.c_str(), _name.c_str(), DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
-    }
-#endif
-
-    return its_channel;
-}
-
-bool connector_impl::remove_channel(const trace_channel_t& _id) {
-
-    if (_id == VSOMEIP_TC_DEFAULT_CHANNEL_ID) {
-        // the default channel can not be removed
+bool connector_impl::add_channel(const trace_channel_t& _id, const std::string& _description) {
+    if (channels_.count(_id) > 0) {
         return false;
     }
 
-    bool has_removed{false};
-    {
-        std::scoped_lock its_channels_lock(channels_mutex_);
-        has_removed = (channels_.erase(_id) == 1);
-    }
-
-    if (has_removed) {
-        // unregister context
-#ifdef USE_DLT
-        {
-            std::scoped_lock its_contexts_lock(contexts_mutex_);
-            auto its_context = contexts_.find(_id);
-            if (its_context != contexts_.end()) {
-                DLT_UNREGISTER_CONTEXT(*(its_context->second.get()));
-            }
-        }
-#endif
-    }
-
+    channels_.try_emplace(_id, std::make_shared<channel_impl>(_id, get_log_context(_id.c_str(), _description.c_str())));
     return true;
 }
 
 std::shared_ptr<channel_impl> connector_impl::get_channel(const std::string& _id) const {
-    std::scoped_lock its_channels_lock(channels_mutex_);
-    auto its_channel = channels_.find(_id);
-    return (its_channel != channels_.end() ? its_channel->second : nullptr);
+    if (auto it = channels_.find(_id); it != channels_.end()) {
+        return it->second;
+    }
+    return nullptr;
 }
 
-std::shared_ptr<channel_impl> connector_impl::get_channel_impl(const std::string& _id) const {
-    std::scoped_lock its_channels_lock(channels_mutex_);
-    auto its_channel = channels_.find(_id);
-    return (its_channel != channels_.end() ? its_channel->second : nullptr);
+#ifndef USE_DLT
+
+namespace {
+
+// Same per-byte hex lookup as utility::append_hex(), but space-separated to match the
+// expected trace format ("id: aa bb cc" rather than a contiguous "aabbcc").
+void append_hex_with_spaces(std::string& _out, std::span<const byte_t> _data) {
+    _out.reserve(_out.size() + _data.size() * 3);
+    for (byte_t b : _data) {
+        _out += ' ';
+        append_hex_byte(_out, b);
+    }
 }
 
-void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size) {
+} // namespace
 
-    if (!is_enabled_) {
+#endif
+
+void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _full_data_size) const {
+
+    if (!is_enabled_ || _full_data_size == 0) {
         return;
     }
 
-    if (_data_size == 0) {
-        return; // no data
+    // Clamp to uint16, as that is the max that libdlt accepts.
+    const auto message_size = static_cast<uint16_t>(std::min<uint32_t>(_full_data_size, USHRT_MAX));
+
+    // The service and method ids are read from the SOME/IP header, the instance id from the trace
+    // header. Bail out on buffers too short to carry them instead of reading out of bounds.
+    if (message_size <= VSOMEIP_METHOD_POS_MAX || _header_size <= VSOMEIP_TC_INSTANCE_POS_MAX) {
+        return;
     }
 
-    // Clip
-    uint16_t its_data_size = uint16_t(_data_size > USHRT_MAX ? USHRT_MAX : _data_size);
-
-    uint32_t its_threshold;
-    {
-        std::scoped_lock lk{configure_mutex_};
-        if (is_sd_message(_data, its_data_size) && !is_sd_enabled_) {
-            return; // tracing of service discovery messages is disabled!
-        }
-        its_threshold = full_logging_threshold_;
+    if (!is_sd_enabled_ && is_sd_message(_data, message_size)) {
+        return; // tracing of service discovery messages is disabled!
     }
 
-    service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    const service_t service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    // Instance is not part of the SOME/IP header, read it from the trace header
+    const instance_t instance = bithelper::read_uint16_be(&_header[VSOMEIP_TC_INSTANCE_POS_MIN]);
+    const method_t method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
-    // Instance is not part of the SOME/IP header, read it from the trace
-    // header
-    instance_t its_instance = bithelper::read_uint16_be(&_header[VSOMEIP_TC_INSTANCE_POS_MIN]);
-    method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-
-// Forward to channel if the filter set of the channel allows
-#ifdef USE_DLT
-    std::scoped_lock its_lock(channels_mutex_, contexts_mutex_);
-#else
-    std::scoped_lock its_lock(channels_mutex_);
-#endif
-    for (const auto& its_channel : channels_) {
-        auto its_result = its_channel.second->matches(its_service, its_instance, its_method);
-        if (its_result == trace_result_e::DROP) {
+    // Forward to channel if the filter set of the channel allows
+    for (const auto& [id, channel] : channels_) {
+        auto match_result = channel->matches(service, instance, method);
+        if (match_result == trace_result_e::DROP) {
             continue;
         }
 
         // Full payload vs. header only (see should_log_full / full_logging_threshold_).
-        const bool log_full = should_log_full(its_result, _data_size, its_threshold);
-
-        // When logging header only, clamp to the actual message size.
-        const uint16_t its_header_only_size = static_cast<uint16_t>(std::min<uint32_t>(VSOMEIP_FULL_HEADER_SIZE, _data_size));
+        const auto log_full = should_log_full(match_result, _full_data_size, full_logging_threshold_);
+        const auto traced_size = log_full ? message_size : std::min<uint16_t>(message_size, VSOMEIP_FULL_HEADER_SIZE);
 
 #ifdef USE_DLT
-        auto its_context = contexts_.find(its_channel.second->get_id());
-        if (its_context != contexts_.end()) {
-            try {
-                if (log_full) {
-                    DLT_TRACE_NETWORK_SEGMENTED(*(its_context->second.get()), DLT_NW_TRACE_IPC, _header_size,
-                                                static_cast<void*>(const_cast<byte_t*>(_header)), its_data_size,
-                                                static_cast<void*>(const_cast<byte_t*>(_data)));
-                } else {
-                    DLT_TRACE_NETWORK_TRUNCATED(*(its_context->second.get()), DLT_NW_TRACE_IPC, _header_size,
-                                                static_cast<void*>(const_cast<byte_t*>(_header)), its_header_only_size,
-                                                static_cast<void*>(const_cast<byte_t*>(_data)));
-                }
-            } catch (const std::exception& e) {
-                VSOMEIP_INFO_P << "Exception caught when trying to log a trace with DLT. " << e.what();
+        try {
+            if (log_full) {
+                DLT_TRACE_NETWORK_SEGMENTED(*(channel->get_log_context()), DLT_NW_TRACE_IPC, _header_size,
+                                            static_cast<void*>(const_cast<byte_t*>(_header)), traced_size,
+                                            static_cast<void*>(const_cast<byte_t*>(_data)));
+            } else {
+                DLT_TRACE_NETWORK_TRUNCATED(*(channel->get_log_context()), DLT_NW_TRACE_IPC, _header_size,
+                                            static_cast<void*>(const_cast<byte_t*>(_header)), traced_size,
+                                            static_cast<void*>(const_cast<byte_t*>(_data)));
             }
-        } else {
-            // This should never happen!
-            VSOMEIP_ERROR << "tracing: found channel without DLT context!";
+        } catch (const std::exception& e) {
+            VSOMEIP_INFO_P << "Exception caught when trying to log a trace with DLT. " << e.what();
         }
 #else
-        const uint16_t its_log_size = log_full ? its_data_size : its_header_only_size;
-
-        std::stringstream ss;
+        std::string message;
 #if !defined(ANDROID)
-        ss << its_channel.first << ":";
+        message += id;
+        message += ':';
 #elif !defined(ANDROID_CI_BUILD)
-        ss << "TC:";
+        message += "TC:";
 #endif
-        for (int i = 0; i < _header_size; i++) {
-            ss << ' ' << hex2(_header[i]);
-        }
-
-        for (int i = 0; i < its_log_size; i++) {
-            ss << ' ' << hex2(_data[i]);
-        }
+        // Covers both appends below, so the reserve inside append_hex_with_spaces is a no-op.
+        message.reserve(message.size() + (static_cast<size_t>(_header_size) + traced_size) * 3);
+        append_hex_with_spaces(message, std::span<const byte_t>(_header, _header_size));
+        append_hex_with_spaces(message, std::span<const byte_t>(_data, traced_size));
 #if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
         std::string app = runtime::get_property("LogApplication");
-        ALOGI(app.c_str(), ss.str().c_str());
+        ALOGI(app.c_str(), message.c_str());
 #else
-        VSOMEIP_INFO << ss.str();
+        VSOMEIP_INFO << message;
 #endif
 #endif
     }
 }
 
-} // namespace trace
-} // namespace vsomeip_v3
+} // namespace vsomeip_v3::trace

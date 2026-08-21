@@ -5,14 +5,9 @@
 
 #pragma once
 
-#ifdef USE_DLT
-#include <dlt/dlt.h>
-#endif
-
-#include <atomic>
+#include <cstdint>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <string>
 
 #include <vsomeip/primitive_types.hpp>
@@ -27,49 +22,35 @@ namespace trace {
 
 class channel_impl;
 
-class connector_impl {
+class connector_impl final {
 public:
-    static std::shared_ptr<connector_impl> get();
+    explicit connector_impl(const std::shared_ptr<cfg::trace>& _configuration);
 
-    connector_impl();
-    ~connector_impl();
+    void trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size) const;
 
-    void configure(const std::shared_ptr<cfg::trace>& _configuration);
-    void reset();
-
-    void set_enabled(bool _enabled);
+    // Read-only state accessors; used by routing_manager_impl and safe to expose.
     bool is_enabled() const;
-
-    void set_sd_enabled(bool _sd_enabled);
     bool is_sd_enabled() const;
-
     bool is_sd_message(const byte_t* _data, uint16_t _data_size) const;
 
-    std::shared_ptr<channel_impl> add_channel(const std::string& _id, const std::string& _description);
-    bool remove_channel(const std::string& _id);
+private:
+    void set_enabled(bool _enabled);
+    void set_sd_enabled(bool _sd_enabled);
+
+    bool add_channel(const std::string& _id, const std::string& _description);
     std::shared_ptr<channel_impl> get_channel(const std::string& _id) const;
 
-    void trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size);
-
 private:
-    std::atomic<bool> is_enabled_;
-    bool is_sd_enabled_;
+    bool is_enabled_{false};
+    bool is_sd_enabled_{false};
 
     std::map<std::string, std::shared_ptr<channel_impl>> channels_;
-    mutable std::mutex channels_mutex_;
-
-    std::shared_ptr<channel_impl> get_channel_impl(const std::string& _id) const;
 
     // Full-logging size threshold in bytes (see VSOMEIP_TC_DEFAULT_FULL_LOGGING_THRESHOLD).
-    // Guarded by configure_mutex_.
-    uint32_t full_logging_threshold_;
+    uint32_t full_logging_threshold_{};
 
-    mutable std::mutex configure_mutex_;
-
-#ifdef USE_DLT
-    std::map<std::string, std::shared_ptr<DltContext>> contexts_;
-    mutable std::mutex contexts_mutex_;
-#endif
+    // Wrapper for allowing connector tests to access private members
+    friend struct connector_impl_test_peer;
 };
 
 } // namespace trace

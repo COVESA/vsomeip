@@ -118,14 +118,12 @@ void connector_setup() {
     DLT_REGISTER_APP("VSIP", "vSomeIP tracing benchmark");
 #endif
 
-    g_connector = std::make_shared<vsomeip_v3::trace::connector_impl>();
-
     auto trace_config = std::make_shared<vsomeip_v3::cfg::trace>();
     trace_config->is_enabled_ = true;
     trace_config->is_sd_enabled_ = true;
     trace_config->full_logging_threshold_ = 0; // 0 == no threshold, always full
-    g_connector->configure(trace_config);
 
+    g_connector = std::make_shared<vsomeip_v3::trace::connector_impl>(trace_config);
     g_header = make_header(0x0001);
 }
 
@@ -253,5 +251,61 @@ void BM_trace_mixed_concurrent(benchmark::State& state) {
 }
 
 BENCHMARK(BM_trace_mixed_concurrent)->ThreadRange(1, 64)->UseRealTime();
+
+// ---------------------------------------------------------------------------
+// Fixed small message, increasing filter count: shows the filter-list-scan
+// cost (see channel_impl::matches()) in the context of a real trace() call,
+// complementing the isolated version in bm_channel_matches.cpp. The queried
+// message never matches until the last configured filter, forcing a full scan
+// - the realistic worst case for a channel with many filters where the
+// message still ends up being traced.
+// ---------------------------------------------------------------------------
+void connector_setup_with_filters(int _filter_count) {
+    std::ios_base::sync_with_stdio(false);
+    g_saved_cout = std::cout.rdbuf(&g_null_sink);
+
+    auto configuration = std::make_shared<vsomeip_v3::cfg::configuration_impl>("");
+    vsomeip_v3::logger::logger_impl::init(configuration);
+
+#ifdef USE_DLT
+    DLT_REGISTER_APP("VSIP", "vSomeIP tracing benchmark");
+#endif
+
+    auto trace_config = std::make_shared<vsomeip_v3::cfg::trace>();
+    trace_config->is_enabled_ = true;
+    trace_config->is_sd_enabled_ = true;
+    trace_config->full_logging_threshold_ = 0; // 0 == no threshold, always full
+
+    // One non-matching filter per configured count, except the last, which
+    // matches the queried message - see the comment above.
+    for (int i = 0; i < _filter_count; ++i) {
+        auto filter = std::make_shared<vsomeip_v3::cfg::trace_filter>();
+        filter->channels_ = {"TC"};
+        filter->ftype_ = vsomeip_v3::trace::filter_type_e::POSITIVE;
+        const bool is_last = (i == _filter_count - 1);
+        const service_t service = is_last ? static_cast<service_t>(0x1234) : static_cast<service_t>(0x2000 + i);
+        filter->matches_ = {vsomeip_v3::trace::match_t{service, vsomeip_v3::ANY_INSTANCE, vsomeip_v3::ANY_METHOD}};
+        trace_config->filters_.push_back(filter);
+    }
+
+    g_connector = std::make_shared<vsomeip_v3::trace::connector_impl>(trace_config);
+    g_header = make_header(0x0001);
+}
+
+void BM_trace_by_filter_count(benchmark::State& state) {
+    const auto message = make_message(64, 0x1234, 0x5678);
+
+    connector_setup_with_filters(static_cast<int>(state.range(0)));
+
+    for (auto _ : state) {
+        trace_once(message);
+    }
+
+    state.SetItemsProcessed(state.iterations());
+
+    connector_teardown();
+}
+
+BENCHMARK(BM_trace_by_filter_count)->Arg(0)->Arg(1)->Arg(4)->Arg(16)->Arg(64)->Arg(256);
 
 } // namespace
