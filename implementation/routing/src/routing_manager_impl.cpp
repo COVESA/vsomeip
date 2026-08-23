@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <climits>
+#include <cinttypes>
 #include <iomanip>
 #include <memory>
 #include <sstream>
@@ -3368,7 +3369,7 @@ void routing_manager_impl::memory_log_timer_cbk(boost::system::error_code const&
     std::uint64_t its_dirtypages(0);
 
     if (EOF
-        == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib, &its_data,
+        == std::fscanf(its_file, "%" PRIu64 " %" PRIu64 " %" PRIu64 " %" PRIu64 " %" PRIu64 " %" PRIu64 " %" PRIu64, &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib, &its_data,
                        &its_dirtypages)) {
         VSOMEIP_ERROR << "memory_log_timer_cbk: error reading: errno " << errno;
     }
