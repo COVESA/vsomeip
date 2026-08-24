@@ -235,6 +235,20 @@ public:
     void unregister_group_subscription_handler(event_ids const& _ei);
 
     /**
+     * 1. calls vsomeip::application::unsubscribe()
+     * 2. unregister subscription handler
+     * 3. calls vsomeip::application::release_event()
+     */
+    void unsubscribe(event_ids const& _ei);
+
+    /**
+     * 1. calls vsomeip::application::unsubscribe(), with only the event group
+     * 2. unregister subscription handler
+     * 3. calls vsomeip::application::release_event()
+     */
+    void unsubscribe_eventgroup(event_ids const& _ei);
+
+    /**
      * registers a message handler that will
      * 1. record the incoming request in the
      * @see message_record_

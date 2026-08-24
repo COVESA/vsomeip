@@ -192,14 +192,17 @@ void fake_tcp_socket_handle::set_ignore_nothing_to_read_from(bool _ignore) {
     std::shared_ptr<fake_tcp_socket_handle> remote; // beware: cannot call destructor while holding `mtx`
     auto const lock = std::scoped_lock(mtx_);
     TEST_LOG << "[fake-socket] setting ignore_nothing_to_read_from: " << (_ignore ? "true" : "false") << " on: " << socket_id_;
-    ignore_nothing_to_read_from_ = _ignore;
-    if (remote = connected_socket_.lock(); !remote && !ignore_nothing_to_read_from_ && receptor_) {
-        TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
-        boost::asio::post(io_, [handler = std::move(receptor_->handler_)] { handler(boost::asio::error::connection_reset, 0); });
-        // safe to do under the lock, because the handler is already empty and will be destructed after being called on one of the io
-        // threads.
-        receptor_ = std::nullopt;
-        return;
+    if (ignore_nothing_to_read_from_ != _ignore) {
+        TEST_LOG << "[fake-socket] setting ignore_nothing_to_read_from: " << (_ignore ? "true" : "false") << " on: " << socket_id_;
+        ignore_nothing_to_read_from_ = _ignore;
+        if (remote = connected_socket_.lock(); !remote && !ignore_nothing_to_read_from_ && receptor_) {
+            TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
+            boost::asio::post(io_, [handler = std::move(receptor_->handler_)] { handler(boost::asio::error::connection_reset, 0); });
+            // safe to do under the lock, because the handler is already empty and will be destructed after being called on one of the io
+            // threads.
+            receptor_ = std::nullopt;
+            return;
+        }
     }
 }
 

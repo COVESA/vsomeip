@@ -157,6 +157,20 @@ void app::unregister_group_subscription_handler(event_ids const& _ei) {
     app_->unregister_subscription_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_);
 }
 
+void app::unsubscribe(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is unsubscribing from: " << _ei;
+    app_->unsubscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_);
+    app_->unregister_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_);
+    app_->release_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_);
+}
+
+void app::unsubscribe_eventgroup(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is unsubscribing from: " << _ei;
+    app_->unsubscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, ANY_EVENT);
+    app_->unregister_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_);
+    app_->release_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_);
+}
+
 void app::answer_request(request const& _r, std::function<std::vector<unsigned char>()> _payload_creator) {
     app_->register_message_handler(_r.service_instance_.service_, _r.service_instance_.instance_, _r.method_,
                                    [this, _payload_creator](auto const& message) {
