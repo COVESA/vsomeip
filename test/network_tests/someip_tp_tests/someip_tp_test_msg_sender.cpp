@@ -363,8 +363,8 @@ TEST_P(someip_tp, send_in_mode) {
         size_t bytes_transferred;
         bool its_subscribed_at_master;
 
-        // join the sd multicast group 224.0.77.1
-        udp_sd_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.77.1").to_v4()));
+        // join the sd multicast group 224.224.224.0
+        udp_sd_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.224.224.0").to_v4()));
         while (keep_receiving) {
             boost::system::error_code error;
             {

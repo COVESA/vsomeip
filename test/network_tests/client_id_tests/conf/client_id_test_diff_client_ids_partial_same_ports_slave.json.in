@@ -58,9 +58,6 @@
     "routing":"client_id_test_service_four",
     "service-discovery":
     {
-        "enable":"true",
-        "multicast":"224.0.0.1",
-        "port":"30490",
-        "protocol":"udp"
+        "enable":"true"
     }
 }

@@ -40,10 +40,6 @@
     "service-discovery":
     {
         "enable":"true",
-        "multicast":"224.0.0.1",
-        "port":"30490",
-        "protocol":"udp",
-        "cyclic_offer_delay" : "500",
         "max_remote_subscribers" : "300"
     }
 }

@@ -20,10 +20,6 @@
     "routing" : "client-sample",
     "service-discovery":
     {
-        "enable": "true",
-        "multicast": "224.244.224.245",
-        "port": "30490",
-        "protocol": "udp",
-        "cyclic_offer_delay": "1000"
+        "enable": "true"
     }
 }

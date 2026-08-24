@@ -523,7 +523,8 @@
         "repetitions_max" : "4",
         "ttl" : "13",
         "cyclic_offer_delay" : "2132",
-        "offer_debounce_time" : "1000",
+        "offer_debounce_time" : "10",
+        "find_debounce_time" : "11",
         "wait_route_netlink_notification" : "true"
     }
 }

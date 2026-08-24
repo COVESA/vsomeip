@@ -37,7 +37,7 @@ TEST(someip_offer_test, send_offer_service_sd_message) {
 
         udp_socket.bind(boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
 
-        udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address_v4("224.0.23.1")));
+        udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address_v4("224.224.224.0")));
 
         std::vector<uint8_t> receive_buffer(4096);
 
@@ -56,7 +56,7 @@ TEST(someip_offer_test, send_offer_service_sd_message) {
 
                 for (const auto& e : sd_msg.get_entries()) {
                     if (e->get_type() == vsomeip::sd::entry_type_e::OFFER_SERVICE) {
-                        udp_socket.set_option(boost::asio::ip::multicast::leave_group(boost::asio::ip::make_address_v4("224.0.23.1")));
+                        udp_socket.set_option(boost::asio::ip::multicast::leave_group(boost::asio::ip::make_address_v4("224.224.224.0")));
                         keep_receiving = false;
                         std::cout << "[SD_MSG_SENDER] Received OFFER_SERVICE message - the test can start sending." << std::endl;
                     }

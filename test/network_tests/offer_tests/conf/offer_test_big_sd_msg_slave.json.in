@@ -317,10 +317,6 @@
     "service-discovery":
     {
         "enable":"true",
-        "ttl" : "10",
-        "multicast":"224.0.11.1",
-        "cyclic_offer_delay" : "1000",
-        "port":"30490",
-        "protocol":"udp"
+        "ttl" : "10"
     }
 }

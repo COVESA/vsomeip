@@ -24,9 +24,6 @@
     "routing":"big_payload_test_service",
     "service-discovery":
     {
-        "enable":"true",
-        "multicast":"224.244.224.245",
-        "port":"30490",
-        "protocol":"udp"
+        "enable":"true"
     }
 }

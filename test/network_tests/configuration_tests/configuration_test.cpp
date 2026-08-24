@@ -651,7 +651,8 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     EXPECT_TRUE(check<int32_t>(cyclic_offer_delay, static_cast<int32_t>(_expected_cyclic_offer_delay), "SD CYCLIC OFFER DELAY"));
     EXPECT_TRUE(
             check<bool>(wait_route_netlink_notification, _expected_wait_route_netlink_notification, "SD WAIT ROUTE NETLINK NOTIFICATION"));
-    EXPECT_EQ(1000u, its_configuration->get_sd_offer_debounce_time());
+    EXPECT_EQ(10u, its_configuration->get_sd_offer_debounce_time());
+    EXPECT_EQ(11u, its_configuration->get_sd_find_debounce_time());
 }
 
 TEST(configuration_test, check_config_file) {

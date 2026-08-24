@@ -532,10 +532,10 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
         std::atomic<bool> service_offered(false);
         std::atomic<bool> client_subscribed(false);
 
-        // join the sd multicast group 224.0.24.1
+        // join the sd multicast group 224.224.224.0
         {
             std::scoped_lock its_lock(socket_mutex);
-            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.224.224.0").to_v4()));
         }
 
         while (keep_receiving) {
@@ -891,10 +891,10 @@ TEST_F(malicious_data, send_wrong_message_type) {
         std::atomic<bool> service_offered(false);
         std::atomic<bool> client_subscribed(false);
 
-        // join the sd multicast group 224.0.24.1
+        // join the sd multicast group 224.224.224.0
         {
             std::scoped_lock its_lock(socket_mutex);
-            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.224.224.0").to_v4()));
         }
 
         while (keep_receiving) {
@@ -1171,10 +1171,10 @@ TEST_F(malicious_data, send_wrong_return_code) {
         std::atomic<bool> service_offered(false);
         std::atomic<bool> client_subscribed(false);
 
-        // join the sd multicast group 224.0.24.1
+        // join the sd multicast group 224.224.224.0
         {
             std::scoped_lock its_lock(socket_mutex);
-            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.224.224.0").to_v4()));
         }
 
         while (keep_receiving) {
@@ -1455,10 +1455,10 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
         std::atomic<bool> service_offered(false);
         std::atomic<bool> client_subscribed(false);
 
-        // join the sd multicast group 224.0.24.1
+        // join the sd multicast group 224.224.224.0
         {
             std::scoped_lock its_lock(socket_mutex);
-            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.224.224.0").to_v4()));
         }
 
         while (keep_receiving) {

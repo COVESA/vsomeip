@@ -68,9 +68,6 @@
     "service-discovery" :
     {
         "enable" : "true",
-        "multicast" : "224.244.224.245",
-        "port" : "30490",
-        "protocol" : "udp",
         "initial_delay_min" : "10",
         "initial_delay_max" : "100",
         "repetitions_base_delay" : "200",

@@ -78,9 +78,6 @@
     "routing":"magic_cookies_test_service",
     "service-discovery":
     {
-        "enable":"false",
-        "multicast":"224.0.0.1",
-        "port":"30490",
-        "protocol":"udp"
+        "enable":"false"
     }
 }

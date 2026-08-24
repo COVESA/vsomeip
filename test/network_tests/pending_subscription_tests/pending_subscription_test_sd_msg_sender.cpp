@@ -34,7 +34,7 @@ static char* local_address;
 
 // Helper function to wait for OFFER_SERVICE message
 void wait_for_offer_service(boost::asio::ip::udp::socket& udp_socket) {
-    udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address_v4("224.0.23.1")));
+    udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address_v4("224.224.224.0")));
 
     std::vector<uint8_t> receive_buffer(4096);
     boost::system::error_code error;
@@ -67,7 +67,7 @@ void wait_for_offer_service(boost::asio::ip::udp::socket& udp_socket) {
                     // accepting remote subscriptions (set_accepting_remote_subscriptions) which consequently rejects the subscriptions with
                     // NACK until the process completes.
                     if (offer_service_received > 1) {
-                        udp_socket.set_option(boost::asio::ip::multicast::leave_group(boost::asio::ip::make_address_v4("224.0.23.1")));
+                        udp_socket.set_option(boost::asio::ip::multicast::leave_group(boost::asio::ip::make_address_v4("224.224.224.0")));
                         keep_receiving = false;
                         std::cout << "[CLIENT] Received OFFER_SERVICE messages - the test can start now." << std::endl;
                     }
@@ -1484,7 +1484,7 @@ TEST_F(pending_subscription, send_request_to_sd_port) {
 
     wait_for_offer_service(udp_socket);
 
-    udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.23.1").to_v4()));
+    udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.224.224.0").to_v4()));
 
     std::thread receive_thread([&]() {
         bool keep_receiving(true);

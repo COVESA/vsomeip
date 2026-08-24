@@ -52,10 +52,6 @@
   "routing": "routingmanagerd",
   "service-discovery" :
    {
-      "enable" : "true",
-      "multicast" : "224.251.192.252",
-      "port" : "30490",
-      "protocol" : "udp",
-      "cyclic_offer_delay" : "1000"
+      "enable" : "true"
    }
 }

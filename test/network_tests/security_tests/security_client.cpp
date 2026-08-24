@@ -173,20 +173,20 @@ void security_client::run() {
         // offer check.
         if (offer_allowed_) {
             EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS, received_responses_);
-            EXPECT_EQ(received_allowed_events_, (uint32_t)0x01);
+            EXPECT_GE(received_allowed_events_, (uint32_t)0x01); // can be >= 1 due to multiple initial notifications
         } else {
             EXPECT_EQ((uint32_t)0, received_responses_);
             EXPECT_EQ((uint32_t)0, received_allowed_events_);
         }
     } else if (!test_external_communication_) {
         EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS, received_responses_);
-        EXPECT_EQ(received_allowed_events_, (uint32_t)0x01);
+        EXPECT_GE(received_allowed_events_, (uint32_t)0x01); // can be >= 1 due to multiple initial notifications
     } else if (test_external_communication_ && !is_remote_client_allowed_) {
         EXPECT_EQ((uint32_t)0, received_responses_);
         EXPECT_EQ((uint32_t)0, received_allowed_events_);
     } else if (test_external_communication_ && is_remote_client_allowed_) {
         EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS, received_responses_);
-        EXPECT_EQ(received_allowed_events_, (uint32_t)0x01);
+        EXPECT_GE(received_allowed_events_, (uint32_t)0x01); // can be >= 1 due to multiple initial notifications
     }
     stop();
 }

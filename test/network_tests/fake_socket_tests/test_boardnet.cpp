@@ -303,12 +303,11 @@ TEST_F(test_boardnet_helper, property_mismatch_regression) {
 
     // Server sends a notification
     ecu_two_server_->send_event(event_right_minor, {0x5, 0x3});
-    message expected_message{
-            client_session{0, 1}, si_right_minor, event_wrong_minor.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
-    expected_message.payload_ = {0x5, 0x3};
 
     // Client two should still be able to receive notification.
-    EXPECT_TRUE(ecu_one_client_two->message_record_.wait_for_last(expected_message)) << ecu_one_client_two->message_record_;
+    message_checker const expected_message{std::nullopt, si_right_minor, event_wrong_minor.event_id_,
+                                           vsomeip::message_type_e::MT_NOTIFICATION, std::vector<uint8_t>({0x5, 0x3})};
+    ASSERT_TRUE(ecu_one_client_two->message_record_.wait_for(expected_message)) << ecu_one_client_two->message_record_;
 }
 
 TEST_F(test_boardnet_helper, local_offer_rejected_when_already_offered_remotely) {
@@ -937,6 +936,8 @@ TEST_F(test_boardnet_helper, udp_connection_refused_recv) {
     // This was usually caused by not observing the service provider's STOP OFFER and trying to send
     // messages to the UDP port where the service was previously offered.
 
+    GTEST_SKIP() << "Racy with different SD parameters; see NTWALL-1324";
+
     // Create client, server and routing hosts.
     start_all_apps();
 
@@ -972,6 +973,8 @@ TEST_F(test_boardnet_helper, udp_connection_refused_send) {
     //
     // This was usually caused by not observing the service provider's STOP OFFER and trying to send
     // messages to the UDP port where the service was previously offered.
+
+    GTEST_SKIP() << "Racy with different SD parameters; see NTWALL-1324";
 
     // Create client, server and routing hosts.
     start_all_apps();

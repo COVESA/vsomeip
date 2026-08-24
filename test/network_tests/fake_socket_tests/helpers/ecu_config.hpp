@@ -87,8 +87,8 @@ struct acceptance_config {
 };
 
 struct service_discovery_config {
-    uint32_t initial_delay_min_{10};
-    uint32_t initial_delay_max_{100};
+    uint32_t initial_delay_min_{0};
+    uint32_t initial_delay_max_{0};
 };
 struct security_credentials {
     uid_t uid_{};

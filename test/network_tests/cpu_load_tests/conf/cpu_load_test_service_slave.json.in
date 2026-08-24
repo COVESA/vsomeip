@@ -38,9 +38,6 @@
    "routing" : "cpu_load_test_service",
    "service-discovery" :
    {
-      "enable" : "true",
-      "multicast" : "224.0.0.1",
-      "port" : "30490",
-      "protocol" : "udp"
+      "enable" : "true"
    }
 }
