@@ -2012,11 +2012,11 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client, bool 
                 // when changing the state we need to ensure that the debounce timer is not dispatching + altering the request set
                 (void)state_machine_->registered(_client); // can't fail as we checked the state above
                 VSOMEIP_INFO << "Application/Client " << hex4(get_client()) << " (" << host_->get_name() << ") is registered.";
+                host_->on_state(state_type_e::ST_REGISTERED);
                 if (!send_pending_commands(its_cp_lock)) {
                     VSOMEIP_ERROR_P << ": Application/Client 0x" << hex4(get_client()) << " (" << host_->get_name()
                                     << ") could not send pending offers";
                 } else {
-                    host_->on_state(state_type_e::ST_REGISTERED);
                     // The routing manager is reachable, so the deadline is dropped.
                     connect_timeout_ = std::chrono::steady_clock::time_point::max();
                     return;

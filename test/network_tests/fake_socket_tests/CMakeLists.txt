@@ -60,6 +60,7 @@ set (TEST_SUITES
     test_interface_manipulation_recreate
     test_multiversion_support
     test_protocol_messages
+    test_registration_ordering
     test_sd_protocol
     test_someip_tp
     test_uds_communication
