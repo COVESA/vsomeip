@@ -87,6 +87,8 @@ struct ecu_setup {
     app* router_{nullptr};
 
     [[nodiscard]] ecu_config const& config() const { return config_; }
+    /// This function should only be called when prepare has not been invoked. Otherwise any changes to the config will not take any effect
+    [[nodiscard]] ecu_config& config() { return config_; }
 
     /// Delay (or undelay) outgoing SD sends from this ECU's SD endpoint.
     /// Useful to suppress FIND messages until the remote ECU's debounce timer

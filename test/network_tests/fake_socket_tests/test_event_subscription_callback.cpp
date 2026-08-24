@@ -56,6 +56,7 @@ struct base_event_subscription_callback : public base_fake_socket_fixture {
 
 struct test_event_subscription_callback_local : public base_event_subscription_callback {
     void start_apps() {
+        provider_ecu_.config().sd_ = false; // disable service discovery for ipc test only (this avoids annoying logs)
         provider_ecu_.add_app(client_name_);
         provider_ecu_.add_app(server_name_);
         provider_ecu_.prepare();
@@ -75,7 +76,7 @@ struct test_event_subscription_callback_local : public base_event_subscription_c
     std::shared_ptr<command_gate> r2c_gate_ = command_gate::create();
 };
 
-TEST_F(test_event_subscription_callback_local, subscriptions_do_no_leak_across_stop_start) {
+TEST_F(test_event_subscription_callback_local, subscriptions_do_not_leak_across_stop_start) {
     /**
      * Ensure that a subscriber is not kept across stop/start, by checking what the client receives.
      * 1. Start to offer two fields
@@ -164,6 +165,7 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
                     }
                     VSOMEIP_INFO << "[DISPATCHER_TAG] Stopping the server";
                     // at this point all handlers should be queued
+                    server_->stop_offer(interface_.instance_);
                     server_->stop();
                     // at this point everything within the server should have been stopped (except this in-flight dispatcher task)
 
@@ -211,6 +213,7 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
                             });
 
                     // now re-offer and unblock the dispatching for this client (subscription wise)
+                    VSOMEIP_INFO << "[DISPATCHER_TAG] Re-offering the interface";
                     server_->offer(interface_);
 
                     if (!client_->availability_record_.wait_for_last(service_availability::available(interface_.instance_))) {
