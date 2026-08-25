@@ -187,53 +187,82 @@ void endpoint_manager_impl::find_or_create_remote_client(service_t _service, ins
 
 void endpoint_manager_impl::is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major,
                                                     minor_version_t _minor, const boost::asio::ip::address& _reliable_address,
-                                                    uint16_t _reliable_port, bool& _reliable_known,
-                                                    const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
-                                                    bool& _unreliable_known, bool& _drop_offer) const {
-
-    _drop_offer = false;
+                                                    uint16_t _reliable_port, const boost::asio::ip::address& _unreliable_address,
+                                                    uint16_t _unreliable_port, remote_offer_state& _state) const {
 
     std::scoped_lock its_lock(endpoint_mutex_);
     if (auto found_si = remote_service_info_.find({_service, _instance}); found_si != remote_service_info_.end()) {
-        std::shared_ptr<endpoint_definition> its_definition;
-        if (_reliable_port != ILLEGAL_PORT) {
-            if (auto found_reliable = found_si->second.find(true); found_reliable != found_si->second.end()) {
-                its_definition = found_reliable->second;
-                if (its_definition->get_address() == _reliable_address && its_definition->get_port() == _reliable_port) {
-                    _reliable_known = true;
-                } else {
-                    VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
-                                      << static_cast<uint32_t>(_major) << "." << _minor
-                                      << "] with different endpoint: " << _reliable_address.to_string() << ":" << _reliable_port << ":"
-                                      << its_definition->is_reliable() << ", dropping the offer";
-                    _drop_offer = true;
-                }
-            } else {
-                VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
-                                  << static_cast<uint32_t>(_major) << "." << _minor
-                                  << "] with different endpoint: " << _reliable_address.to_string() << ":" << _reliable_port
-                                  << ", dropping the offer";
-                _drop_offer = true;
-            }
+        // Check the address of the already existing offer
+        boost::asio::ip::address its_known_address;
+        if (auto found_reliable = found_si->second.find(true); found_reliable != found_si->second.end()) {
+            its_known_address = found_reliable->second->get_address();
+        } else if (auto found_unreliable = found_si->second.find(false); found_unreliable != found_si->second.end()) {
+            its_known_address = found_unreliable->second->get_address();
         }
-        if (_unreliable_port != ILLEGAL_PORT) {
-            if (auto found_unreliable = found_si->second.find(false); found_unreliable != found_si->second.end()) {
-                its_definition = found_unreliable->second;
-                if (its_definition->get_address() == _unreliable_address && its_definition->get_port() == _unreliable_port) {
-                    _unreliable_known = true;
-                } else {
+
+        for (const bool its_reliable : {true, false}) {
+            const auto its_address = (its_reliable ? _reliable_address : _unreliable_address);
+            const auto its_port = (its_reliable ? _reliable_port : _unreliable_port);
+            bool& its_known = (its_reliable ? _state.reliable_known : _state.unreliable_known);
+            bool& its_removed = (its_reliable ? _state.reliable_removed : _state.unreliable_removed);
+
+            if (its_port != ILLEGAL_PORT) {
+                if (auto found_reliability = found_si->second.find(its_reliable); found_reliability != found_si->second.end()) {
+                    const auto& its_definition = found_reliability->second;
+                    if (its_definition->get_address() == its_address && its_definition->get_port() == its_port) {
+                        // Received an offer with the same endpoint as the previous one
+                        its_known = true;
+                    } else if (its_definition->get_address() == its_address) {
+                        // Received an offer from the same address and (un)reliability as the previous one but with different port
+                        VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                          << static_cast<uint32_t>(_major) << "." << _minor
+                                          << "] with a different port: " << its_address.to_string() << ":" << its_port << ":"
+                                          << std::boolalpha << its_reliable;
+                        _state.endpoints_changed = true;
+                        its_removed = true;
+                    } else {
+                        // Received an offer from a different address while having a valid endpoint
+                        VSOMEIP_ERROR_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                        << static_cast<uint32_t>(_major) << "." << _minor
+                                        << "] from a different address: " << its_address.to_string() << ":" << its_port << ":"
+                                        << std::boolalpha << its_reliable << ", dropping the offer";
+                        _state.drop_offer = true;
+                        return;
+                    }
+                } else if (its_known_address == its_address) {
+                    // Received an offer from the same address as the previous one with an added endpoint
                     VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
                                       << static_cast<uint32_t>(_major) << "." << _minor
-                                      << "] with different endpoint: " << _unreliable_address.to_string() << ":" << _unreliable_port << ":"
-                                      << its_definition->is_reliable() << ", dropping the offer";
-                    _drop_offer = true;
+                                      << "] with an added port: " << its_address.to_string() << ":" << its_port << ":" << std::boolalpha
+                                      << its_reliable;
+                    _state.endpoints_changed = true;
+                } else {
+                    // Received an offer from a different address without having a valid endpoint
+                    VSOMEIP_ERROR_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                    << static_cast<uint32_t>(_major) << "." << _minor
+                                    << "] from a different address: " << its_address.to_string() << ":" << its_port << ":" << std::boolalpha
+                                    << its_reliable << ", dropping the offer";
+                    _state.drop_offer = true;
+                    return;
                 }
-            } else {
-                VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
-                                  << static_cast<uint32_t>(_major) << "." << _minor
-                                  << "] with different endpoint: " << _unreliable_address.to_string() << ":" << _unreliable_port
-                                  << ", dropping the offer";
-                _drop_offer = true;
+            } else if (auto found_reliability = found_si->second.find(its_reliable); found_reliability != found_si->second.end()) {
+                const auto its_offered_address = (_reliable_port != ILLEGAL_PORT ? _reliable_address : _unreliable_address);
+                if (its_known_address == its_offered_address) {
+                    // Received an offer from the same address as the previous one without a previously existing endpoint
+                    VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                      << static_cast<uint32_t>(_major) << "." << _minor << "] without the previously existing endpoint: "
+                                      << found_reliability->second->get_address().to_string() << ":"
+                                      << found_reliability->second->get_port() << ":" << std::boolalpha << its_reliable;
+                    _state.endpoints_changed = true;
+                    its_removed = true;
+                } else {
+                    // Received an offer from a different address without a previously existing endpoint
+                    VSOMEIP_ERROR_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                    << static_cast<uint32_t>(_major) << "." << _minor
+                                    << "] from a different address: " << its_offered_address.to_string() << ", dropping the offer";
+                    _state.drop_offer = true;
+                    return;
+                }
             }
         }
     }

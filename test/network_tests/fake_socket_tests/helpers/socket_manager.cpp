@@ -537,6 +537,22 @@ void socket_manager::fail_on_tcp_port_bind(port_t _port, bool fail) {
     });
 }
 
+[[nodiscard]] bool socket_manager::await_acceptor(boost::asio::ip::tcp::endpoint const& _ep, std::chrono::milliseconds _timeout) {
+    std::shared_ptr<fake_tcp_acceptor_handle> handle_to_hold;
+    auto lock = std::unique_lock(mtx_);
+    return connectable_cv_.wait_for(lock, _timeout, [&, this] {
+        auto const it = ep_to_acceptor_states_.find(_ep);
+        if (it == ep_to_acceptor_states_.end()) {
+            return false;
+        }
+        if (auto const acceptor = it->second.lock()) {
+            handle_to_hold = acceptor;
+            return acceptor->is_awaiting_connection();
+        }
+        return false;
+    });
+}
+
 [[nodiscard]] bool socket_manager::await_connection(std::string const& _client, std::string const& _server,
                                                     std::chrono::milliseconds _timeout) {
     auto connection = get_or_create_connection(_client, _server);

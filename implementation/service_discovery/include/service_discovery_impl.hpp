@@ -266,7 +266,7 @@ private:
     bool update_remote_offer_type(service_t _service, instance_t _instance, reliability_type_e _offer_type,
                                   const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
                                   const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
-                                  bool _received_via_multicast);
+                                  bool _received_via_multicast, bool _endpoints_changed);
     void remove_remote_offer_type(service_t _service, instance_t _instance, const boost::asio::ip::address& _reliable_address,
                                   uint16_t _reliable_port, const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port);
 

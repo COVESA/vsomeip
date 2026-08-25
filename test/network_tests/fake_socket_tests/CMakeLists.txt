@@ -61,6 +61,7 @@ set (TEST_SUITES
     test_multiversion_support
     test_protocol_messages
     test_registration_ordering
+    test_remote_offer_endpoint_change
     test_sd_protocol
     test_someip_tp
     test_uds_communication

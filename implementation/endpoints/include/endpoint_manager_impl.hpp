@@ -31,14 +31,25 @@ public:
                           const std::shared_ptr<configuration>& _configuration);
     ~endpoint_manager_impl();
 
+    // Stores result of comparing a new offer for a known service instance
+    // @see endpoint_manager_impl::is_remote_service_known
+    struct remote_offer_state {
+        bool reliable_known{false};
+        bool unreliable_known{false};
+        bool reliable_removed{false};
+        bool unreliable_removed{false};
+        bool drop_offer{false};
+        bool endpoints_changed{false};
+    };
+
     std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
     void find_or_create_remote_client(service_t _service, instance_t _instance);
     void start_endpoint(vsomeip_v3::boardnet_endpoint& _endpoint);
     void is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                                 const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port, bool& _reliable_known,
-                                 const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port, bool& _unreliable_known,
-                                 bool& _drop_offer) const;
+                                 const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
+                                 const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
+                                 remote_offer_state& _state) const;
     void add_remote_service_info(service_t _service, instance_t _instance, const std::shared_ptr<endpoint_definition>& _ep_definition);
     void add_remote_service_info(service_t _service, instance_t _instance,
                                  const std::shared_ptr<endpoint_definition>& _ep_definition_reliable,

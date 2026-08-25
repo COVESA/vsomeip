@@ -12,6 +12,7 @@
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_context.hpp>
 
+#include "../../endpoints/include/endpoint_manager_impl.hpp"
 #include "../../routing/include/function_types.hpp"
 #include "../../routing/include/types.hpp"
 
@@ -45,8 +46,8 @@ public:
 
     virtual void add_routing_info(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl,
                                   const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
-                                  const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port, bool _is_reliable_known,
-                                  bool _is_unreliable_known) = 0;
+                                  const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
+                                  const endpoint_manager_impl::remote_offer_state& _state) = 0;
 
     virtual void del_routing_info(service_t _service, instance_t _instance, bool _has_reliable, bool _has_unreliable,
                                   bool _trigger_availability) = 0;
@@ -54,9 +55,9 @@ public:
     virtual void update_routing_info(std::chrono::milliseconds _elapsed) = 0;
 
     virtual void is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                                         const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port, bool& _reliable_known,
+                                         const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
                                          const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
-                                         bool& _unreliable_known, bool& _drop_offer) = 0;
+                                         endpoint_manager_impl::remote_offer_state& _state) = 0;
 
     virtual void on_remote_unsubscribe(std::shared_ptr<remote_subscription>& _subscription) = 0;
 

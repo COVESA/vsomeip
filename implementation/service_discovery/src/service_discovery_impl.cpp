@@ -1361,14 +1361,11 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
     // stop sending find service in repetition phase
     update_request(_service, _instance);
 
-    bool is_reliable_known(false);
-    bool is_unreliable_known(false);
-    bool drop_offer(false);
-    host_->is_remote_service_known(_service, _instance, _major, _minor, _reliable_address, _reliable_port, is_reliable_known,
-                                   _unreliable_address, _unreliable_port, is_unreliable_known, drop_offer);
+    endpoint_manager_impl::remote_offer_state its_offer_state;
+    host_->is_remote_service_known(_service, _instance, _major, _minor, _reliable_address, _reliable_port, _unreliable_address,
+                                   _unreliable_port, its_offer_state);
 
-    if (drop_offer) {
-        VSOMEIP_ERROR_P << "Dropping offer of " << service_address_str() << " due to endpoint mismatch";
+    if (its_offer_state.drop_offer) {
         return;
     }
 
@@ -1383,10 +1380,17 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
         return;
     }
 
-    if (update_remote_offer_type(_service, _instance, offer_type, _reliable_address, _reliable_port, _unreliable_address, _unreliable_port,
-                                 _received_via_multicast)) {
-        VSOMEIP_ERROR_P << "Offer type changed to " << reliability_to_str(offer_type) << " for " << service_address_str();
+    // If an ECU offers the same service/instance with completely
+    // different endpoints, delete the old routing info and re-add it
+    if (its_offer_state.endpoints_changed && (!its_offer_state.reliable_known && !its_offer_state.unreliable_known)) {
+        VSOMEIP_WARNING_P << "Endpoints changed for [" << hex4(_service) << "." << hex4(_instance)
+                          << "] and none of the previous endpoints are still known - updating routing info";
+        host_->del_routing_info(_service, _instance, true, true, true);
+    }
 
+    if (update_remote_offer_type(_service, _instance, offer_type, _reliable_address, _reliable_port, _unreliable_address, _unreliable_port,
+                                 _received_via_multicast, its_offer_state.endpoints_changed)) {
+        VSOMEIP_WARNING_P << "Offer type changed [" << hex4(_service) << "." << hex4(_instance) << "]";
         // Only update eventgroup reliability type if it was initially unknown
         auto its_eventgroups = host_->get_subscribed_eventgroups(_service, _instance);
         for (auto eg : its_eventgroups) {
@@ -1448,8 +1452,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
     }
 
     host_->add_routing_info(_service, _instance, _major, _minor, _ttl * get_ttl_factor(_service, _instance, ttl_factor_offers_),
-                            _reliable_address, _reliable_port, _unreliable_address, _unreliable_port, is_reliable_known,
-                            is_unreliable_known);
+                            _reliable_address, _reliable_port, _unreliable_address, _unreliable_port, its_offer_state);
 }
 
 void service_discovery_impl::process_findservice_serviceentry(service_t _service, instance_t _instance, major_version_t _major,
@@ -3004,7 +3007,7 @@ reliability_type_e service_discovery_impl::get_remote_offer_type(const std::shar
 bool service_discovery_impl::update_remote_offer_type(service_t _service, instance_t _instance, reliability_type_e _offer_type,
                                                       const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
                                                       const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
-                                                      bool _received_via_multicast) {
+                                                      bool _received_via_multicast, bool _endpoints_changed) {
     bool ret(false);
     std::scoped_lock its_lock(remote_offer_types_mutex_);
     const remote_offer_info_t its_service_instance(_service, _instance, _received_via_multicast);
@@ -3017,6 +3020,60 @@ bool service_discovery_impl::update_remote_offer_type(service_t _service, instan
     } else {
         remote_offer_types_[its_service_instance.service_info] = _offer_type;
     }
+
+    // If any endpoint changed in the most recent offer,
+    // delete the endpoints which are no longer used
+    if (_endpoints_changed) {
+        ret = true;
+        std::vector<std::pair<boost::asio::ip::address, std::pair<bool, uint16_t>>> its_current_endpoints;
+        switch (_offer_type) {
+        case reliability_type_e::RT_UNRELIABLE:
+            its_current_endpoints.emplace_back(_unreliable_address, std::make_pair(false, _unreliable_port));
+            break;
+        case reliability_type_e::RT_RELIABLE:
+            its_current_endpoints.emplace_back(_reliable_address, std::make_pair(true, _reliable_port));
+            break;
+        case reliability_type_e::RT_BOTH:
+            its_current_endpoints.emplace_back(_unreliable_address, std::make_pair(false, _unreliable_port));
+            its_current_endpoints.emplace_back(_reliable_address, std::make_pair(true, _reliable_port));
+            break;
+        default:
+            break;
+        }
+
+        std::set<boost::asio::ip::address> its_current_addresses;
+        for (const auto& its_endpoint : its_current_endpoints) {
+            its_current_addresses.insert(its_endpoint.first);
+        }
+
+        for (const auto& its_address : its_current_addresses) {
+            const auto found_address = remote_offers_by_ip_.find(its_address);
+            if (found_address == remote_offers_by_ip_.end()) {
+                continue;
+            }
+            for (auto it_port = found_address->second.begin(); it_port != found_address->second.end();) {
+                bool is_current_endpoint(false);
+                for (const auto& its_endpoint : its_current_endpoints) {
+                    if (its_endpoint.first == its_address && its_endpoint.second == it_port->first) {
+                        is_current_endpoint = true;
+                        break;
+                    }
+                }
+                if (!is_current_endpoint) {
+                    it_port->second.erase(its_service_instance);
+                }
+                if (it_port->second.empty()) {
+                    it_port = found_address->second.erase(it_port);
+                } else {
+                    ++it_port;
+                }
+            }
+            if (found_address->second.empty()) {
+                remote_offers_by_ip_.erase(found_address);
+            }
+        }
+    }
+
     switch (_offer_type) {
     case reliability_type_e::RT_UNRELIABLE:
         remote_offers_by_ip_[_unreliable_address][std::make_pair(false, _unreliable_port)].insert(its_service_instance);
@@ -3026,7 +3083,7 @@ bool service_discovery_impl::update_remote_offer_type(service_t _service, instan
         break;
     case reliability_type_e::RT_BOTH:
         remote_offers_by_ip_[_unreliable_address][std::make_pair(false, _unreliable_port)].insert(its_service_instance);
-        remote_offers_by_ip_[_unreliable_address][std::make_pair(true, _reliable_port)].insert(its_service_instance);
+        remote_offers_by_ip_[_reliable_address][std::make_pair(true, _reliable_port)].insert(its_service_instance);
         break;
     case reliability_type_e::RT_UNKNOWN:
     default:

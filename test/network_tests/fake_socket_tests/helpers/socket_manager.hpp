@@ -98,6 +98,15 @@ public:
     [[nodiscard]] bool await_connectable(std::string const& _app, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
+     * Waits until either the timeout expires, or a TCP acceptor bound to the exact endpoint
+     * @p _ep is awaiting connections. Unlike await_connectable — which returns as soon as
+     * ANY of the app's acceptors is up (e.g. the routing acceptor) — this waits for one specific
+     * server endpoint to be listening.
+     */
+    [[nodiscard]] bool await_acceptor(boost::asio::ip::tcp::endpoint const& _ep,
+                                      std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+
+    /**
      * Waits until either the timeout expires, or the application associated
      * with _from established a connection to the application associated with _server.
      *
