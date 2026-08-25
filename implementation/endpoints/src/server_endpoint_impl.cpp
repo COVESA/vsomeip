@@ -145,12 +145,7 @@ bool server_endpoint_impl<Protocol>::send_intern(endpoint_type _target, const by
         return segment_message(_data, _size, _target) == endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
     }
 
-    auto its_now(std::chrono::steady_clock::now());
-
-    // STEP 2: Cancel the dispatch timer
-    cancel_dispatch_timer(its_target_iterator);
-
-    // STEP 3: Get configured timings
+    // STEP 2: Get configured timings
     const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
     const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
@@ -158,6 +153,18 @@ bool server_endpoint_impl<Protocol>::send_intern(endpoint_type _target, const by
     if (its_service != VSOMEIP_SD_SERVICE && its_method != VSOMEIP_SD_METHOD) {
         get_configured_times_from_endpoint(its_service, its_method, &its_debouncing, &its_retention);
     }
+
+    if (its_debouncing == std::chrono::nanoseconds::zero() && its_retention == std::chrono::nanoseconds::zero()) {
+        auto its_train = std::make_shared<train>();
+        its_train->buffer_->insert(its_train->buffer_->end(), _data, _data + _size);
+        queue_train(its_target_iterator, its_train);
+        return true;
+    }
+
+    auto its_now(std::chrono::steady_clock::now());
+
+    // STEP 3: Cancel the dispatch timer
+    cancel_dispatch_timer(its_target_iterator);
 
     const std::pair<service_t, method_t> its_identifier = std::make_pair(its_service, its_method);
     auto must_depart = [&]() {
