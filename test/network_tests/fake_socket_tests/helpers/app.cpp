@@ -268,8 +268,8 @@ void app::on_message(const std::shared_ptr<vsomeip::message>& _message) {
         payload.push_back(*ptr);
     }
     auto m = message{client_session{_message->get_client(), _message->get_session()},
-                     service_instance{_message->get_service(), _message->get_instance()}, _message->get_method(),
-                     _message->get_message_type(), std::move(payload)};
+                     service_instance{_message->get_service(), _message->get_instance(), _message->get_interface_version()},
+                     _message->get_method(), _message->get_message_type(), std::move(payload)};
     TEST_LOG << "[app] \"" << app_->get_name() << "\" received: " << m;
     message_record_.record(m);
 }

@@ -541,7 +541,7 @@ TEST_F(test_sd_acceptance, expire_offer) {
     ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(secure_iface.instance_)));
 
     router_one->availability_record_.clear();
-    remote_info_t enable_acceptance{{.address_ = boardnet::ecu_two_config.unicast_ip_.to_v4().to_bytes(), .is_v4_ = true},
+    remote_info_t enable_acceptance{{.address_ = {boardnet::ecu_two_config.unicast_ip_.to_v4().to_bytes()}, .is_v4_ = true},
                                     std::numeric_limits<port_t>::max(),
                                     0,
                                     true,
@@ -582,7 +582,7 @@ TEST_F(test_sd_acceptance, expire_remote_subscription) {
 
     router_one->subscription_record_.clear();
     ecu_two_sd_send_gate_->sd_record_.clear();
-    remote_info_t enable_acceptance{{.address_ = boardnet::ecu_one_config.unicast_ip_.to_v4().to_bytes(), .is_v4_ = true},
+    remote_info_t enable_acceptance{{.address_ = {boardnet::ecu_one_config.unicast_ip_.to_v4().to_bytes()}, .is_v4_ = true},
                                     std::numeric_limits<port_t>::max(),
                                     0,
                                     true,

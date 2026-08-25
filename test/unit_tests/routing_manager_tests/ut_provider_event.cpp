@@ -411,6 +411,25 @@ TEST_F(provider_event_update, get_current_returns_message_for_field) {
     EXPECT_NE(ev->get_current(), nullptr);
 }
 
+TEST_F(provider_event_update, the_major_version_is_any_if_not_set) {
+    auto ev = make_event(event_type_e::ET_FIELD, {group1_});
+    (void)ev->update(make_payload({1}));
+    EXPECT_EQ(ev->get_current()->get_interface_version(), ANY_MAJOR);
+}
+TEST_F(provider_event_update, the_major_version_is_set_when_version_is_set_before_first_update) {
+    auto ev = make_event(event_type_e::ET_FIELD, {group1_});
+    ev->set_version(0x1);
+    (void)ev->update(make_payload({1}));
+    EXPECT_EQ(ev->get_current()->get_interface_version(), 0x1);
+}
+TEST_F(provider_event_update, the_major_version_is_set_when_version_is_set_after_first_update) {
+    auto ev = make_event(event_type_e::ET_FIELD, {group1_});
+    (void)ev->update(make_payload({2}));
+    ev->set_version(0x1);
+    (void)ev->update(make_payload({1}));
+    EXPECT_EQ(ev->get_current()->get_interface_version(), 0x1);
+}
+
 TEST_F(provider_event_update, get_current_returns_null_for_non_field) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     (void)ev->update(make_payload({1}));

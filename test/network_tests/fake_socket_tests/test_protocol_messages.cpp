@@ -46,9 +46,9 @@ struct protocol_messages_fixture : public base_fake_socket_fixture {
         server_ = start_client(server_name_);
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-        server_->offer(service_instance_);
         server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
         server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
+        server_->offer(service_instance_);
     }
 
     void start_client_app() {
@@ -281,10 +281,10 @@ TEST_F(test_protocol_messages, ensure_sequence_service_offer) {
 
     using namespace vsomeip_v3::protocol;
     auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
-            {server_to_router_, id_e::CONFIG_ID},        {server_to_router_, id_e::ASSIGN_CLIENT_ID},
-            {router_to_server_, id_e::CONFIG_ID},        {router_to_server_, id_e::ASSIGN_CLIENT_ACK_ID},
-            {server_to_router_, id_e::OFFER_SERVICE_ID}, {server_to_router_, id_e::REGISTER_EVENT_ID},
-            {server_to_router_, id_e::REGISTER_EVENT_ID}};
+            {server_to_router_, id_e::CONFIG_ID},         {server_to_router_, id_e::ASSIGN_CLIENT_ID},
+            {router_to_server_, id_e::CONFIG_ID},         {router_to_server_, id_e::ASSIGN_CLIENT_ACK_ID},
+            {server_to_router_, id_e::REGISTER_EVENT_ID}, {server_to_router_, id_e::REGISTER_EVENT_ID},
+            {server_to_router_, id_e::OFFER_SERVICE_ID}};
 
     EXPECT_EQ(expected_sequence, *record_);
 }

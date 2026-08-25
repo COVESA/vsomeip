@@ -35,6 +35,9 @@ provider_event::provider_event() : is_placeholder_(true) { }
 
 void provider_event::set_version(major_version_t _major) {
     major_ = _major;
+    if (current_) {
+        current_->set_interface_version(major_);
+    }
 }
 
 bool provider_event::is_placeholder() const {

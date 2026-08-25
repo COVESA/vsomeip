@@ -39,9 +39,9 @@ struct test_api_helper : public base_fake_socket_fixture {
     void start_server() {
         server_ = start_client(server_name_);
         ASSERT_TRUE(server_ && server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-        server_->offer(service_instance_);
         server_->offer_event(service_instance_, offered_event_.to_event_spec());
         server_->offer_field(service_instance_, offered_field_.to_event_spec());
+        server_->offer(service_instance_);
     }
 
     void start_client_app() {
@@ -55,7 +55,7 @@ struct test_api_helper : public base_fake_socket_fixture {
         start_client_app();
     }
 
-    service_instance service_instance_{0x3344, 0x1};
+    service_instance service_instance_{0x3344, 0x1, 0x1};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
     event_ids offered_field_{service_instance_, 0x8003, 0x6};
 
@@ -162,4 +162,54 @@ TEST_F(test_api_helper, subscribe_service_toggle) {
     ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
     ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
     ASSERT_TRUE(client_->wait_for_messages({{0x01}, {0x01}, {0x02}})) << client_->message_record_;
+}
+
+TEST_F(test_api_helper, interface_version_when_setting_the_initial_value_after_service_offering) {
+    start_router();
+    start_client_app();
+    server_ = start_client(server_name_);
+    ASSERT_TRUE(server_ && server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    server_->offer_field(service_instance_, offered_field_.to_event_spec());
+    server_->offer(service_instance_);
+    server_->send_event(offered_field_, {0x01});
+
+    client_->request_service(service_instance_);
+    client_->subscribe_event(offered_field_);
+
+    auto const contains_field = [&](auto const& _record) {
+        return std::any_of(_record.begin(), _record.end(), [&](auto const& _message) {
+            return _message.service_instance_.service_ == service_instance_.service_
+                    && _message.service_instance_.instance_ == service_instance_.instance_
+                    && _message.service_instance_.major_ == service_instance_.major_
+                    && _message.message_type_ == vsomeip::message_type_e::MT_NOTIFICATION
+                    && _message.payload_ == std::vector<unsigned char>{0x01};
+        });
+    };
+
+    EXPECT_TRUE(client_->message_record_.wait_for(contains_field));
+}
+
+TEST_F(test_api_helper, interface_version_when_setting_the_initial_value_before_service_offering) {
+    start_router();
+    start_client_app();
+    server_ = start_client(server_name_);
+    ASSERT_TRUE(server_ && server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    server_->offer_field(service_instance_, offered_field_.to_event_spec());
+    server_->send_event(offered_field_, {0x01});
+    server_->offer(service_instance_);
+
+    client_->request_service(service_instance_);
+    client_->subscribe_event(offered_field_);
+
+    auto const contains_field = [&](auto const& _record) {
+        return std::any_of(_record.begin(), _record.end(), [&](auto const& _message) {
+            return _message.service_instance_.service_ == service_instance_.service_
+                    && _message.service_instance_.instance_ == service_instance_.instance_
+                    && _message.service_instance_.major_ == service_instance_.major_
+                    && _message.message_type_ == vsomeip::message_type_e::MT_NOTIFICATION
+                    && _message.payload_ == std::vector<unsigned char>{0x01};
+        });
+    };
+
+    EXPECT_TRUE(client_->message_record_.wait_for(contains_field));
 }
