@@ -89,7 +89,9 @@
             "displayName": "Network tests (CI)",
             "description": "Preset for network tests on CI",
             "environment": {
-                "USE_LXC_TEST": "1"
+                "USE_LXC_TEST": "1",
+                "CTEST_REPEAT_UNTIL_FAIL": "1",
+                "CTEST_TEST_FILTER": "^"
             },
             "configurePreset": "ci-network-tests",
             "output": {
@@ -98,15 +100,9 @@
                 "outputOnFailure": true,
                 "verbosity": "default"
             },
-            "execution": {
-                "repeat": {
-                    "mode": "until-fail",
-                    "count": 1
-                }
-            },
             "filter": {
                 "include": {
-                    "name": "^"
+                    "name": "$env{CTEST_TEST_FILTER}"
                 }
             }
         }

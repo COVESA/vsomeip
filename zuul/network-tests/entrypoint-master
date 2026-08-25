@@ -1,4 +1,6 @@
-#!/bin/bash -eu
+#!/usr/bin/env bash
+
+set -eu
 
 # Enable timestamps for all commands (works with -x flag)
 export PS4='+ [$(date "+%Y-%m-%d %H:%M:%S")] '
@@ -94,10 +96,16 @@ for ((n = 0; n < stress_times[0]; n++)); do
 		ctest_repeat=(--repeat "until-fail:${stress_times[1]}")
 	fi
 
+	# Only override the preset's test filter when stress demands a specific regex.
+	ctest_filter=()
+	if [[ -n "$stress_regex" ]]; then
+		ctest_filter=(--tests-regex "$stress_regex")
+	fi
+
 	ctest --preset ci-network-tests -j "${PARALLEL_JOBS}" \
 		--resource-spec-file "$resource_spec_file" \
 		"${ctest_repeat[@]}" \
-		${stress_regex:+--tests-regex "$stress_regex"} || true
+		"${ctest_filter[@]}" || true
 	cp /home/build/Testing/Temporary/LastTest.log /home/logs/junit/all.log
 
 	# `all.log` contains output for multiple tests, so split it into per-test files.
