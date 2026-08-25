@@ -5,6 +5,7 @@
 
 #if defined(__linux__)
 
+#include <cstring>
 #include <thread>
 
 #include <boost/asio/write.hpp>
@@ -14,6 +15,13 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/netlink_connector.hpp"
+
+// The Soong host (linux_glibc) sysroot ships kernel UAPI headers that predate
+// RTEXT_FILTER_SKIP_STATS. It is a frozen UAPI value, so defining it when the
+// headers lack it is safe. See <linux/rtnetlink.h>.
+#ifndef RTEXT_FILTER_SKIP_STATS
+#define RTEXT_FILTER_SKIP_STATS (1 << 3)
+#endif
 
 namespace vsomeip_v3 {
 
@@ -436,11 +444,9 @@ bool netlink_connector::check_sd_multicast_route_match(const struct rtmsg* _rout
                 }
 
                 for (int i = 0; i < 4; i++) {
-#ifndef ANDROID
-                    const uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).__in6_u.__u6_addr32[i]);
-#else
-                    const uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).in6_u.u6_addr32[i]);
-#endif
+                    uint32_t dst_be;
+                    std::memcpy(&dst_be, static_cast<const uint8_t*>(RTA_DATA(retrta)) + i * 4, sizeof(dst_be));
+                    const uint32_t dst = ntohl(dst_be);
                     const uint32_t sd = ntohl(reinterpret_cast<uint32_t*>(multicast_address_.to_v6().to_bytes().data())[i]);
                     const uint32_t dst_net = dst & netmask2[i];
                     const uint32_t sd_net = sd & netmask2[i];
