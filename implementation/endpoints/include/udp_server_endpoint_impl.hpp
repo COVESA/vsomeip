@@ -71,6 +71,12 @@ public:
     bool is_joined(const std::string& _address) const;
     bool is_joined(const std::string& _address, bool& _received) const;
 
+    // Own multicast messages that were looped back, the only feed of the offer watchdog.
+    std::uint64_t get_own_multicast_received() const;
+
+    // Reports and drains what is still queued on the multicast socket. Terminal use only.
+    void log_multicast_backlog();
+
     /**
      * @brief Block until all data is sent
      *
@@ -143,6 +149,7 @@ private:
     // to receive own multicast messages
     bool receive_own_multicast_messages_{false};
     on_sent_multicast_received_cbk_t on_sent_multicast_received_{nullptr};
+    std::atomic<std::uint64_t> own_multicast_received_{0};
 
     std::string instance_name_;
 };

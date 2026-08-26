@@ -307,6 +307,9 @@ private:
     void check_stopped_services_on_suspend(const boost::system::error_code& error);
     void check_offer_services(const boost::system::error_code& error, uint32_t _faulty_value);
 
+    // Reports the offer round trip, right before the watchdog terminates the process.
+    void log_offer_watchdog_state() const;
+
     // Report that we have received a message from the given host.
     //
     // This will generate a log the first time that a message is received through unicast and
@@ -441,6 +444,12 @@ private:
     std::chrono::milliseconds offers_watchdog_time_;
     std::atomic<uint32_t> offers_received_after_last_resume_;
     std::atomic<uint32_t> offers_received_;
+
+    // Offer entries handed to the endpoint, against offers_received_: tells "not produced" from "not returned".
+    std::atomic<uint32_t> offer_entries_sent_;
+    std::atomic<uint32_t> offer_entries_sent_after_last_resume_;
+
+    std::atomic<std::chrono::steady_clock::time_point> last_multicast_processed_;
 
 // List of hosts from which we have received unicast and multicast messages.
 #if VSOMEIP_BOOST_VERSION < 107600

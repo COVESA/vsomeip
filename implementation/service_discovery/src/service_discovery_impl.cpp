@@ -61,7 +61,8 @@ service_discovery_impl::service_discovery_impl(service_discovery_host* _host, co
     must_start_last_msg_received_timer_(true), last_msg_received_timer_(io_),
     last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY + (VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 10)),
     suspend_stop_offer_watchdog_{io_}, stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME}, offers_watchdog_{io_},
-    offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME}, offers_received_after_last_resume_{0}, offers_received_{0} {
+    offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME}, offers_received_after_last_resume_{0}, offers_received_{0},
+    offer_entries_sent_{0}, offer_entries_sent_after_last_resume_{0}, last_multicast_processed_{std::chrono::steady_clock::time_point{}} {
 
     next_subscription_expiration_ = std::chrono::steady_clock::now() + std::chrono::hours(24);
 }
@@ -146,6 +147,7 @@ void service_discovery_impl::start() {
     }
     if (offers_watchdog_time_ != std::chrono::milliseconds::zero()) {
         offers_received_after_last_resume_ = offers_received_.load();
+        offer_entries_sent_after_last_resume_ = offer_entries_sent_.load();
         offers_watchdog_.cancel();
     }
 
@@ -979,6 +981,7 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
     }
 
     if (_is_multicast) {
+        last_multicast_processed_ = std::chrono::steady_clock::now();
         std::scoped_lock its_last_msg_lock{last_msg_received_timer_mutex_};
         if (0 < last_msg_received_timer_.cancel() || must_start_last_msg_received_timer_) {
             must_start_last_msg_received_timer_ = false;
@@ -1134,12 +1137,33 @@ void service_discovery_impl::start_offer_watchdog() {
     }
 }
 
+// OfferService entries a message announces, StopOffers excluded.
+static uint32_t count_offer_entries(const message_impl::entries_t& _entries) {
+    uint32_t its_offers{0};
+    for (const auto& its_entry : _entries) {
+        if (its_entry->get_type() == entry_type_e::OFFER_SERVICE && its_entry->get_ttl() > 0) {
+            its_offers++;
+        }
+    }
+    return its_offers;
+}
+
 void service_discovery_impl::sent_messages(const byte_t* _data, length_t _size, const boost::asio::ip::address& _remote_address) {
     std::shared_ptr<message_impl> its_message;
     deserialize_data(_data, _size, its_message);
     if (its_message) {
         const message_impl::entries_t& its_entries = its_message->get_entries();
+        const auto its_offers = count_offer_entries(its_entries);
+        const bool is_first_after_resume = its_offers > 0 && offers_received_ == offers_received_after_last_resume_;
+
         check_sent_offers(its_entries, _remote_address);
+
+        if (is_first_after_resume) {
+            VSOMEIP_INFO_P << "First own offer observed after resume via " << (_remote_address.is_unspecified() ? "multicast" : "unicast")
+                           << ", entries=" << its_offers << ", offers_received=" << offers_received_.load();
+        }
+    } else {
+        VSOMEIP_WARNING_P << "Deserialization of own SD message failed, size=" << _size;
     }
 }
 
@@ -2210,6 +2234,7 @@ bool service_discovery_impl::send(const std::vector<std::shared_ptr<message_impl
             m->set_reboot_flag(its_session.second);
             if (host_->send_notification(VSOMEIP_SD_CLIENT, m, true)) {
                 increment_session(unicast_);
+                offer_entries_sent_ += count_offer_entries(m->get_entries());
             }
         } else {
             its_result = false;
@@ -2233,6 +2258,7 @@ bool service_discovery_impl::serialize_and_send(const std::vector<std::shared_pt
                     if (host_->send_via_sd(endpoint_definition::get(_address, port_, reliable_, m->get_service(), m->get_instance()),
                                            serializer_->get_data(), serializer_->get_size(), port_)) {
                         increment_session(_address);
+                        offer_entries_sent_ += count_offer_entries(m->get_entries());
                     }
                 } else {
                     VSOMEIP_ERROR_P << "Serialization failed!";
@@ -3412,8 +3438,38 @@ void service_discovery_impl::check_offer_services(const boost::system::error_cod
         VSOMEIP_ERROR_P << "Suspend offer watchdog error " << error.message();
     } else if (!error) { // and there are offers being made
         if (_faulty_value == offers_received_) {
+            log_offer_watchdog_state();
             VSOMEIP_TERMINATE("No offer was received after resume");
         }
+    }
+}
+
+void service_discovery_impl::log_offer_watchdog_state() const {
+    bool its_joined{false};
+    uint64_t its_own_multicast{0};
+    const auto its_endpoint = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint_);
+    if (its_endpoint) {
+        its_joined = its_endpoint->is_joined(sd_multicast_);
+        its_own_multicast = its_endpoint->get_own_multicast_received();
+    }
+
+    const auto its_last_multicast = last_multicast_processed_.load();
+    std::string its_age{"never"};
+    if (its_last_multicast != std::chrono::steady_clock::time_point{}) {
+        its_age =
+                std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - its_last_multicast)
+                                       .count())
+                + "ms ago";
+    }
+
+    VSOMEIP_ERROR_P << "Offer watchdog expired after " << offers_watchdog_time_.count() << "ms: offers_received=" << offers_received_.load()
+                    << " (" << offers_received_after_last_resume_.load()
+                    << " when armed), offer entries sent=" << offer_entries_sent_.load() << " ("
+                    << offer_entries_sent_after_last_resume_.load() << " when armed), own multicast received=" << its_own_multicast
+                    << ", joined " << sd_multicast_ << "=" << std::boolalpha << its_joined << ", last multicast processed " << its_age;
+
+    if (its_endpoint) {
+        its_endpoint->log_multicast_backlog();
     }
 }
 

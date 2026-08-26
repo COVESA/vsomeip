@@ -6,6 +6,10 @@
 #include <iomanip>
 #include <thread>
 
+#ifndef _WIN32
+#include <sys/socket.h>
+#endif
+
 #include <boost/asio/ip/multicast.hpp>
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/ip/network_v6.hpp>
@@ -595,10 +599,11 @@ void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_
             if (own_subnet) {
                 on_message_received_unlocked(_error, _bytes, true, _multicast_sender, _multicast_recv_buffer);
             }
-        } else if (own_callback) {
-            own_callback(_multicast_recv_buffer.data(), static_cast<uint32_t>(_bytes), boost::asio::ip::address());
         } else {
-            // Nothing to do, else clang-tidy complains
+            own_multicast_received_++;
+            if (own_callback) {
+                own_callback(_multicast_recv_buffer.data(), static_cast<uint32_t>(_bytes), boost::asio::ip::address());
+            }
         }
     }
 }
@@ -1022,6 +1027,78 @@ void udp_server_endpoint_impl::set_sent_multicast_received_callback(const on_sen
 void udp_server_endpoint_impl::set_receive_own_multicast_messages(bool value) {
     std::scoped_lock its_lock(sync_);
     receive_own_multicast_messages_ = value;
+}
+
+std::uint64_t udp_server_endpoint_impl::get_own_multicast_received() const {
+    return own_multicast_received_;
+}
+
+// OfferService entries a queued SD message announces, StopOffers excluded.
+static std::uint32_t count_sd_offers(const byte_t* _data, std::size_t _size) {
+    if (_size < 24 || VSOMEIP_SD_SERVICE != bithelper::read_uint16_be(_data)) {
+        return 0;
+    }
+
+    const auto its_entries_length = bithelper::read_uint32_be(&_data[20]);
+    std::uint32_t its_offers{0};
+    for (std::size_t o = 24; o + 16 <= std::min<std::size_t>(24 + its_entries_length, _size); o += 16) {
+        const auto its_ttl = static_cast<std::uint32_t>((_data[o + 9] << 16) | (_data[o + 10] << 8) | _data[o + 11]);
+        if (0x01 == _data[o] && its_ttl > 0) {
+            its_offers++;
+        }
+    }
+    return its_offers;
+}
+
+void udp_server_endpoint_impl::log_multicast_backlog() {
+#ifndef _WIN32
+    constexpr std::size_t its_limit{64};
+
+    std::scoped_lock its_lock(sync_);
+
+    if (!multicast_socket_ || !multicast_socket_->is_open() || !multicast_socket_->can_read_fd_flags()) {
+        VSOMEIP_ERROR_P << instance_name_ << "Multicast backlog: no socket";
+        return;
+    }
+
+    const int its_fd = multicast_socket_->native_handle();
+
+    std::uint32_t its_queued{0};
+    std::uint32_t its_drops{0};
+#ifdef SO_MEMINFO
+    std::uint32_t its_meminfo[9]{}; // rmem_alloc, rcvbuf, wmem_alloc, sndbuf, fwd_alloc, wmem_queued, optmem, backlog, drops
+    socklen_t its_meminfo_size{sizeof(its_meminfo)};
+    if (0 == ::getsockopt(its_fd, SOL_SOCKET, SO_MEMINFO, its_meminfo, &its_meminfo_size)) {
+        its_queued = its_meminfo[0];
+        its_drops = its_meminfo[8];
+    }
+#endif
+
+    // Draining is acceptable, the caller terminates right after.
+    message_buffer_t its_buffer(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0);
+    std::size_t its_unread{0};
+    std::size_t its_own{0};
+    std::uint32_t its_own_offers{0};
+    for (; its_unread < its_limit; its_unread++) {
+        sockaddr_storage its_sender{};
+        socklen_t its_sender_size{sizeof(its_sender)};
+        const auto its_bytes = ::recvfrom(its_fd, its_buffer.data(), its_buffer.size(), MSG_DONTWAIT,
+                                          reinterpret_cast<sockaddr*>(&its_sender), &its_sender_size);
+        if (its_bytes <= 0) {
+            break;
+        }
+        if (AF_INET == its_sender.ss_family
+            && boost::asio::ip::address(
+                       boost::asio::ip::address_v4(ntohl(reinterpret_cast<const sockaddr_in*>(&its_sender)->sin_addr.s_addr)))
+                    == local_.address()) {
+            its_own++;
+            its_own_offers += count_sd_offers(its_buffer.data(), static_cast<std::size_t>(its_bytes));
+        }
+    }
+
+    VSOMEIP_ERROR_P << instance_name_ << "Multicast backlog: queued=" << its_queued << " bytes, drops=" << its_drops
+                    << ", unread=" << its_unread << ", own=" << its_own << ", own offer entries=" << its_own_offers;
+#endif
 }
 
 bool udp_server_endpoint_impl::is_joining() const {
