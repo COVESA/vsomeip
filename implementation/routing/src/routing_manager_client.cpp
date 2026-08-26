@@ -1619,10 +1619,12 @@ bool routing_manager_client::cache_event_payload(const std::shared_ptr<message>&
         register_consumer_event(host_->get_client(), its_service, its_instance, its_method, its_eventgroups, event_type_e::ET_UNKNOWN,
                                 reliability_type_e::RT_UNKNOWN, std::chrono::milliseconds::zero(), false, true, nullptr, true, its_lock);
         its_event = find_consumed_event(its_service, its_instance, its_method, its_lock);
+        its_event->set_version(_message->get_interface_version());
     } else {
         if (its_event->is_field() || its_event->get_type() == event_type_e::ET_UNKNOWN) {
             its_event->prepare_update_payload(_message->get_payload(), true);
             its_event->update_payload();
+            its_event->set_version(_message->get_interface_version());
         }
     }
 
@@ -2998,12 +3000,13 @@ void routing_manager_client::send_back_cached_event_unlocked(service_t _service,
         auto its_message = runtime::get()->create_notification();
         its_message->set_service(_service);
         its_message->set_method(_event);
+        its_message->set_interface_version(its_event->get_version());
         its_message->set_instance(_instance);
         its_message->set_payload(its_event->get_payload());
         its_message->set_initial(true);
         host_->on_message(std::move(its_message));
-        VSOMEIP_INFO << "Sending back cached event (" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                     << hex4(_event) << "]";
+        VSOMEIP_INFO_P << "Sending back cached event (" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
+                       << static_cast<int>(its_event->get_version()) << ":" << hex4(_event) << "]";
     }
 }
 
@@ -3022,12 +3025,14 @@ void routing_manager_client::send_back_cached_eventgroup_unlocked(service_t _ser
             auto its_message = runtime::get()->create_notification();
             its_message->set_service(_service);
             its_message->set_method(e->get_event());
+            its_message->set_interface_version(e->get_version());
             its_message->set_instance(_instance);
             its_message->set_payload(e->get_payload());
             its_message->set_initial(true);
             host_->on_message(std::move(its_message));
-            VSOMEIP_INFO << "Sending back cached event (" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                         << hex4(e->get_event()) << "] from eventgroup " << hex4(_eventgroup);
+            VSOMEIP_INFO_P << "Sending back cached event (" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance)
+                           << "." << static_cast<int>(e->get_version()) << ":" << hex4(e->get_event()) << "] from eventgroup "
+                           << hex4(_eventgroup);
         }
     }
 }

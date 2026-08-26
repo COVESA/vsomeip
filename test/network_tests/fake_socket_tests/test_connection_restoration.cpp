@@ -91,8 +91,8 @@ struct test_connection_restoration : public base_fake_socket_fixture {
         return _app->availability_record_.wait_for_last(service_availability::available(_si));
     }
 
-    service_instance service_instance_{0x3344, 0x1};
-    service_instance service_instance_two_{0x3345, 0x1};
+    service_instance service_instance_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
+    service_instance service_instance_two_{.service_ = 0x3345, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
     message first_expected_message_{
             client_session{0, 1}, service_instance_, offered_event_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
@@ -108,9 +108,17 @@ struct test_connection_restoration : public base_fake_socket_fixture {
     message expected_request_{client_session{0x3490 /*client id*/, 1}, service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
     message expected_reply_{client_session{0x3490 /*client id*/, 1}, service_instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
 
-    std::vector<service_instance> service_instances{{0x3344, 0x1}, {0x3345, 0x1}, {0x3346, 0x1}, {0x3347, 0x1},
-                                                    {0x3348, 0x1}, {0x3349, 0x1}, {0x334A, 0x1}, {0x334B, 0x1},
-                                                    {0x334C, 0x1}, {0x334D, 0x1}, {0x334E, 0x1}};
+    std::vector<service_instance> service_instances{{.service_ = 0x3344, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x3345, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x3346, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x3347, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x3348, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x3349, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x334A, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x334B, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x334C, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x334D, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0},
+                                                    {.service_ = 0x334E, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0}};
 
     app* routingmanagerd_{};
     app* client_{};
@@ -1065,7 +1073,8 @@ TEST_F(test_connection_restoration, atomic_stop_offer_tests) {
     ASSERT_TRUE(setup_data_pipe("dummy_client", routingmanager_name_, socket_role::client, dummy_client_to_router_gate->get_data_pipe()));
 
     for (int i = 0; i < services_to_be_offered_num; ++i) {
-        services_to_be_offered.push_back({static_cast<vsomeip::service_t>(0x4000 + i), 0x1});
+        services_to_be_offered.push_back(
+                {.service_ = static_cast<vsomeip::service_t>(0x4000 + i), .instance_ = 0x1, .major_ = 0x1, .minor_ = 0});
     }
 
     // 1.

@@ -1521,7 +1521,7 @@ TEST_F(length_field_too_big, length_field_too_big_tcp) {
                                                             static_cast<uint16_t>(router_one_->get_client()), // client id
                                                             static_cast<uint16_t>(0x0001), // session id
                                                             static_cast<uint8_t>(0x01), // proto version
-                                                            static_cast<uint8_t>(0xff), // iface version
+                                                            static_cast<uint8_t>(0x01), // iface version
                                                             static_cast<uint8_t>(0x00), // message type
                                                             static_cast<uint8_t>(0x00) // return code
     );
@@ -1542,7 +1542,7 @@ TEST_F(length_field_too_big, length_field_too_big_tcp) {
                                                              static_cast<uint16_t>(router_one_->get_client()), // client id
                                                              static_cast<uint16_t>(0x0001), // session id
                                                              static_cast<uint8_t>(0x01), // proto version
-                                                             static_cast<uint8_t>(0xff), // iface version
+                                                             static_cast<uint8_t>(0x01), // iface version
                                                              static_cast<uint8_t>(0x00), // message type
                                                              static_cast<uint8_t>(0x00) // return code
     );
@@ -1570,7 +1570,7 @@ TEST_F(length_field_too_big, length_field_too_big_udp) {
                                                             static_cast<uint16_t>(router_one_->get_client()), // client id
                                                             static_cast<uint16_t>(0x0001), // session id
                                                             static_cast<uint8_t>(0x01), // proto version
-                                                            static_cast<uint8_t>(0xff), // iface version
+                                                            static_cast<uint8_t>(0x01), // iface version
                                                             static_cast<uint8_t>(0x00), // message type
                                                             static_cast<uint8_t>(0x00) // return code
     );
@@ -1591,7 +1591,7 @@ TEST_F(length_field_too_big, length_field_too_big_udp) {
                                                              static_cast<uint16_t>(router_one_->get_client()), // client id
                                                              static_cast<uint16_t>(0x0001), // session id
                                                              static_cast<uint8_t>(0x01), // proto version
-                                                             static_cast<uint8_t>(0xff), // iface version
+                                                             static_cast<uint8_t>(0x01), // iface version
                                                              static_cast<uint8_t>(0x00), // message type
                                                              static_cast<uint8_t>(0x00) // return code
     );

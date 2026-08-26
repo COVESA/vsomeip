@@ -23,7 +23,7 @@ struct test_someip_tp : public base_fake_socket_fixture {
     std::vector<event_spec> const fields_specs_{{0x8002, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}};
     std::optional<someip_tp> tp_{someip_tp{{method_, 1392, 0}, {method_, 1392, 0}}};
 
-    interface multi_field_service_{{0x3344, 0x1}, {}, fields_specs_, tp_};
+    interface multi_field_service_{{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1, .minor_ = 0}, {}, fields_specs_, tp_};
     ecu_config ecu_one_config_extended_{boardnet::ecu_one_config};
     ecu_config ecu_two_config_extended_{boardnet::ecu_two_config};
 
@@ -56,6 +56,7 @@ TEST_F(test_someip_tp, test_someip_tp_mem_corruption) {
                                                          .method_ = method_,
                                                          .client_ = ecu_one->get_client(),
                                                          .session_ = 0x0001,
+                                                         .interface_version_ = 0x1,
                                                          .offset_ = 0,
                                                          .more_segments_ = true, // not the last segment
                                                          .payload_ = std::vector<unsigned char>(32, 0xAA)});
@@ -64,6 +65,7 @@ TEST_F(test_someip_tp, test_someip_tp_mem_corruption) {
                                        .method_ = method_,
                                        .client_ = ecu_one->get_client(),
                                        .session_ = 0x0001,
+                                       .interface_version_ = 0x1,
                                        .offset_ = 16,
                                        .more_segments_ = false, // last segment
                                        .payload_ = std::vector<unsigned char>(16, 0xBB)};
@@ -76,7 +78,7 @@ TEST_F(test_someip_tp, test_someip_tp_mem_corruption) {
 
     message_checker tp_checker{std::nullopt, multi_field_service_.instance_, method_, vsomeip::message_type_e::MT_REQUEST,
                                std::vector<unsigned char>(32, 0xAA)};
-    ASSERT_TRUE(ecu_one->message_record_.wait_for_any(tp_checker));
+    ASSERT_TRUE(ecu_one->message_record_.wait_for_any(tp_checker)) << ecu_one->message_record_;
 
     // Partial overlapping segments.
     seconds_tp_frame.payload_ = std::vector<unsigned char>(32, 0xBB);

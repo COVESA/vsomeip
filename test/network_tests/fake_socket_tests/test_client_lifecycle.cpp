@@ -96,8 +96,8 @@ struct test_client_lifecycle : public base_fake_socket_fixture {
         return _app->availability_record_.wait_for_last(service_availability::available(_si));
     }
 
-    service_instance service_instance_{0x3344, 0x1};
-    service_instance service_instance_two_{0x3345, 0x1};
+    service_instance service_instance_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
+    service_instance service_instance_two_{.service_ = 0x3345, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
     message first_expected_message_{
             client_session{0, 1}, service_instance_, offered_event_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
@@ -158,7 +158,7 @@ struct test_concurrent_registration : base_fake_socket_fixture {
     std::string const routingmanager_name_{"routingmanagerd"};
     std::string const app_name_{"concurrent_app"};
 
-    service_instance service_{0x1387, 0x1};
+    service_instance service_{.service_ = 0x1387, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
     vsomeip_v3::method_t method_{0x1221};
     request req_{service_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
 
@@ -961,7 +961,7 @@ TEST_F(test_client_lifecycle, release_and_rerequest_one_service_among_many_ends_
      * messages are held. Only the middle one is released then
      * re-requested; the other two are steady bystanders.
      */
-    service_instance const service_instance_three_{0x3346, 0x1};
+    service_instance const service_instance_three_{.service_ = 0x3346, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
 
     start_apps();
     server_->offer(service_instance_two_);
@@ -1466,7 +1466,7 @@ TEST_F(test_client_lifecycle, resubscribe_while_acked_replays_cache_without_dupl
                                   std::chrono::milliseconds(200)));
 
     // The replayed notification must arrive on the client.
-    EXPECT_TRUE(client_->message_record_.wait_for(field_checker_));
+    EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
 
     // No NOTIFY_ID must have been sent by the server during this window —
     // proving the notification came from local cache replay, not a fresh server emission.
@@ -1560,7 +1560,7 @@ struct test_single_io_thread : public base_fake_socket_fixture {
 
     ecu_setup ecu_{"single_io", config_, *socket_manager_};
 
-    service_instance service_{0x3344, 0x1};
+    service_instance service_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
     event_ids field_{service_, 0x8003, 0x6};
 
     void start_apps() {
@@ -1652,10 +1652,10 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
     std::string const& c_name_{client_name_two_};
 
     // S1 is offered by A and consumed by B.
-    service_instance s1_{0x3344, 0x1};
+    service_instance s1_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
     event_ids ev1_{s1_, 0x8002, 0x1};
     // S2 is offered by B and consumed by A.
-    service_instance s2_{0x3345, 0x1};
+    service_instance s2_{.service_ = 0x3345, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
     event_ids ev2_{s2_, 0x8002, 0x1};
 
     std::vector<unsigned char> s1_payload_{0x11, 0x22};
@@ -1864,8 +1864,8 @@ TEST_F(test_provider_consumer_error_isolation, stale_consumer_does_not_tear_down
     client_t const new_client = 0x7777;
     ASSERT_NE(c_->get_client_id(), old_client);
     ASSERT_NE(c_->get_client_id(), new_client);
-    service_instance const stale_service{0x7A01, 0x1};
-    service_instance const new_service{0x7A02, 0x1};
+    service_instance const stale_service{.service_ = 0x7A01, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
+    service_instance const new_service{.service_ = 0x7A02, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
     a_->request_service(stale_service);
 
     // 1. Plant a STALE consumer mapping on A: the old client "offers" S_STALE at (127.0.0.1, C_port).
@@ -1914,7 +1914,7 @@ TEST_F(test_provider_consumer_error_isolation, stale_consumer_and_provider_of_ol
 
     client_t const new_client = 0x7777;
     ASSERT_NE(b_->get_client_id(), new_client);
-    service_instance const new_service{0x7A02, 0x1};
+    service_instance const new_service{.service_ = 0x7A02, .instance_ = 0x1, .major_ = 1};
 
     // Only observe post-trigger effects.
     a_->availability_record_.clear();
@@ -1951,9 +1951,9 @@ struct test_pending_event_registration_split : public base_fake_socket_fixture {
     std::string const& b_name_{client_name_};
 
     // S1 is offered by A and consumed by B; S2 is offered by B and consumed by A.
-    service_instance s1_{0x3344, 0x1};
+    service_instance s1_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1};
     event_ids ev1_{s1_, 0x8002, 0x1};
-    service_instance s2_{0x3345, 0x1};
+    service_instance s2_{.service_ = 0x3345, .instance_ = 0x1, .major_ = 1};
     event_ids ev2_{s2_, 0x8002, 0x1};
 
     std::vector<unsigned char> s1_payload_{0x11, 0x22};

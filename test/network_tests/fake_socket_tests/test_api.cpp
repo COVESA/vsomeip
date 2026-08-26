@@ -55,7 +55,7 @@ struct test_api_helper : public base_fake_socket_fixture {
         start_client_app();
     }
 
-    service_instance service_instance_{0x3344, 0x1, 0x1};
+    service_instance service_instance_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 0x1};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
     event_ids offered_field_{service_instance_, 0x8003, 0x6};
 

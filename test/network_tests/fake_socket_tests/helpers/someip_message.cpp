@@ -129,8 +129,8 @@ std::vector<unsigned char> construct_offer(event_ids const& _offer, boost::asio:
 
     its_entry->set_service(_offer.si_.service_);
     its_entry->set_instance(_offer.si_.instance_);
-    its_entry->set_major_version(0);
-    its_entry->set_minor_version(0);
+    its_entry->set_major_version(_offer.si_.major_);
+    its_entry->set_minor_version(_offer.si_.minor_);
     its_entry->set_ttl(0x03);
     entry_ = its_entry;
 

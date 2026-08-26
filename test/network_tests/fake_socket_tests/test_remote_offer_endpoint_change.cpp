@@ -99,8 +99,8 @@ struct remote_offer_endpoint_change : public base_fake_socket_fixture {
         entry->set_type(vsomeip_v3::sd::entry_type_e::OFFER_SERVICE);
         entry->set_service(_service.service_);
         entry->set_instance(_service.instance_);
-        entry->set_major_version(0);
-        entry->set_minor_version(0);
+        entry->set_major_version(_service.major_);
+        entry->set_minor_version(_service.minor_);
         entry->set_ttl(0x03);
 
         std::vector<std::shared_ptr<vsomeip_v3::sd::option_impl>> options;

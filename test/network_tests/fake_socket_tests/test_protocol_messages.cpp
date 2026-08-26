@@ -90,8 +90,7 @@ struct protocol_messages_fixture : public base_fake_socket_fixture {
         return _app->availability_record_.wait_for_last(service_availability::available(_si));
     }
 
-    service_instance service_instance_{0x3344, 0x1};
-    service_instance service_instance_two_{0x3345, 0x1};
+    service_instance service_instance_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
     message first_expected_message_{
             client_session{0, 1}, service_instance_, offered_event_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};

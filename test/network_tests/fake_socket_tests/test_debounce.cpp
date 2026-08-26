@@ -67,8 +67,8 @@ struct test_debounce_helper : public base_fake_socket_fixture {
         return client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_));
     }
 
-    service_instance service_instance_{0x3344, 0x1};
-    service_instance service_instance_two_{0x3345, 0x1};
+    service_instance service_instance_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
+    service_instance service_instance_two_{.service_ = 0x3345, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
     event_ids offered_field_{service_instance_, 0x8003, 0x6};
 

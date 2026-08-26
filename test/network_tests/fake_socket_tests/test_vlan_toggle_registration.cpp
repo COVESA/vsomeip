@@ -119,7 +119,7 @@ struct test_vlan_toggle_registration : public base_fake_socket_fixture {
         }
     }
 
-    service_instance service_instance_{0x3344, 0x1};
+    service_instance service_instance_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1, .minor_ = 0};
 
     app* routingmanagerd_{nullptr};
     app* server_{nullptr};

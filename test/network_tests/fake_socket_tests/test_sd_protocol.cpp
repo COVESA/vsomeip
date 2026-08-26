@@ -471,7 +471,7 @@ TEST_F(sd_header_validation, prs_someipsd_00154_sd_offer_with_nonzero_client_id_
     send_someip_sd_message(valid_offer, ecu_two_.sd_endpoint(), ecu_one_.sd_endpoint());
 
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)))
-            << "SD OFFER with Client-ID = 0x0000 was not accepted";
+            << "SD OFFER with Client-ID = 0x0000 was not accepted, recorded: " << client->availability_record_;
 }
 
 struct test_sd_acceptance : public base_fake_socket_fixture {

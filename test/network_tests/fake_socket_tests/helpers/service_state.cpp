@@ -10,7 +10,8 @@
 namespace vsomeip_v3::testing {
 
 interface::interface(vsomeip::service_t _service, std::vector<event_spec> _events, std::vector<event_spec> _fields,
-                     vsomeip::instance_t _instance) : interface({_service, _instance}, std::move(_events), std::move(_fields)) { }
+                     vsomeip::instance_t _instance) :
+    interface({.service_ = _service, .instance_ = _instance, .major_ = 0x1, .minor_ = 0}, std::move(_events), std::move(_fields)) { }
 
 interface::interface(service_instance _instance, std::vector<event_spec> _events, std::vector<event_spec> _fields,
                      std::optional<someip_tp> tp) : instance_(_instance) {
