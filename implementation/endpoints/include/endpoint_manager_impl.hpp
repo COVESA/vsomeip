@@ -116,6 +116,8 @@ public:
 
     bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const;
 
+    void add_local_routing_endpoint(std::shared_ptr<local_endpoint> _ep);
+
 private:
     std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable);
     std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable);
@@ -139,8 +141,6 @@ private:
 
     client_t get_client() const;
     std::string get_client_host() const;
-
-    void add_local_routing_endpoint(std::shared_ptr<local_endpoint> _ep);
     /// @return true if _ep was installed as the live routing endpoint for _client, false if it was
     /// only queued as pending because an existing endpoint for _client is still being cleaned up.
     bool add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep);

@@ -27,8 +27,6 @@
 
 namespace vsomeip_v3 {
 
-static constexpr uint32_t invalid_client_token_ = std::numeric_limits<uint32_t>::max();
-
 endpoint_manager_base::endpoint_manager_base(local_endpoint_manager_host& _host, boost::asio::io_context& _io,
                                              const std::shared_ptr<configuration>& _configuration, std::string _name,
                                              std::string _client_host) :
@@ -37,91 +35,7 @@ endpoint_manager_base::endpoint_manager_base(local_endpoint_manager_host& _host,
     client_host_(std::move(_client_host)) { }
 
 void endpoint_manager_base::init(std::shared_ptr<routing_host> const& _local_message_handler) {
-    std::scoped_lock its_lock(mtx_);
     local_message_handler_ = _local_message_handler;
-}
-
-void endpoint_manager_base::start() {
-    std::scoped_lock its_lock(mtx_);
-    is_started_ = true;
-}
-
-void endpoint_manager_base::force_stop() {
-    std::scoped_lock its_lock(mtx_);
-    is_started_ = false;
-    if (stop_done_trigger_) {
-        stop_done_trigger_ = {};
-    }
-
-    clear_provider_endpoints(its_lock);
-}
-
-async::hook endpoint_manager_base::stop() {
-    std::scoped_lock its_lock(mtx_);
-    assert(!stop_done_trigger_);
-    stop_done_trigger_ = async::trigger(io_);
-    if (!is_started_) {
-        stop_done_trigger_.fire();
-        auto hook = stop_done_trigger_.get_hook();
-        stop_done_trigger_ = {};
-        return hook;
-    }
-    is_started_ = false;
-    ++lc_token_;
-    VSOMEIP_INFO_P << "Start endpoint flushing for client 0x" << hex4(get_client_id());
-    for (auto const& [_, ep] : local_server_endpoints_) {
-        ep->start_flushing();
-    }
-    for (auto const& [_, ep] : pending_server_endpoints_) {
-        ep->stop(true); // never started -> nothing to flush
-    }
-    pending_server_endpoints_.clear();
-
-    auto ret = stop_done_trigger_.get_hook();
-    if (local_server_endpoints_.empty()) {
-        stop_done_trigger_.fire();
-        stop_done_trigger_ = {};
-    }
-
-    return ret;
-}
-
-void endpoint_manager_base::remove_provider_endpoint(client_t _client, bool _remove_due_to_error) {
-    VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id()) << ", client 0x" << hex4(_client) << ", error " << _remove_due_to_error;
-    std::scoped_lock lock{mtx_};
-    remove_local_server_endpoint_unlocked(_client, _remove_due_to_error);
-    if (stop_done_trigger_ && local_server_endpoints_.empty()) {
-        stop_done_trigger_.fire();
-        stop_done_trigger_ = {};
-    }
-}
-
-void endpoint_manager_base::clear_provider_endpoints() {
-    std::scoped_lock lock{mtx_};
-    clear_provider_endpoints(lock);
-}
-void endpoint_manager_base::clear_provider_endpoints([[maybe_unused]] std::scoped_lock<std::mutex> const& _lock) {
-    VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id());
-    for (auto const& [id, ep] : local_server_endpoints_) {
-        ep->stop(true);
-        bump_provider_token(id);
-    }
-    for (auto const& [id, ep] : pending_server_endpoints_) {
-        ep->stop(true); // never "started", but the socket needs to be stopped anyhow
-    }
-    local_server_endpoints_.clear();
-    pending_server_endpoints_.clear();
-}
-
-void endpoint_manager_base::stop_all_endpoints() {
-    std::scoped_lock lock{mtx_};
-    VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id());
-    for (auto const& [id, ep] : local_server_endpoints_) {
-        ep->stop(true);
-    }
-    for (auto const& [id, ep] : pending_server_endpoints_) {
-        ep->stop(true);
-    }
 }
 
 std::shared_ptr<local_endpoint> endpoint_manager_base::create_consumer_endpoint(client_t _client, client_t _own_id,
@@ -130,56 +44,6 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_consumer_endpoint(
     return create_local_client_endpoint(_client, _own_id, _remote_address, _remote_port, true);
 }
 
-std::shared_ptr<local_endpoint> endpoint_manager_base::find_local_server_endpoint(client_t _client) const {
-    std::scoped_lock lock{mtx_};
-    if (auto const it = local_server_endpoints_.find(_client); it != local_server_endpoints_.end()) {
-        return it->second;
-    }
-    return nullptr;
-}
-
-std::shared_ptr<local_endpoint> endpoint_manager_base::find_local_server_endpoint_by_peer(const boost::asio::ip::address& _peer_address,
-                                                                                          port_t _peer_port) const {
-    std::scoped_lock lock{mtx_};
-    for (auto const& [its_client, its_endpoint] : local_server_endpoints_) {
-        if (its_endpoint) {
-            auto const its_peer = its_endpoint->peer_endpoint();
-            if (its_peer.port() == _peer_port && its_peer.address() == _peer_address) {
-                return its_endpoint;
-            }
-        }
-    }
-    return nullptr;
-}
-
-void endpoint_manager_base::add_local_server_endpoint(std::shared_ptr<local_endpoint> _connection, uint32_t _token) {
-    auto const its_client = _connection->connected_client();
-    std::scoped_lock const its_endpoint_lock{mtx_};
-    if (_token != lc_token_) {
-        _connection->stop(true); // force a stop, as we can not accept this connection from a previous lifecycle
-        return;
-    }
-    add_local_server_endpoint_unlocked(its_client, _connection);
-}
-
-void endpoint_manager_base::add_local_server_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _connection) {
-    if (auto const it = local_server_endpoints_.find(_client); it != local_server_endpoints_.end()) {
-        VSOMEIP_WARNING_P << "Already existing endpoint found for client 0x" << hex4(_client)
-                          << ". Enforcing a clean-up of endpoint:" << it->second->name()
-                          << " but queuing endpoint: " << _connection->name();
-        if (auto const it2 = pending_server_endpoints_.find(_client); it2 != pending_server_endpoints_.end()) {
-            VSOMEIP_WARNING_P << "Replacing existing pending for client 0x" << hex4(_client) << ", connection: " << it2->second->name();
-            it2->second->stop(true);
-        }
-        pending_server_endpoints_[_client] = _connection;
-        it->second->trigger_error();
-        return;
-    }
-    host_.register_error_handler(_client, _connection, connection_role_e::provider);
-    local_server_endpoints_[_client] = _connection;
-    _connection->start(provider_tokens_[_client]);
-    VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id()) << ", client 0x" << hex4(_client) << ", connection > " << _connection->name();
-}
 std::shared_ptr<local_acceptor> endpoint_manager_base::create_uds_local_acceptor(const std::string& _path, client_t _client) {
     std::shared_ptr<local_acceptor> uds_acceptor;
 #if defined(__linux__) || defined(__QNX__)
@@ -282,18 +146,8 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server(transpo
     }
 
     if (its_acceptor) {
-        auto token = [this] {
-            std::scoped_lock lock{mtx_};
-            return lc_token_;
-        }();
-        return std::make_shared<local_server>(
-                io_, std::move(its_acceptor), configuration_, local_message_handler_,
-                [weak_self = weak_from_this(), token](auto _ep) {
-                    if (auto self = weak_self.lock(); self) {
-                        self->add_local_server_endpoint(std::move(_ep), token);
-                    }
-                },
-                false, get_client_env());
+        return std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, local_message_handler_, false,
+                                              get_client_env());
     }
     return nullptr;
 }
@@ -408,48 +262,6 @@ bool endpoint_manager_base::get_local_server_port(port_t& _port, const std::set<
     }
 
     return false;
-}
-
-void endpoint_manager_base::print_status() const {
-    std::scoped_lock const its_lock(mtx_);
-    VSOMEIP_INFO << "status local server endpoints: " << local_server_endpoints_.size();
-    for (const auto& [_, ep] : local_server_endpoints_) {
-        ep->print_status();
-    }
-    VSOMEIP_INFO << "status pending local server endpoints: " << pending_server_endpoints_.size();
-}
-
-uint32_t endpoint_manager_base::provider_connection_token(client_t _client) const {
-    std::scoped_lock const its_lock(mtx_);
-    auto const it = provider_tokens_.find(_client);
-    return it == provider_tokens_.end() ? invalid_client_token_ : it->second;
-}
-
-void endpoint_manager_base::remove_local_server_endpoint_unlocked(client_t _client, bool _remove_due_to_error) {
-    if (auto const it = local_server_endpoints_.find(_client); it != local_server_endpoints_.end()) {
-        it->second->stop(_remove_due_to_error);
-        VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id()) << " is closing connection to client 0x" << hex4(_client) << " endpoint > "
-                       << it->second->name();
-        local_server_endpoints_.erase(it);
-        bump_provider_token(_client);
-    }
-    if (auto const it = pending_server_endpoints_.find(_client); it != pending_server_endpoints_.end()) {
-        add_local_server_endpoint_unlocked(_client, it->second);
-        // safe to still use the iterator, because the adding of the endpoint can no longer fail
-        // (because of the locked mtx), therefore the pending set remains untouched
-        pending_server_endpoints_.erase(it);
-    }
-}
-
-uint32_t endpoint_manager_base::bump_provider_token(client_t _client) {
-    auto& token = provider_tokens_[_client];
-    ++token;
-    // "invalid_client_token_" has the special meaning of "no token found for this client". Therefore it should not used as an "actual"
-    // token
-    if (token == invalid_client_token_) {
-        ++token;
-    }
-    return token;
 }
 
 } // namespace vsomeip_v3

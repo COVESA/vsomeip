@@ -71,10 +71,20 @@ void routing_manager_stub::init() {
 
 void routing_manager_stub::start() {
 
-    auto start_root = [](auto& root) {
+    auto start_root = [this](auto& root) {
         if (root) {
             root->set_id(VSOMEIP_ROUTING_CLIENT);
-            root->start();
+            root->start([weak_self = weak_from_this(), token = lc_token_.load()](auto ep) {
+                if (auto const self = weak_self.lock(); self) {
+                    if (auto epm = self->host_->get_endpoint_manager(); epm) {
+                        if (self->lc_token_ == token) {
+                            epm->add_local_routing_endpoint(ep);
+                        } else {
+                            ep->stop(true);
+                        }
+                    }
+                }
+            });
         }
     };
 
@@ -94,7 +104,7 @@ void routing_manager_stub::stop() {
             local_server = nullptr;
         }
     };
-
+    ++lc_token_;
     // Stop routing roots
     if (!is_socket_activated_) {
         stop_local_server(uds_root_);

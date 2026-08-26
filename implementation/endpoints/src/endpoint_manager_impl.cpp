@@ -791,14 +791,7 @@ bool endpoint_manager_impl::create_local_tcp_acceptor(std::shared_ptr<local_acce
 void endpoint_manager_impl::setup_root_server(std::shared_ptr<local_server>& _root, std::shared_ptr<local_acceptor> _acceptor,
                                               const std::shared_ptr<routing_host>& _host) {
     auto create_server = [this, _host](std::shared_ptr<local_acceptor> acceptor) {
-        return std::make_shared<local_server>(
-                io_, std::move(acceptor), configuration_, _host,
-                [weak_self = weak_from_this(), this](auto _ep) {
-                    if (auto self = weak_self.lock(); self) {
-                        add_local_routing_endpoint(std::move(_ep));
-                    }
-                },
-                true, get_client_host());
+        return std::make_shared<local_server>(io_, std::move(acceptor), configuration_, _host, true, get_client_host());
     };
 
     _root = create_server(_acceptor);

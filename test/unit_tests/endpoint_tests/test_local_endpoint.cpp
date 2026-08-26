@@ -80,13 +80,7 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
         if (ec) {
             throw std::logic_error("server could not be set-up");
         }
-        return std::make_shared<local_server>(
-                io_, std::move(acceptor), configuration_, server_routing_host_,
-                [this](auto const& ep) {
-                    server_eps_.push_back(ep);
-                    ep->start();
-                },
-                false, "host-env");
+        return std::make_shared<local_server>(io_, std::move(acceptor), configuration_, server_routing_host_, false, "host-env");
     }
     auto create_client_ep() {
         return local_endpoint::create_client_ep(
@@ -129,7 +123,10 @@ TEST_F(test_uds_local_endpoint, a_local_endpoint_can_connect_to_the_local_server
 
     auto server = create_server();
     auto client = create_client_ep();
-    server->start();
+    server->start([this](auto const& ep) {
+        server_eps_.push_back(ep);
+        ep->start();
+    });
     client->start();
 
     io_.poll();
@@ -139,7 +136,10 @@ TEST_F(test_uds_local_endpoint, config_command_leads_to_information_forwarding_t
 
     auto server = create_server();
     auto client = create_client_ep();
-    server->start();
+    server->start([this](auto const& ep) {
+        server_eps_.push_back(ep);
+        ep->start();
+    });
     client->start();
 
     io_.poll();

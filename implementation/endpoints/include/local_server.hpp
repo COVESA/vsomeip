@@ -68,15 +68,14 @@ public:
      * @note the acceptor needs to be already in the "listen" state.
      */
     local_server(boost::asio::io_context& _io, std::shared_ptr<local_acceptor> _acceptor, std::shared_ptr<configuration> _configuration,
-                 std::weak_ptr<routing_host> _routing_host, connection_handler _connection_handler, bool _is_router,
-                 std::string _server_host);
+                 std::weak_ptr<routing_host> _routing_host, bool _is_router, std::string _server_host);
     ~local_server();
 
     /**
      * @brief Starts accepting connections.
      * @note Must be called to begin serving clients.
      */
-    void start();
+    void start(connection_handler _handler);
 
     /**
      * @brief Stops the server, closes acceptor, and disconnects all clients.
@@ -183,12 +182,12 @@ private:
     state_e state_{state_e::STOPPED};
     uint32_t lc_count_{0};
     client_t own_client_id_{VSOMEIP_CLIENT_UNSET};
+    connection_handler connection_handler_;
     boost::asio::io_context& io_;
     std::shared_ptr<local_acceptor> const acceptor_;
     std::shared_ptr<configuration> const configuration_;
     std::shared_ptr<timer> debounce_;
     std::weak_ptr<routing_host> const routing_host_;
-    connection_handler const connection_handler_;
     std::string const server_host_;
     std::vector<boost::asio::ip::address> blocked_addresses_;
 

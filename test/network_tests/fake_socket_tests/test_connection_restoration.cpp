@@ -221,6 +221,21 @@ TEST_F(test_connection_restoration, re_registered_client_deletes_client_info) {
                                   std::chrono::milliseconds(10)));
 }
 
+TEST_F(test_connection_restoration, when_a_client_reconnects_pending_connections_are_promoted) {
+    start_apps();
+    ASSERT_TRUE(subscribe_to_field());
+
+    // send and await the field message to have a "stable state" in which the server does not detect the broken connection itself
+    send_field_message();
+    ASSERT_TRUE(client_->message_record_.wait_for(field_checker_));
+    client_->message_record_.clear();
+
+    // don't tell the server about this
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::timed_out, server_name_, std::nullopt));
+
+    EXPECT_TRUE(client_->message_record_.wait_for(field_checker_));
+}
+
 TEST_F(test_connection_restoration, when_a_client_connection_is_broken_just_after_accept_then_it_can_be_cleand_up) {
 
     /**

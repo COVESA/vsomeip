@@ -775,4 +775,59 @@ TEST_F(test_subscription_sec_client, sec_client_is_reported_when_the_subscriber_
     // the identity must still come from the dying connection, not from a default-constructed sec_client
     EXPECT_TRUE(sec_record_.wait_for_any(sec_subscription{its_subscribe.client_, its_subscribe.sec_client_, false})) << sec_record_;
 }
+TEST_F(test_event_subscription_callback_local, stale_subscription_callback_does_not_send_ack_after_server_reconnect) {
+    /**
+     * rmc::on_message() must discard a subscription callback that outlives a server
+     * reconnect.
+     *
+     * on_message() captures its_generation = provider_token(client) before
+     * dispatching on_subscription.  If rmc::reconnect() fires — and bumps
+     * provider_token_ — while that callback is still in flight, the ack continuation
+     * must detect its_generation != provider_token and drop without sending an ack.
+     *
+     * Steps (inside handler, dispatcher thread, before returning):
+     *   2a. Arm c2s_gate_ at SUBSCRIBE_ID — gates the re-subscribe the client sends
+     *       after reconnect, giving the main thread a clean synchronisation point.
+     *   2b. Break server -> router (triggers reconnect(), bumps provider_token_).
+     *   2c. Wait for server to re-register — provider_token_ is now != its_generation.
+     *   2d. Arm s2c_gate_ at SUBSCRIBE_ACK_ID — traps any stale ack.
+     *   2e. Return true -> ack continuation checks token -> mismatch -> drops.
+     */
+    start_apps();
+    server_->offer(interface_);
+    client_->request_service(interface_.instance_);
+
+    // Guard: only do the reconnect logic on the first subscription invocation.
+    // After reconnect the client re-subscribes and the handler fires again —
+    // that second invocation must just return true.
+    std::atomic<bool> first_invocation{true};
+    server_->register_group_subscription_handler(field_one_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
+        if (_is_subscribed && first_invocation.exchange(false)) {
+            // 2a
+            c2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
+            // 2b
+            server_->app_state_record_.clear();
+            EXPECT_TRUE(disconnect(server_name_, boost::asio::error::connection_reset, provider_ecu_.router_name_,
+                                   boost::asio::error::timed_out));
+            // 2c
+            EXPECT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+            // 2d
+            s2c_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ACK_ID);
+        }
+        return true; // 2e
+    });
+
+    client_->subscribe_field(field_one_);
+
+    // The client auto-resubscribes once the server has reconnected and re-offered.
+    // That re-subscribe hits c2s_gate_, proving the handler has at least completed
+    // steps 2a–2c and is about to return.
+    ASSERT_TRUE(c2s_gate_->wait_for_blocked());
+
+    // s2c_gate_ was armed in step 2d, just before the handler returned.  The ack
+    // continuation (step 2e) fires synchronously right after the return; a token
+    // mismatch must suppress it.  Any stale ack would arrive within milliseconds —
+    // 500 ms is a generous window.
+    EXPECT_FALSE(s2c_gate_->wait_for_blocked(common::scaled_timeout(std::chrono::milliseconds(500))));
+}
 }

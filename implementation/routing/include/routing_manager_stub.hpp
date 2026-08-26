@@ -183,6 +183,8 @@ private:
     std::shared_ptr<local_server> uds_root_; // Routing manager endpoint for UDS
     std::shared_ptr<local_server> tcp_root_; // Routing manager endpoint for TCP
 
+    std::atomic<uint32_t> lc_token_{0};
+
     std::mutex lazy_load_mtx_;
 
     std::map<client_t, service_instance_map<std::pair<major_version_t, minor_version_t>>> routing_info_;

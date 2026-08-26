@@ -106,7 +106,6 @@ public:
 
     void on_routing_info(const byte_t* _data, uint32_t _size);
 
-    void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint, connection_role_e _role);
     void cleanup_client(client_t _client, bool _due_to_error, connection_role_e _role);
 
     // local_endpoint_manager_host
@@ -182,10 +181,10 @@ private:
                         event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter);
 
     void send_subscribe_nack(client_t _subscriber, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                             remote_subscription_id_t _id);
+                             remote_subscription_id_t _id, std::scoped_lock<std::mutex> const& _provider_lock);
 
     void send_subscribe_ack(client_t _subscriber, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                            remote_subscription_id_t _id);
+                            remote_subscription_id_t _id, std::scoped_lock<std::mutex> const& _provider_lock);
 
     void update_subscription_state_and_notify(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                               subscription_outcome_e _outcome);
@@ -265,11 +264,17 @@ private:
     void remove_local_consumer(client_t _client, bool _due_to_error, local_service_table& _requested_services);
 
     void cleanup_consumer();
+    void clear_provider_endpoints(std::scoped_lock<std::mutex> const& _provider_lock);
     void cleanup_subscriber(std::scoped_lock<std::mutex> const& _provider_lock);
 
     client_t find_local_client(service_t _service, instance_t _instance) const;
     bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
     void remove_consumer_eventgroup_info(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+    std::shared_ptr<local_endpoint> find_provider_endpoint(client_t _client, std::scoped_lock<std::mutex> const& _provider_lock) const;
+    std::shared_ptr<local_endpoint> find_provider_endpoint_by_address(const boost::asio::ip::address& _peer_address, port_t _peer_port,
+                                                                      std::scoped_lock<std::mutex> const& _provider_lock) const;
+    uint32_t provider_token(client_t _client, std::scoped_lock<std::mutex> const& _provider_lock) const;
+
     /**
      * @brief insert subscription into events/eventgroups
      *
@@ -331,6 +336,9 @@ private:
     std::set<std::shared_ptr<provider_event>> find_provided_events_by_group(service_t _service, instance_t _instance, eventgroup_t _group,
                                                                             std::scoped_lock<std::mutex> const& _provider_lock) const;
 
+    void add_provider_endpoint(std::shared_ptr<local_endpoint> _ep, uint32_t _token, std::scoped_lock<std::mutex> const& _provider_lock);
+    void remove_provider_endpoint(client_t _client, bool _due_to_error, std::scoped_lock<std::mutex> const& _lock);
+
     void finish_shutdown();
 
     std::shared_ptr<local_endpoint> find_or_create_consumer_ep(client_t _client);
@@ -339,6 +347,7 @@ private:
     void remove_consumer(client_t _client, bool _due_to_error, std::scoped_lock<std::mutex> const& _consumer_lock);
 
     async::hook flush_consumer();
+    async::hook flush_provider();
 
 private:
     routing_manager_host* host_;
@@ -388,6 +397,19 @@ private:
     // is trying to accessing data relevant for its
     // "provider" side (offering of events, pending_offers, offered services etc.)
     mutable std::mutex provider_mutex_;
+
+    // Generation counter for accepted provider connections. Bumped as the first step of both
+    // stop() and reconnect() (under provider_mutex_) so that any connection accepted under a
+    // prior generation is recognized as stale and dropped instead of being installed.
+    uint32_t provider_token_{};
+    struct received_connection {
+        std::shared_ptr<local_endpoint> active_;
+        std::shared_ptr<local_endpoint> pending_;
+        uint32_t token_{};
+    };
+    // entries are not allowed to be removed (to avoid token collision)
+    std::unordered_map<client_t, received_connection> provider_endpoints_;
+
     // Set of services provided by this client
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<provider_event>>> provided_events_;
     service_instance_map<std::map<eventgroup_t, uint32_t>> remote_subscriber_count_;
@@ -453,6 +475,7 @@ private:
 
     async::trigger on_sender_stopped_;
     async::trigger on_consumer_flushed_;
+    async::trigger on_provider_flushed_;
 };
 
 } // namespace vsomeip_v3
