@@ -8,6 +8,7 @@
 #include "helpers/app.hpp"
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
+#include "helpers/message_checker.hpp"
 #include "helpers/service_state.hpp"
 
 #include <boost/asio/error.hpp>
@@ -213,3 +214,48 @@ TEST_F(test_api_helper, interface_version_when_setting_the_initial_value_before_
 
     EXPECT_TRUE(client_->message_record_.wait_for(contains_field));
 }
+
+class reliability_mismatch : public test_api_helper,
+                             public ::testing::WithParamInterface<std::pair<vsomeip::reliability_type_e, vsomeip::reliability_type_e>> { };
+
+TEST_P(reliability_mismatch, reliability_mismatch_does_not_break_ipc) {
+    /// check what happens if a server offers one reliability, but the client subscribes with another
+    /// no boardnet communication => none of this matters
+
+    auto const [offered_reliability, requested_reliability] = GetParam();
+
+    event_ids offered_field{service_instance_, 0x8001, 0x1, offered_reliability};
+    event_ids requested_field{service_instance_, 0x8001, 0x1, requested_reliability};
+
+    start_router();
+    start_client_app();
+
+    server_ = start_client(server_name_);
+    ASSERT_TRUE(server_ && server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    server_->offer_field(service_instance_, offered_field.to_event_spec());
+    server_->offer(service_instance_);
+    server_->send_event(offered_field, {0x01});
+
+    // client subscribes with a different reliability
+    client_->subscribe_event(requested_field);
+    client_->request_service(service_instance_);
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    // makes no difference for the subscription state
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(requested_field)));
+
+    // and we still receive data
+    message_checker checker{std::nullopt, service_instance_, 0x8001, vsomeip::message_type_e::MT_NOTIFICATION, std::vector<uint8_t>{0x01}};
+    EXPECT_TRUE(client_->message_record_.wait_for(checker));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        variations, reliability_mismatch,
+        ::testing::Values(std::make_pair(vsomeip::reliability_type_e::RT_UNRELIABLE, vsomeip::reliability_type_e::RT_RELIABLE),
+                          std::make_pair(vsomeip::reliability_type_e::RT_RELIABLE, vsomeip::reliability_type_e::RT_UNRELIABLE),
+                          std::make_pair(vsomeip::reliability_type_e::RT_BOTH, vsomeip::reliability_type_e::RT_RELIABLE),
+                          std::make_pair(vsomeip::reliability_type_e::RT_RELIABLE, vsomeip::reliability_type_e::RT_BOTH),
+                          std::make_pair(vsomeip::reliability_type_e::RT_BOTH, vsomeip::reliability_type_e::RT_UNRELIABLE),
+                          std::make_pair(vsomeip::reliability_type_e::RT_UNRELIABLE, vsomeip::reliability_type_e::RT_BOTH),
+                          std::make_pair(vsomeip::reliability_type_e::RT_RELIABLE, vsomeip::reliability_type_e::RT_UNKNOWN),
+                          std::make_pair(vsomeip::reliability_type_e::RT_UNKNOWN, vsomeip::reliability_type_e::RT_RELIABLE)));
