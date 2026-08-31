@@ -24,26 +24,13 @@
 #include "../../routing/include/remote_subscription.hpp"
 #include "../../utility/include/service_instance_map.hpp"
 
+#include "observer.hpp"
 #include "service_discovery.hpp"
 #include "ip_option_impl.hpp"
 #include "ipv4_option_impl.hpp"
 #include "ipv6_option_impl.hpp"
 #include "deserializer.hpp"
 #include "message_impl.hpp"
-
-#if VSOMEIP_BOOST_VERSION < 107600
-#include <boost/container_hash/hash.hpp>
-
-// Custom hash function for boost::asio::ip::address.
-//
-// Used because there is no hash implementation before Boost v1.76.
-struct address_hash {
-    size_t operator()(const boost::asio::ip::address& addr) const noexcept {
-        return addr.is_v4() ? boost::hash<boost::asio::ip::address_v4::bytes_type>()(addr.to_v4().to_bytes())
-                            : boost::hash<boost::asio::ip::address_v6::bytes_type>()(addr.to_v6().to_bytes());
-    }
-};
-#endif // VSOMEIP_BOOST_VERSION < 107600
 
 namespace vsomeip_v3 {
 
@@ -310,17 +297,6 @@ private:
     // Reports the offer round trip, right before the watchdog terminates the process.
     void log_offer_watchdog_state() const;
 
-    // Report that we have received a message from the given host.
-    //
-    // This will generate a log the first time that a message is received through unicast and
-    // multicast.
-    void observed_host(const boost::asio::ip::address& _host, const bool _multicast);
-
-    // Clear list of observer host.
-    //
-    // This will trigger new KPI reports the next time that each host is seen.
-    void clear_observed_host();
-
 private:
     boost::asio::io_context& io_;
     service_discovery_host* host_;
@@ -451,12 +427,8 @@ private:
 
     std::atomic<std::chrono::steady_clock::time_point> last_multicast_processed_;
 
-// List of hosts from which we have received unicast and multicast messages.
-#if VSOMEIP_BOOST_VERSION < 107600
-    std::unordered_map<boost::asio::ip::address, std::tuple<bool, bool>, address_hash> observed_hosts;
-#else
-    std::unordered_map<boost::asio::ip::address, std::tuple<bool, bool>> observed_hosts;
-#endif
+    // Tracks from which network hosts we have received messages.
+    observer observed_hosts_;
 };
 
 } // namespace sd

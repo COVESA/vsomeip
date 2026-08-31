@@ -171,11 +171,7 @@ void service_discovery_impl::suspend() {
     stop_offer_debounce_timer();
     stop_main_phase_timer();
     offers_watchdog_.cancel();
-    {
-        // FIXME(bruno.ld.silva): Replace with general-purpose service discovery mutex, when available.
-        std::scoped_lock its_session_lock(sessions_received_mutex_);
-        clear_observed_host();
-    }
+    observed_hosts_.clear();
 }
 
 void service_discovery_impl::stop() {
@@ -969,7 +965,10 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
     std::scoped_lock its_subscribed_lock(subscribed_mutex_);
 
     // Print KPI on first message from host.
-    observed_host(_sender, _is_multicast);
+    if (!observed_hosts_.observe(_sender, _is_multicast)) {
+        VSOMEIP_INFO << "KPI NET4 First SD " << (_is_multicast ? "multicast" : "unicast") << " message from " << _sender
+                     << ", size=" << _length << ", session=" << hex4(bithelper::read_uint16_be(_data + VSOMEIP_SESSION_POS_MIN));
+    }
 
     if (is_suspended_) {
         return;
@@ -1149,6 +1148,13 @@ static uint32_t count_offer_entries(const message_impl::entries_t& _entries) {
 }
 
 void service_discovery_impl::sent_messages(const byte_t* _data, length_t _size, const boost::asio::ip::address& _remote_address) {
+    // Record first message KPI.
+    const bool is_multicast = _remote_address.is_unspecified();
+    if (!observed_hosts_.observe(unicast_, is_multicast)) {
+        VSOMEIP_INFO << "KPI NET4 First SD " << (is_multicast ? "multicast" : "unicast") << " message from " << unicast_ << " (self)"
+                     << ", size=" << _size << ", session=" << hex4(bithelper::read_uint16_be(_data + VSOMEIP_SESSION_POS_MIN));
+    }
+
     std::shared_ptr<message_impl> its_message;
     deserialize_data(_data, _size, its_message);
     if (its_message) {
@@ -3471,31 +3477,6 @@ void service_discovery_impl::log_offer_watchdog_state() const {
     if (its_endpoint) {
         its_endpoint->log_multicast_backlog();
     }
-}
-
-void service_discovery_impl::observed_host(const boost::asio::ip::address& _host, const bool _multicast) {
-    // Add en entry if it doesn't already exist.
-    if (observed_hosts.count(_host) == 0) {
-        observed_hosts[_host] = std::make_tuple(false, false);
-    }
-
-    // Update the entry and log the KPI if necessary.
-    auto& [unicast_seen, multicast_seen] = observed_hosts.at(_host);
-    if (_multicast) {
-        if (!multicast_seen) {
-            VSOMEIP_INFO << "KPI NET4 First SD multicast message from " << _host;
-            multicast_seen = true;
-        }
-    } else {
-        if (!unicast_seen) {
-            VSOMEIP_INFO << "KPI NET4 First SD unicast message from " << _host;
-            unicast_seen = true;
-        }
-    }
-}
-
-void service_discovery_impl::clear_observed_host() {
-    observed_hosts.clear();
 }
 
 } // namespace sd
