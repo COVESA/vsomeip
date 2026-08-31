@@ -419,6 +419,7 @@ public:
      * holds the event.
      * \param _event Event identifier of the event.
      * \param _payload Serialized payload of the event.
+     * \param _force Force the field to be sent even if the payload has not changed. Does nothing for events.
      *
      */
     virtual void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload,
@@ -436,6 +437,10 @@ public:
      * Note: Prior to using this method, @ref offer_event has to be called by
      * the service provider.
      *
+     * Note: While `notify_one` can be used for fields as well, it is very much NOT recommended. The field value is sent to the specified
+     * client, but the field value is not updated for other clients. However, new clients that subscribe will still receive an updated
+     * initial value.
+     *
      * \param _service Service identifier of the service that contains the
      * event.
      * \param _instance Instance identifier of the service instance that
@@ -443,6 +448,7 @@ public:
      * \param _event Event identifier of the event.
      * \param _payload Serialized payload of the event.
      * \param _client Target client.
+     * \param _force Force the field to be sent even if the payload has not changed. Does nothing for events.
      *
      */
     virtual void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,

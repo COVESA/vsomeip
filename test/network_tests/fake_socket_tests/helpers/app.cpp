@@ -208,6 +208,13 @@ void app::send_event(event_ids const& _ei, std::vector<unsigned char> const& _pa
     app_->notify(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, payload, false);
 }
 
+void app::send_event_one(event_ids const& _ei, std::vector<unsigned char> const& _payload, client_t _client) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is sending to client " << _client << ": " << _ei;
+    auto payload = vsomeip::runtime::get()->create_payload();
+    payload->set_data(_payload);
+    app_->notify_one(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, payload, _client, false);
+}
+
 void app::send_request(request const& _req) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _req;
     auto message = vsomeip::runtime::get()->create_request(_req.reliability_);

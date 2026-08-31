@@ -68,6 +68,7 @@ set (TEST_SUITES
     test_security_policy_distribution
     test_vlan_toggle_registration
     test_api
+    test_api_footguns
 )
 
 foreach(TEST_SUITE ${TEST_SUITES})
