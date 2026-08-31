@@ -39,6 +39,9 @@ export VSOMEIP_APPLICATION_NAME=service-sample
 ./malicious_data_test_service $TESTMODE &
 PID_SERVICE=$!
 
+# Do not start the slave before the master is reachable: joining the SD group is slow under valgrind.
+wait-until-available 0x3345 -t $((10 * ${TEST_TIMEOUT_SCALE:-1})) || FAIL=$(($FAIL+1))
+
 exec_slave "./malicious_data_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@ $TESTMODE"
 PID_CLIENT=$!
 

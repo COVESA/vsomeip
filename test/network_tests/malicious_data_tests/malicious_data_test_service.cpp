@@ -23,6 +23,10 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/test_main.hpp"
+#include "common/timeout_scale.hpp"
+
+using malicious_data_test::DELIVERY_TIMEOUT;
+using malicious_data_test::EXPECTED_MESSAGE_COUNT;
 
 class malicious_data_test_service {
 public:
@@ -56,12 +60,14 @@ public:
         app_->start();
     }
 
-    ~malicious_data_test_service() {
+    ~malicious_data_test_service() { offer_thread_.join(); }
+
+    void verify() {
         if (testmode_ == malicious_data_test::test_mode_e::MALICIOUS_EVENTS) {
-            EXPECT_EQ(9u, received_events_);
-            EXPECT_EQ(9u, received_methodcalls_);
+            std::scoped_lock its_lock(mutex_);
+            EXPECT_EQ(EXPECTED_MESSAGE_COUNT, received_events_);
+            EXPECT_EQ(EXPECTED_MESSAGE_COUNT, received_methodcalls_);
         }
-        offer_thread_.join();
     }
 
     void offer() { app_->offer_service(static_cast<vsomeip::service_t>(service_info_.service_id + 1u), 0x1); }
@@ -89,11 +95,6 @@ public:
         VSOMEIP_WARNING << "Shutdown method called -> going down!";
         VSOMEIP_WARNING << "************************************************************";
 
-        // magic sleep to give time for the last message to be sent and processed by the client before STOP_OFFER is sent, otherwise the
-        // client may drop the message and the test will fail
-        // TODO: FIXME! REMOVE THIS!
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
         std::scoped_lock its_lock(mutex_);
         wait_until_shutdown_method_called_ = false;
         condition_.notify_one();
@@ -104,7 +105,10 @@ public:
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(service_info_.event_id, _message->get_method());
         EXPECT_EQ(uint32_t(0x7F), _message->get_length());
+
+        std::scoped_lock its_lock(mutex_);
         received_events_++;
+        condition_.notify_one();
     }
 
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
@@ -112,7 +116,10 @@ public:
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(vsomeip::method_t(0x1), _message->get_method());
         EXPECT_EQ(uint32_t(0x7F), _message->get_length());
+
+        std::scoped_lock its_lock(mutex_);
         received_methodcalls_++;
+        condition_.notify_one();
     }
 
     void run() {
@@ -124,6 +131,15 @@ public:
         offer();
 
         condition_.wait(its_lock, [this] { return !wait_until_shutdown_method_called_; });
+
+        if (testmode_ == malicious_data_test::test_mode_e::MALICIOUS_EVENTS) {
+            // Give the events and method calls still in flight/in queue a chance to arrive before stopping.
+            condition_.wait_for(its_lock, common::scaled_timeout(DELIVERY_TIMEOUT), [this] {
+                return received_events_ >= EXPECTED_MESSAGE_COUNT && received_methodcalls_ >= EXPECTED_MESSAGE_COUNT;
+            });
+        }
+
+        its_lock.unlock();
         stop();
     }
 
@@ -145,6 +161,7 @@ malicious_data_test::test_mode_e its_testmode(malicious_data_test::test_mode_e::
 
 TEST(someip_malicious_data_test, block_subscription_handler) {
     malicious_data_test_service its_sample(malicious_data_test::service, its_testmode);
+    its_sample.verify();
 }
 
 #if defined(__linux__) || defined(__QNX__)

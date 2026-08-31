@@ -55,69 +55,144 @@ protected:
     std::thread io_thread_;
 };
 
+namespace {
+
+using malicious_data_test::BARRIER_TIMEOUT;
+using malicious_data_test::CONNECTION_CLOSE_TIMEOUT;
+
+// Under valgrind vsomeip can discard a connect that outlives its 500 ms connecting timeout and open a
+// new one, so switch to the connection still queued in the backlog: the peer subscribed over that one.
+void ensure_latest_connection(boost::asio::ip::tcp::acceptor& _acceptor, boost::asio::ip::tcp::socket& _socket) {
+    boost::system::error_code its_ec;
+    _acceptor.non_blocking(true, its_ec);
+    for (;;) {
+        boost::asio::ip::tcp::socket its_newer(_acceptor.get_executor());
+        boost::system::error_code its_accept_ec;
+        _acceptor.accept(its_newer, its_accept_ec);
+        if (its_accept_ec) {
+            break;
+        }
+        // Nagle algorithm off
+        its_newer.set_option(boost::asio::ip::tcp::no_delay(true));
+        _socket.close(its_ec);
+        _socket = std::move(its_newer);
+    }
+    _acceptor.non_blocking(false, its_ec);
+}
+
+// Drains what the peer still sends (an error response, for instance) and completes when it drops the
+// connection - the observable effect of the malformed message, and a barrier instead of a sleep.
+class connection_closed_waiter : public std::enable_shared_from_this<connection_closed_waiter> {
+public:
+    explicit connection_closed_waiter(boost::asio::ip::tcp::socket& _socket) : socket_(_socket) { }
+
+    void arm() {
+        future_ = closed_.get_future();
+        receive();
+    }
+
+    [[nodiscard]] bool await(std::chrono::milliseconds const _timeout) { return std::future_status::ready == future_.wait_for(_timeout); }
+
+private:
+    void receive() {
+        socket_.async_receive(boost::asio::buffer(buffer_),
+                              [its_self = shared_from_this()](boost::system::error_code const _error, std::size_t) {
+                                  if (_error) {
+                                      its_self->closed_.set_value();
+                                      return;
+                                  }
+                                  its_self->receive();
+                              });
+    }
+
+    boost::asio::ip::tcp::socket& socket_;
+    std::vector<uint8_t> buffer_ = std::vector<uint8_t>(4096);
+    std::promise<void> closed_;
+    std::future<void> future_;
+};
+
+[[nodiscard]] std::shared_ptr<connection_closed_waiter> armed_close_waiter(boost::asio::ip::tcp::socket& _socket) {
+    auto its_waiter = std::make_shared<connection_closed_waiter>(_socket);
+    its_waiter->arm();
+    return its_waiter;
+}
+
+} // namespace
+
 TEST_F(malicious_data, send_malicious_events) {
-    std::promise<bool> client_subscribed;
+    std::promise<void> client_subscribed;
+    std::promise<void> offer_received;
 
     boost::asio::ip::tcp::socket tcp_socket(io_);
     boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
-    std::thread receive_thread([&]() {
+    std::thread sd_receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
-        std::function<void()> receive;
         std::vector<uint8_t> receive_buffer(4096);
-        std::vector<vsomeip::event_t> its_received_events;
+        std::atomic<bool> service_offered(false);
+        std::atomic<bool> subscribe_received(false);
 
-        const std::function<void(const boost::system::error_code&, size_t)> receive_cbk = [&](const boost::system::error_code& error,
-                                                                                              size_t bytes_transferred) {
+        // join the sd multicast group 224.224.224.0
+        {
+            std::scoped_lock its_lock(socket_mutex);
+            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.224.224.0").to_v4()));
+        }
+
+        while (keep_receiving) {
+            boost::system::error_code error;
+            size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
             if (error) {
                 keep_receiving = false;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
                 return;
-            }
+            } else {
+                vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
+                vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
+                vsomeip::method_t its_method = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_METHOD_POS_MIN]);
 
-            vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-            vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
-            vsomeip::method_t its_method = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_METHOD_POS_MIN]);
-
-            if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
-                vsomeip::sd::message_impl sd_msg;
-                EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
-                EXPECT_EQ(1u, sd_msg.get_entries().size());
-                for (const auto& e : sd_msg.get_entries()) {
-                    if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP) {
-                        EXPECT_TRUE(e->is_eventgroup_entry());
-                        EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
-                        EXPECT_EQ(1, e->get_num_options(1));
-                        EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
-                        EXPECT_EQ(malicious_data_test::service.service_id, e->get_service());
-                        EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
-                        EXPECT_EQ(1u, sd_msg.get_options().size());
-                        if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP) {
+                if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
+                    vsomeip::sd::message_impl sd_msg;
+                    EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
+                    EXPECT_EQ(1u, sd_msg.get_entries().size());
+                    for (const auto& e : sd_msg.get_entries()) {
+                        if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP && !subscribe_received) {
+                            EXPECT_TRUE(e->is_eventgroup_entry());
+                            EXPECT_EQ(1, e->get_num_options(1));
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(malicious_data_test::service.service_id, e->get_service());
+                            EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
+                            EXPECT_EQ(1u, sd_msg.get_options().size());
                             std::shared_ptr<vsomeip::sd::eventgroupentry_impl> its_casted_entry =
                                     std::static_pointer_cast<vsomeip::sd::eventgroupentry_impl>(e);
                             EXPECT_EQ(1u, its_casted_entry->get_eventgroup());
+                            subscribe_received = true;
+                            client_subscribed.set_value();
+                        } else if (e->get_type() == vsomeip::sd::entry_type_e::OFFER_SERVICE && !service_offered) {
+                            EXPECT_TRUE(e->is_service_entry());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(malicious_data_test::service.service_id + 1u, e->get_service());
+                            EXPECT_EQ(malicious_data_test::service.instance_id, e->get_instance());
+                            std::shared_ptr<vsomeip::sd::serviceentry_impl> its_casted_entry =
+                                    std::static_pointer_cast<vsomeip::sd::serviceentry_impl>(e);
+                            EXPECT_EQ(0u, its_casted_entry->get_minor_version());
+                            service_offered = true;
+                            offer_received.set_value();
                         }
-                        client_subscribed.set_value(true);
+                    }
+                    if (service_offered && subscribe_received) {
                         keep_receiving = false;
                     }
+                } else {
+                    ADD_FAILURE() << " received non-sd message";
                 }
             }
-        };
-
-        {
-            std::scoped_lock its_lock(socket_mutex);
-            udp_socket.async_receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), receive_cbk);
-        };
-
-        while (keep_receiving) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
 
     std::thread send_thread([&]() {
         try {
-            std::promise<bool> client_connected;
+            std::promise<void> client_connected;
             boost::asio::ip::tcp::socket::endpoint_type local(boost::asio::ip::make_address(std::string(local_address)), 34511);
             boost::asio::ip::tcp::acceptor its_acceptor(io_);
             boost::system::error_code ec;
@@ -134,7 +209,7 @@ TEST_F(malicious_data, send_malicious_events) {
                 if (!_error) {
                     // Nagle algorithm off
                     tcp_socket.set_option(boost::asio::ip::tcp::no_delay(true));
-                    client_connected.set_value(true);
+                    client_connected.set_value();
                 } else {
                     ADD_FAILURE() << "accept_cbk: " << _error.message();
                 }
@@ -155,24 +230,27 @@ TEST_F(malicious_data, send_malicious_events) {
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
+
+            if (std::future_status::timeout == offer_received.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
+                ADD_FAILURE() << "Didn't receive offer within time";
+            }
+            auto const its_offer_deadline = std::chrono::steady_clock::now() + common::scaled_timeout(BARRIER_TIMEOUT);
             std::thread send_offers_thread([&]() {
                 uint16_t its_sd_session = 1;
-                for (size_t i = 0; i < 100; i++) {
-                    if (keep_sending) {
+                while (keep_sending && std::chrono::steady_clock::now() < its_offer_deadline) {
+                    {
                         std::scoped_lock its_lock(socket_mutex);
                         its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
                         its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                         ++its_sd_session;
-                    } else {
-                        break;
                     }
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 }
             });
 
             // wait until client established TCP connection
-            if (std::future_status::timeout == client_connected.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == client_connected.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 ADD_FAILURE() << "Client didn't connect within time";
             }
 
@@ -181,9 +259,11 @@ TEST_F(malicious_data, send_malicious_events) {
             send_offers_thread.join();
 
             // wait until client subscribed
-            if (std::future_status::timeout == client_subscribed.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == client_subscribed.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 ADD_FAILURE() << "Client didn't subscribe within time";
             }
+
+            ensure_latest_connection(its_acceptor, tcp_socket);
 
             // send malicious data as server
             uint8_t its_malicious_data[] = {
@@ -332,6 +412,7 @@ TEST_F(malicious_data, send_malicious_events) {
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             };
             boost::system::error_code send_ec;
+            auto const its_service_side_closed = armed_close_waiter(tcp_socket);
             tcp_socket.send(boost::asio::buffer(its_malicious_data), 0, send_ec);
             if (send_ec && send_ec != boost::asio::error::connection_reset && send_ec != boost::asio::error::broken_pipe) {
                 ADD_FAILURE() << "tcp_socket send failed: " << send_ec.message();
@@ -486,11 +567,17 @@ TEST_F(malicious_data, send_malicious_events) {
                     0x00, 0x00, 0x46, 0x09, 0x80, 0x00, 0x44, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             };
+            auto const its_client_side_closed = armed_close_waiter(tcp_socket2);
             tcp_socket2.send(boost::asio::buffer(its_malicious_client_data), 0, send_ec);
             if (send_ec && send_ec != boost::asio::error::connection_reset && send_ec != boost::asio::error::broken_pipe) {
                 ADD_FAILURE() << "tcp_socket2 send failed: " << send_ec.message();
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+            EXPECT_TRUE(its_service_side_closed->await(common::scaled_timeout(CONNECTION_CLOSE_TIMEOUT)))
+                    << "peer did not drop the connection on which we act as the service";
+            EXPECT_TRUE(its_client_side_closed->await(common::scaled_timeout(CONNECTION_CLOSE_TIMEOUT)))
+                    << "peer did not drop the connection on which we act as the client";
+
             // call shutdown method
             uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
@@ -502,11 +589,11 @@ TEST_F(malicious_data, send_malicious_events) {
     });
 
     send_thread.join();
-    receive_thread.join();
     boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
-    tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
+    sd_receive_thread.join();
+    tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     tcp_socket.close(ec);
 }
 
@@ -568,8 +655,8 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                                         std::static_pointer_cast<vsomeip::sd::eventgroupentry_impl>(e);
                                 EXPECT_EQ(1u, its_casted_entry->get_eventgroup());
                             }
-                            remote_client_subscribed.set_value();
                             client_subscribed = true;
+                            remote_client_subscribed.set_value();
                         } else if (e->get_type() == vsomeip::sd::entry_type_e::OFFER_SERVICE && !service_offered) {
                             EXPECT_TRUE(e->is_service_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
@@ -583,8 +670,8 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                                         std::static_pointer_cast<vsomeip::sd::serviceentry_impl>(e);
                                 EXPECT_EQ(0u, its_casted_entry->get_minor_version());
                             }
-                            offer_received.set_value();
                             service_offered = true;
+                            offer_received.set_value();
                         }
                     }
                     if (service_offered && client_subscribed) {
@@ -637,24 +724,27 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
+
+            if (std::future_status::timeout == offer_received.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
+                ADD_FAILURE() << "Didn't receive offer within time";
+            }
+            auto const its_offer_deadline = std::chrono::steady_clock::now() + common::scaled_timeout(BARRIER_TIMEOUT);
             std::thread send_offers_thread([&]() {
                 uint16_t its_sd_session = 1;
-                for (size_t i = 0; i < 10; i++) {
-                    if (keep_sending) {
+                while (keep_sending && std::chrono::steady_clock::now() < its_offer_deadline) {
+                    {
                         std::scoped_lock its_lock(socket_mutex);
                         its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
                         its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                         ++its_sd_session;
-                    } else {
-                        break;
                     }
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 }
             });
 
             // wait until client established TCP connection
-            if (std::future_status::timeout == client_connected.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == client_connected.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 ADD_FAILURE() << "Client didn't connect within time";
             }
 
@@ -663,15 +753,11 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             send_offers_thread.join();
 
             // wait until client subscribed
-            if (std::future_status::timeout
-                == remote_client_subscribed.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == remote_client_subscribed.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 ADD_FAILURE() << "Client didn't subscribe within time";
             }
 
-            // wait until a offer was received
-            if (std::future_status::timeout == offer_received.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
-                ADD_FAILURE() << "Didn't receive offer within time";
-            }
+            ensure_latest_connection(its_acceptor, tcp_socket);
 
             std::atomic<uint32_t> fin_as_service_received(0);
             std::promise<void> client_reconnected1;
@@ -712,8 +798,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             tcp_socket.send(boost::asio::buffer(its_malicious_data));
 
             // wait until client reestablished TCP connection
-            if (std::future_status::timeout
-                == client_reconnected1.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == client_reconnected1.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 tcp_socket3.shutdown(boost::asio::socket_base::shutdown_both, ec);
                 tcp_socket3.close(ec);
                 ADD_FAILURE() << "Client didn't reconnect within time 1";
@@ -862,11 +947,11 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
     });
 
     send_thread.join();
-    sd_receive_thread.join();
     boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
-    tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
+    sd_receive_thread.join();
+    tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     tcp_socket.close(ec);
 }
 
@@ -927,8 +1012,8 @@ TEST_F(malicious_data, send_wrong_message_type) {
                                         std::static_pointer_cast<vsomeip::sd::eventgroupentry_impl>(e);
                                 EXPECT_EQ(1u, its_casted_entry->get_eventgroup());
                             }
-                            remote_client_subscribed.set_value();
                             client_subscribed = true;
+                            remote_client_subscribed.set_value();
                         } else if (e->get_type() == vsomeip::sd::entry_type_e::OFFER_SERVICE && !service_offered) {
                             EXPECT_TRUE(e->is_service_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
@@ -942,8 +1027,8 @@ TEST_F(malicious_data, send_wrong_message_type) {
                                         std::static_pointer_cast<vsomeip::sd::serviceentry_impl>(e);
                                 EXPECT_EQ(0u, its_casted_entry->get_minor_version());
                             }
-                            offer_received.set_value();
                             service_offered = true;
+                            offer_received.set_value();
                         }
                     }
                     if (service_offered && client_subscribed) {
@@ -996,24 +1081,27 @@ TEST_F(malicious_data, send_wrong_message_type) {
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
+
+            if (std::future_status::timeout == offer_received.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
+                ADD_FAILURE() << "Didn't receive offer within time";
+            }
+            auto const its_offer_deadline = std::chrono::steady_clock::now() + common::scaled_timeout(BARRIER_TIMEOUT);
             std::thread send_offers_thread([&]() {
                 uint16_t its_sd_session = 1;
-                for (size_t i = 0; i < 10; i++) {
-                    if (keep_sending) {
+                while (keep_sending && std::chrono::steady_clock::now() < its_offer_deadline) {
+                    {
                         std::scoped_lock its_lock(socket_mutex);
                         its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
                         its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                         ++its_sd_session;
-                    } else {
-                        break;
                     }
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 }
             });
 
             // wait until client established TCP connection
-            if (std::future_status::timeout == client_connected.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == client_connected.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 ADD_FAILURE() << "Client didn't connect within time";
             }
 
@@ -1022,15 +1110,11 @@ TEST_F(malicious_data, send_wrong_message_type) {
             send_offers_thread.join();
 
             // wait until client subscribed
-            if (std::future_status::timeout
-                == remote_client_subscribed.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == remote_client_subscribed.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 ADD_FAILURE() << "Client didn't subscribe within time";
             }
 
-            // wait until a offer was received
-            if (std::future_status::timeout == offer_received.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
-                ADD_FAILURE() << "Didn't receive offer within time";
-            }
+            ensure_latest_connection(its_acceptor, tcp_socket);
 
             std::atomic<bool> fin_as_service_received(false);
             std::promise<void> client_reconnected;
@@ -1073,7 +1157,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
             tcp_socket.send(boost::asio::buffer(its_malicious_data));
 
             // wait until client reestablished TCP connection
-            if (std::future_status::timeout == client_reconnected.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == client_reconnected.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 tcp_socket3.shutdown(boost::asio::socket_base::shutdown_both, ec);
                 tcp_socket3.close(ec);
                 ADD_FAILURE() << "Client didn't reconnect within time";
@@ -1142,11 +1226,11 @@ TEST_F(malicious_data, send_wrong_message_type) {
     });
 
     send_thread.join();
-    sd_receive_thread.join();
     boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
-    tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
+    sd_receive_thread.join();
+    tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     tcp_socket.close(ec);
 }
 
@@ -1207,8 +1291,8 @@ TEST_F(malicious_data, send_wrong_return_code) {
                                         std::static_pointer_cast<vsomeip::sd::eventgroupentry_impl>(e);
                                 EXPECT_EQ(1u, its_casted_entry->get_eventgroup());
                             }
-                            remote_client_subscribed.set_value();
                             client_subscribed = true;
+                            remote_client_subscribed.set_value();
                         } else if (e->get_type() == vsomeip::sd::entry_type_e::OFFER_SERVICE && !service_offered) {
                             EXPECT_TRUE(e->is_service_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
@@ -1222,8 +1306,8 @@ TEST_F(malicious_data, send_wrong_return_code) {
                                         std::static_pointer_cast<vsomeip::sd::serviceentry_impl>(e);
                                 EXPECT_EQ(0u, its_casted_entry->get_minor_version());
                             }
-                            offer_received.set_value();
                             service_offered = true;
+                            offer_received.set_value();
                         }
                     }
                     if (service_offered && client_subscribed) {
@@ -1276,24 +1360,27 @@ TEST_F(malicious_data, send_wrong_return_code) {
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
+
+            if (std::future_status::timeout == offer_received.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
+                ADD_FAILURE() << "Didn't receive offer within time";
+            }
+            auto const its_offer_deadline = std::chrono::steady_clock::now() + common::scaled_timeout(BARRIER_TIMEOUT);
             std::thread send_offers_thread([&]() {
                 uint16_t its_sd_session = 1;
-                for (size_t i = 0; i < 10; i++) {
-                    if (keep_sending) {
+                while (keep_sending && std::chrono::steady_clock::now() < its_offer_deadline) {
+                    {
                         std::scoped_lock its_lock(socket_mutex);
                         its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
                         its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                         ++its_sd_session;
-                    } else {
-                        break;
                     }
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 }
             });
 
             // wait until client established TCP connection
-            if (std::future_status::timeout == client_connected.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == client_connected.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 ADD_FAILURE() << "Client didn't connect within time";
             }
 
@@ -1302,15 +1389,11 @@ TEST_F(malicious_data, send_wrong_return_code) {
             send_offers_thread.join();
 
             // wait until client subscribed
-            if (std::future_status::timeout
-                == remote_client_subscribed.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == remote_client_subscribed.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 ADD_FAILURE() << "Client didn't subscribe within time";
             }
 
-            // wait until a offer was received
-            if (std::future_status::timeout == offer_received.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
-                ADD_FAILURE() << "Didn't receive offer within time";
-            }
+            ensure_latest_connection(its_acceptor, tcp_socket);
 
             std::atomic<bool> fin_as_service_received(false);
             std::promise<void> client_reconnected;
@@ -1353,7 +1436,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
             tcp_socket.send(boost::asio::buffer(its_malicious_data));
 
             // wait until client reestablished TCP connection
-            if (std::future_status::timeout == client_reconnected.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == client_reconnected.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 tcp_socket3.shutdown(boost::asio::socket_base::shutdown_both, ec);
                 tcp_socket3.close(ec);
                 ADD_FAILURE() << "Client didn't reconnect within time";
@@ -1422,11 +1505,11 @@ TEST_F(malicious_data, send_wrong_return_code) {
     });
 
     send_thread.join();
-    sd_receive_thread.join();
     boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
-    tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
+    sd_receive_thread.join();
+    tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     tcp_socket.close(ec);
 }
 
@@ -1502,8 +1585,8 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
                                                                                  ip_op->get_port());
                             }
 
-                            remote_client_subscribed.set_value();
                             client_subscribed = true;
+                            remote_client_subscribed.set_value();
                         } else if (e->get_type() == vsomeip::sd::entry_type_e::OFFER_SERVICE && !service_offered) {
                             EXPECT_TRUE(e->is_service_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
@@ -1530,8 +1613,8 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
                                     }
                                 }
                             }
-                            offer_received.set_value();
                             service_offered = true;
+                            offer_received.set_value();
                         }
                     }
                     if (service_offered && client_subscribed) {
@@ -1566,36 +1649,33 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
+
+            if (std::future_status::timeout == offer_received.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
+                ADD_FAILURE() << "Didn't receive offer within time";
+            }
+            auto const its_offer_deadline = std::chrono::steady_clock::now() + common::scaled_timeout(BARRIER_TIMEOUT);
             std::thread send_offers_thread([&]() {
                 uint16_t its_sd_session = 1;
-                for (size_t i = 0; i < 10; i++) {
-                    if (keep_sending) {
+                while (keep_sending && std::chrono::steady_clock::now() < its_offer_deadline) {
+                    {
                         std::scoped_lock its_lock(socket_mutex);
                         its_offer_service_message[10] = static_cast<uint8_t>(its_sd_session >> 8);
                         its_offer_service_message[11] = static_cast<uint8_t>(its_sd_session & 0xFF);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                         ++its_sd_session;
-                    } else {
-                        break;
                     }
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 }
             });
 
             // wait until client subscribed
-            if (std::future_status::timeout
-                == remote_client_subscribed.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
+            if (std::future_status::timeout == remote_client_subscribed.get_future().wait_for(common::scaled_timeout(BARRIER_TIMEOUT))) {
                 ADD_FAILURE() << "Client didn't subscribe within time";
             }
 
             keep_sending = false;
 
             send_offers_thread.join();
-
-            // wait until a offer was received
-            if (std::future_status::timeout == offer_received.get_future().wait_for(common::scaled_timeout(std::chrono::seconds(10)))) {
-                ADD_FAILURE() << "Didn't receive offer within time";
-            }
 
             // send malicious data as server (wrong protocol version)
             uint8_t wrong_protocol_data[] = {
@@ -1720,10 +1800,10 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
     });
 
     send_thread.join();
-    sd_receive_thread.join();
     boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
+    sd_receive_thread.join();
 }
 
 #if defined(__linux__) || defined(__QNX__)
