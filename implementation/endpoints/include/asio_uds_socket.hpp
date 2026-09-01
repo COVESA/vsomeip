@@ -5,10 +5,11 @@
 
 #pragma once
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #include "uds_socket.hpp"
 
 #include <memory>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -28,6 +29,17 @@ private:
 
     [[nodiscard]] bool get_peer_credentials(vsomeip_sec_client_t& _client) override {
         int handle = socket_->native_handle();
+#if defined(__APPLE__)
+        uid_t uid;
+        gid_t gid;
+        if (0 != ::getpeereid(handle, &uid, &gid)) {
+            return false;
+        }
+        _client.user = uid;
+        _client.group = gid;
+        _client.port = VSOMEIP_SEC_PORT_UNUSED;
+        return true;
+#else
         ucred out;
         if (socklen_t len = sizeof(ucred); -1 == ::getsockopt(handle, SOL_SOCKET, SO_PEERCRED, &out, &len)) {
             return false;
@@ -36,6 +48,7 @@ private:
         _client.group = out.gid;
         _client.port = VSOMEIP_SEC_PORT_UNUSED;
         return true;
+#endif
     }
     void set_reuse_address(boost::system::error_code& _ec) { socket_->set_option(boost::asio::socket_base::reuse_address(true), _ec); }
     void async_connect(endpoint const& _ep, connect_handler _handler) override {

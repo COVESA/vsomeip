@@ -168,7 +168,7 @@ void endpoint_manager_base::add_local_server_endpoint_unlocked(client_t _client,
 }
 std::shared_ptr<local_acceptor> endpoint_manager_base::create_uds_local_acceptor(const std::string& _path, client_t _client) {
     std::shared_ptr<local_acceptor> uds_acceptor;
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     try {
         uint32_t its_current_wait_time{0};
         while (!uds_acceptor) {
@@ -300,7 +300,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_endpo
 
     local_endpoint_context const context{io_, configuration_, local_message_handler_};
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     if (is_local_routing_ || (is_uds_preferred_ && same_address)) {
         std::stringstream its_path;
         its_path << utility::get_base_path(configuration_->get_network()) << std::hex << _client;
@@ -356,7 +356,8 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_routing_client() {
                                                      !configuration_->get_routing_host_address().is_unspecified());
     if (its_endpoint) {
         auto guest_addr = configuration_->get_routing_guest_address();
-        bool has_addr = !guest_addr.is_unspecified();
+        // assign_client encodes an IPv4 address only
+        bool has_addr = guest_addr.is_v4();
         its_endpoint->send(protocol::create_assign_client_cmd(
                 get_client_id(), name_, has_addr ? guest_addr.to_v4().to_bytes() : std::array<uint8_t, 4>{}, local_port_, has_addr));
     }

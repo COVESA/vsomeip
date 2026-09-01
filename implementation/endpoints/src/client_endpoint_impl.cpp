@@ -685,7 +685,7 @@ template<typename Protocol>
 void client_endpoint_impl<Protocol>::close_socket_unlocked(bool _recreate_socket) {
 
     if (socket_->is_open()) {
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
         if (!socket_->can_read_fd_flags()) {
             VSOMEIP_ERROR_P << "Socket/handle closed already, errno " << errno << ", " << get_remote_information() << " endpoint > "
                             << this;
@@ -860,7 +860,7 @@ void client_endpoint_impl<Protocol>::start_dispatch_timer(const std::chrono::ste
         its_offset = std::chrono::nanoseconds::zero();
     }
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     dispatch_timer_.expires_after(its_offset);
 #else
     dispatch_timer_.expires_after(std::chrono::duration_cast<std::chrono::steady_clock::duration>(its_offset));

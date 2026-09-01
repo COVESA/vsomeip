@@ -63,6 +63,8 @@ private:
                           static_cast<socklen_t>(_device.size() + 1))
                 != -1;
     }
+#endif
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     [[nodiscard]] bool can_read_fd_flags() override { return fcntl(socket_->native_handle(), F_GETFD) != -1; }
 #endif
     boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code& ec) const override { return socket_->local_endpoint(ec); }

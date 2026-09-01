@@ -242,7 +242,7 @@ bool tcp_server_endpoint_impl::is_established_to(const std::shared_ptr<endpoint_
         pfds.events = POLLIN;
         pfds.revents = 0;
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
         int ready_fds_count = ::poll(&pfds, numfds, no_delay);
 #else
         int ready_fds_count = ::WSAPoll(&pfds, numfds, no_delay);

@@ -321,6 +321,10 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
 elseif(ANDROID_CI_BUILD)
     set(USE_RT "")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_CI_BUILD -Wno-format-security -Wno-conversion -Wno-error -Wno-inconsistent-missing-override -llog")
+elseif(APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set(USE_RT "")
+    add_compile_definitions(__APPLE_USE_RFC_3542)
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
@@ -405,7 +409,7 @@ if (MSVC)
     # Boost.Asio 1.75 emits boost::asio::dummy_return<void>() as a non-inline
     # symbol in every TU when BOOST_ASIO_DISABLE_IOCP is defined, causing LNK2005.
     target_link_options(${VSOMEIP_NAME} PRIVATE "/FORCE:MULTIPLE")
-else ()
+elseif (NOT APPLE)
     if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         # add syscall wrappers to deal with CLOEXEC
         set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
@@ -425,7 +429,7 @@ target_include_directories(${VSOMEIP_NAME} INTERFACE
 # the build.
 target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
-if(NOT WIN32)
+if(NOT WIN32 AND NOT APPLE)
     target_link_options(${VSOMEIP_NAME} PRIVATE "LINKER:-as-needed")
 endif()
 

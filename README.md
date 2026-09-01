@@ -115,6 +115,32 @@ PRODUCT_PACKAGES += \
     libvsomeip_e2e \
 ```
 
+##### Build Instructions for macOS
+
+###### Dependencies
+
+- A C++20 enabled compiler (Apple Clang from a current Xcode Command Line Tools).
+- vSomeIP uses CMake as buildsystem.
+- vSomeIP uses Boost >= 1.75.0 (system, filesystem, thread, and related components).
+
+Unix domain sockets are used for local routing, as on Linux. There is no
+AF_NETLINK; IP routing and service discovery start without waiting for netlink
+interface/route events. IPv6 multicast uses an interface index derived from the
+configured unicast address or from the JSON `device` field.
+
+###### Compilation
+
+```bash
+mkdir build
+cd build
+cmake ..
+make
+```
+
+Installation and the `UNICAST_ADDRESS` / `DIAGNOSIS_ADDRESS` /
+`DEFAULT_CONFIGURATION_*` / `ENABLE_SIGNAL_HANDLING` CMake options work as
+described for Linux.
+
 ##### Build Instructions for Windows
 
 ###### Setup

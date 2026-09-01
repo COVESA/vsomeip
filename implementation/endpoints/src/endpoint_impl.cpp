@@ -87,7 +87,7 @@ std::string make_buffer_dump(const std::string& _local, const std::string& _remo
 }
 
 // Instantiate template
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 template class endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 

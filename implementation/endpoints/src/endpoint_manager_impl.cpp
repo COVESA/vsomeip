@@ -53,8 +53,8 @@ endpoint_manager_impl::~endpoint_manager_impl() { }
 
 void endpoint_manager_impl::start() {
     options_thread_ = std::thread([this]() {
-#if defined(__linux__) || defined(__QNX__)
-        pthread_setname_np(pthread_self(), "m_multicast");
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
+        utility::set_thread_name("m_multicast");
 #endif
         utility::set_thread_niceness(configuration_->get_io_thread_nice_level(router_->get_name()));
 
@@ -631,7 +631,7 @@ bool endpoint_manager_impl::create_local_uds_acceptor(std::shared_ptr<local_acce
     int32_t num_fd = sd_listen_fds(0);
 #endif
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #ifdef SYSTEMD_SOCKET_ACTIVATION
     if (num_fd > 1) {
         VSOMEIP_ERROR << "Too many file descriptors received by systemd socket activation! num_fd: " << num_fd;
@@ -779,7 +779,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
     VSOMEIP_INFO << "Creating routing root with transport protocol: " << (_type == transport_protocol_e::UDS ? "UDS" : "TCP");
 
     if (configuration_->is_local_routing() || (is_uds_preferred_ && _type == transport_protocol_e::UDS)) {
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
         if (!create_local_uds_acceptor(acceptor, its_endpoint_path, _is_socket_activated)) {
             return false;
         }

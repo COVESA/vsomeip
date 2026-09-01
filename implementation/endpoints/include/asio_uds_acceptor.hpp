@@ -5,7 +5,7 @@
 
 #pragma once
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #include "uds_acceptor.hpp"
 #include "asio_uds_socket.hpp"
 #include <boost/asio/io_context.hpp>

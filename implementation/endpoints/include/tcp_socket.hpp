@@ -104,6 +104,8 @@ public:
      * On error errno will be set.
      **/
     [[nodiscard]] virtual bool bind_to_device(std::string const&) = 0;
+#endif
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     /**
      * abstraction for setting the linux specific function
      * fcntl working on the native socket file descriptor,

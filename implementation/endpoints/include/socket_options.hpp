@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 
 #pragma once
 
@@ -12,9 +12,12 @@
 #include <string>
 
 #include <sys/time.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 namespace vsomeip_v3 {
 
+#if defined(__linux__) || defined(__QNX__)
 template<typename Protocol>
 struct bind_to_device {
     // The size has a +1 since std::string.size does not take into account the null terminator
@@ -27,7 +30,9 @@ struct bind_to_device {
     const void* data_;
     size_t size_;
 };
+#endif
 
+#if defined(__linux__) || defined(__QNX__)
 template<typename Protocol>
 struct receive_buffer_force {
     static int level(Protocol const&) { return SOL_SOCKET; };
@@ -37,6 +42,7 @@ struct receive_buffer_force {
 
     int size_{};
 };
+#endif
 
 template<typename Protocol>
 struct send_timeout {
@@ -76,8 +82,12 @@ struct packet_info_ip6 {
     static constexpr int opt_{1};
 };
 
+#if defined(__linux__) || defined(__QNX__)
 using udp_bind_to_device = bind_to_device<boost::asio::ip::udp::endpoint::protocol_type>;
+#endif
+#if defined(__linux__) || defined(__QNX__)
 using udp_receive_buffer_force = receive_buffer_force<boost::asio::ip::udp::endpoint::protocol_type>;
+#endif
 using udp_send_timeout = send_timeout<boost::asio::ip::udp::endpoint::protocol_type>;
 using udp_receive_timeout = receive_timeout<boost::asio::ip::udp::endpoint::protocol_type>;
 using udp_packet_info_ip4 = packet_info_ip4<boost::asio::ip::udp::endpoint::protocol_type>;

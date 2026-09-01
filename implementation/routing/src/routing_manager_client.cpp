@@ -7,7 +7,7 @@
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #include <unistd.h>
 #endif
 
@@ -1458,7 +1458,7 @@ void routing_manager_client::register_application(client_t _client, std::unique_
                        << ":" << its_configuration->get_routing_host_port();
     }
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     auto const sec_client = get_sec_client();
     if (!configuration_->get_policy_manager()->check_credentials(get_client(), &sec_client)) {
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())

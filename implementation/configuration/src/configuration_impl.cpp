@@ -250,7 +250,7 @@ bool configuration_impl::load(const std::string& _name) {
     }
     if (its_folder != "") {
         its_input.insert(its_folder);
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
         // load security configuration files from UID_GID sub folder if existing
         std::stringstream its_security_config_folder;
         its_security_config_folder << its_folder << "/" << getuid() << "_" << getgid();
@@ -357,7 +357,7 @@ void configuration_impl::lazy_load_security(const std::string& _client_host) {
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     uid_t uid = getuid();
     gid_t gid = getgid();
 #else
@@ -1047,6 +1047,10 @@ void configuration_impl::add_plugin(std::map<plugin_type_e, std::set<std::string
 #ifdef _WIN32
     std::string its_library(_plugin_data.name_);
     its_library += ".dll";
+#elif defined(__APPLE__)
+    std::string its_library("lib");
+    its_library += _plugin_data.name_;
+    its_library += ".dylib";
 #else
     std::string its_library("lib");
     its_library += _plugin_data.name_;

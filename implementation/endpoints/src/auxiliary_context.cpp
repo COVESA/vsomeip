@@ -27,9 +27,7 @@ void vsomeip_v3::auxiliary_context::start() {
     context_.restart();
 
     thread_ = std::thread([this]() mutable {
-#if defined(__linux__) || defined(__QNX__)
-        pthread_setname_np(pthread_self(), "m_auxiliary");
-#endif
+        utility::set_thread_name("m_auxiliary");
         utility::set_thread_niceness(thread_niceness_);
         VSOMEIP_INFO << "Started thread m_auxiliary, id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)

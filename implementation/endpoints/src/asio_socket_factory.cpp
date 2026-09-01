@@ -7,7 +7,7 @@
 
 #include "../include/asio_tcp_socket.hpp"
 #include "../include/asio_udp_socket.hpp"
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #include "../include/asio_uds_socket.hpp"
 #include "../include/asio_uds_acceptor.hpp"
 #endif
@@ -40,7 +40,7 @@ std::unique_ptr<abstract_timer> asio_socket_factory::create_timer(boost::asio::i
     return std::make_unique<asio_timer>(_io);
 }
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 std::unique_ptr<uds_socket> asio_socket_factory::create_uds_socket(boost::asio::io_context& _io) {
     return std::make_unique<asio_uds_socket>(_io);
 }
