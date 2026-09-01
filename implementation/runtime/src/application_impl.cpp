@@ -259,6 +259,12 @@ void application_impl::start() {
 
     const size_t io_thread_count = configuration_->get_io_thread_count(name_);
     const int io_thread_nice_level = configuration_->get_io_thread_nice_level(name_);
+
+    // NOTE: especially important that it happens *BEFORE* informing plugins of STATE_STARTED
+    // there are plugins that create threads exactly in that transition, and those threads must have the same priority as the rest of
+    // libvsomeip (especially as there are router-only callbacks (e.g., sd-acceptance) that are used by plugins)
+    utility::set_thread_niceness(io_thread_nice_level);
+
     {
         std::scoped_lock its_lock{start_stop_mutex_};
 
@@ -365,8 +371,6 @@ void application_impl::start() {
             }
         }
     }
-
-    utility::set_thread_niceness(io_thread_nice_level);
 
     try {
         io_.run();
