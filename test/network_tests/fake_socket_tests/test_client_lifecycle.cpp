@@ -2127,4 +2127,181 @@ TEST_F(test_pending_event_registration_split, same_event_offered_and_consumed_by
     EXPECT_TRUE(b_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
             << "B did not receive A's ev1: " << b_->message_record_;
 }
+
+// A single app A that both offers and self-subscribes to ev1_, used to probe what notify()'s and
+// notify_one()'s _force argument actually does: bypass the FIELD no-change dedup in
+// provider_event::update() / update_without_subscriber() (see implementation/routing/src/provider_event.cpp).
+struct test_force_notify_dedup : public base_fake_socket_fixture {
+    test_force_notify_dedup() {
+        use_configuration("multiple_client_one_process.json");
+        create_app(routingmanager_name_);
+        create_app(a_name_);
+    }
+
+    std::string const& a_name_{server_name_};
+
+    service_instance s1_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1};
+    event_ids ev1_{s1_, 0x8002, 0x1};
+    std::vector<unsigned char> s1_payload_{0x11, 0x22};
+
+    static message_checker notification_checker(service_instance const& _si, vsomeip::event_t _event,
+                                                std::vector<unsigned char> const& _payload) {
+        return message_checker{std::nullopt, _si, _event, vsomeip::message_type_e::MT_NOTIFICATION, _payload};
+    }
+
+    app* rm_{};
+    app* a_{};
+
+    // Brings A up as both provider and self-subscriber of ev1_, offered as FIELD or plain EVENT.
+    // A non-zero _cycle offers ev1_ as a cyclic event/field instead of a plain one-shot offer.
+    void bring_up_self_subscribed(vsomeip::event_type_e _type, std::chrono::milliseconds _cycle = {}) {
+        rm_ = start_client(routingmanager_name_);
+        ASSERT_NE(rm_, nullptr);
+        ASSERT_TRUE(await_connectable(routingmanager_name_));
+
+        a_ = start_client(a_name_);
+        ASSERT_NE(a_, nullptr);
+        ASSERT_TRUE(a_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+        a_->request_service(s1_);
+        a_->subscribe_event(ev1_);
+
+        // A offers ev1 (provider set) and subscribes to its OWN ev1 (consumer set)
+        a_->offer(s1_);
+        if (_cycle.count() > 0) {
+            a_->get_application()->offer_event(s1_.service_, s1_.instance_, ev1_.event_id_, {ev1_.eventgroup_id_}, _type, _cycle,
+                                               false /*change_resets_cycle*/, true /*update_on_change*/, nullptr, ev1_.reliability_);
+        } else if (_type == vsomeip::event_type_e::ET_FIELD) {
+            a_->offer_field(ev1_.si_, ev1_.to_event_spec());
+        } else {
+            a_->offer_event(ev1_.si_, ev1_.to_event_spec());
+        }
+
+        ASSERT_TRUE(a_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)))
+                << "A failed to subscribe to its own offered ev1";
+    }
+};
+
+// Test 1 (one app offers and consumes the same service) checks that the notify with force = true,
+// same payload after a previous notify is respected and the consumer receives it. It then
+// re-notifies with the same payload but this time with force = false, no notification should reach
+// the consumer
+TEST_F(test_force_notify_dedup, force_send_event_with_no_change) {
+    bring_up_self_subscribed(vsomeip::event_type_e::ET_FIELD);
+
+    // Send notification, must reach the self-subscriber (A)
+    a_->send_event(ev1_, s1_payload_);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own offered+consumed ev1: " << a_->message_record_;
+
+    // Send the same payload with force = true, must reach the self-subscriber (A)
+    a_->message_record_.clear();
+    a_->send_event(ev1_, s1_payload_, true);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own offered+consumed ev1: " << a_->message_record_;
+
+    // Send the same payload yet again, this time with force = false again, must NOT reach the self-subscriber (A)
+    a_->message_record_.clear();
+    a_->send_event(ev1_, s1_payload_, false);
+    EXPECT_FALSE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_), std::chrono::milliseconds(300)))
+            << "A received its own offered+consumed ev1: " << a_->message_record_;
+}
+
+// Test 2: same scenario as Test 1, but with ev1_ offered as a plain EVENT instead of a FIELD.
+// The no-change dedup is field-only, so a repeated notify with the same payload and force = false must
+// still reach the self-subscriber (A) for a plain event.
+TEST_F(test_force_notify_dedup, force_send_event_with_no_change_for_event) {
+    bring_up_self_subscribed(vsomeip::event_type_e::ET_EVENT);
+
+    // Send notification, must reach the self-subscriber (A)
+    a_->send_event(ev1_, s1_payload_);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own offered+consumed ev1: " << a_->message_record_;
+
+    // Send the same payload with force = true, must reach the self-subscriber (A)
+    a_->message_record_.clear();
+    a_->send_event(ev1_, s1_payload_, true);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own offered+consumed ev1: " << a_->message_record_;
+
+    // Send the same payload yet again with force = false: unlike a field, a plain event has no
+    // no-change dedup, so it must still reach the self-subscriber (A)
+    a_->message_record_.clear();
+    a_->send_event(ev1_, s1_payload_, false);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own offered+consumed ev1 (plain event, force=false): " << a_->message_record_;
+}
+
+// Test 3: field_dedup already gates on !timer_, so a cyclic FIELD never applies the same-value dedup
+// in the first place -- force is a no-op for it. This guards against a regression where force would
+// additionally retrigger/duplicate the cyclic send: a forced same-payload notify sent well within the
+// cycle period must reach the self-subscriber exactly once.
+TEST_F(test_force_notify_dedup, force_send_event_does_not_double_notify_on_cyclic_field) {
+    bring_up_self_subscribed(vsomeip::event_type_e::ET_FIELD, common::scaled_timeout(std::chrono::milliseconds(2000)));
+
+    // Set the field once: stores the value and starts the cycle timer.
+    a_->send_event(ev1_, s1_payload_);
+    ASSERT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own offered+consumed ev1: " << a_->message_record_;
+
+    // Re-send the same payload with force = true, well within the cycle period: must reach the
+    // self-subscriber exactly once -- force must not retrigger/duplicate the cyclic send.
+    a_->message_record_.clear();
+    a_->send_event(ev1_, s1_payload_, true);
+    ASSERT_TRUE(a_->message_record_.wait_for([](auto const& record) { return record.size() >= 1; },
+                                             common::scaled_timeout(std::chrono::milliseconds(50))))
+            << "A did not receive the forced notification on its cyclic field: " << a_->message_record_;
+    EXPECT_FALSE(a_->message_record_.wait_for([](auto const& record) { return record.size() > 1; },
+                                              common::scaled_timeout(std::chrono::milliseconds(50))))
+            << "A received more than one notification for a single forced send on a cyclic field: " << a_->message_record_;
+}
+
+// Test 4: notify_one() analog of Test 1. routing_manager_client::notify_one() reaches
+// provider_event::update_without_subscriber(), which applies the identical field_dedup gate
+// (bypassed by _force) as update() does for notify(). A targets its own client id via notify_one.
+TEST_F(test_force_notify_dedup, force_send_event_one_with_no_change) {
+    bring_up_self_subscribed(vsomeip::event_type_e::ET_FIELD);
+
+    // notify_one, targeting A's own client id, must reach the self-subscriber (A)
+    a_->send_event_one(ev1_, s1_payload_, a_->get_client_id());
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own notify_one-ed ev1: " << a_->message_record_;
+
+    // Send the same payload with force = true, must reach the self-subscriber (A)
+    a_->message_record_.clear();
+    a_->send_event_one(ev1_, s1_payload_, a_->get_client_id(), true);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own notify_one-ed ev1: " << a_->message_record_;
+
+    // Send the same payload yet again, this time with force = false again, must NOT reach the self-subscriber (A)
+    a_->message_record_.clear();
+    a_->send_event_one(ev1_, s1_payload_, a_->get_client_id(), false);
+    EXPECT_FALSE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_), std::chrono::milliseconds(300)))
+            << "A received its own notify_one-ed ev1: " << a_->message_record_;
+}
+
+// Test 5: notify_one() analog of Test 2. Same as Test 4, but ev1_ is offered as a plain EVENT
+// instead of a FIELD, so update_without_subscriber's field_dedup never applies -- a repeated
+// notify_one with the same payload and force = false must still reach the self-subscriber (A).
+TEST_F(test_force_notify_dedup, force_send_event_one_with_no_change_for_event) {
+    bring_up_self_subscribed(vsomeip::event_type_e::ET_EVENT);
+
+    // notify_one, targeting A's own client id, must reach the self-subscriber (A)
+    a_->send_event_one(ev1_, s1_payload_, a_->get_client_id());
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own notify_one-ed ev1: " << a_->message_record_;
+
+    // Send the same payload with force = true, must reach the self-subscriber (A)
+    a_->message_record_.clear();
+    a_->send_event_one(ev1_, s1_payload_, a_->get_client_id(), true);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own notify_one-ed ev1: " << a_->message_record_;
+
+    // Send the same payload yet again with force = false: unlike a field, a plain event has no
+    // no-change dedup, so it must still reach the self-subscriber (A)
+    a_->message_record_.clear();
+    a_->send_event_one(ev1_, s1_payload_, a_->get_client_id(), false);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own notify_one-ed ev1 (plain event, force=false): " << a_->message_record_;
+}
 }

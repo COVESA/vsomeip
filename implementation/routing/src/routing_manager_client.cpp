@@ -2796,7 +2796,7 @@ void routing_manager_client::notify(service_t _service, instance_t _instance, ev
     std::scoped_lock its_lock{provider_mutex_};
 
     if (auto its_event = find_provided_event(_service, _instance, _event, its_lock); its_event) {
-        auto [msg, subscriber] = its_event->update(_payload);
+        auto [msg, subscriber] = its_event->update(_payload, _force);
         if (!msg || subscriber.empty()) {
             return;
         }

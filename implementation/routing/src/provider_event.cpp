@@ -168,7 +168,7 @@ void provider_event::reset() {
     is_set_ = false;
 }
 
-std::pair<std::shared_ptr<message>, std::set<client_t>> provider_event::update(std::shared_ptr<payload> const& _payload) {
+std::pair<std::shared_ptr<message>, std::set<client_t>> provider_event::update(std::shared_ptr<payload> const& _payload, bool _force) {
     create_event();
 
     // Field dedup (parity with event::prepare_update_payload_unlocked): a FIELD event without a cycle
@@ -176,7 +176,7 @@ std::pair<std::shared_ptr<message>, std::set<client_t>> provider_event::update(s
     // same value). The comparison uses the previously committed payload, captured before the commit below.
     std::shared_ptr<payload> const old_payload = current_->get_payload();
     bool const changed = has_changed(old_payload, _payload);
-    bool const field_dedup = definition_.type_ == event_type_e::ET_FIELD && !timer_ && is_set_ && !changed;
+    bool const field_dedup = !_force && definition_.type_ == event_type_e::ET_FIELD && !timer_ && is_set_ && !changed;
     bool const was_set = is_set_;
 
     // Single-slot, compare-arg-then-commit: always commit the latest payload, even when the

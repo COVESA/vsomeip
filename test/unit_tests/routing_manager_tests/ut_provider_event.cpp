@@ -163,7 +163,7 @@ TEST_F(provider_event_basics, set_version_applied_to_notification) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
     ev->set_version(0x07);
 
-    auto [msg, subscribers] = ev->update(make_payload({1}));
+    auto [msg, subscribers] = ev->update(make_payload({1}), false);
 
     EXPECT_EQ(msg->get_interface_version(), 0x07);
 }
@@ -291,7 +291,7 @@ TEST_F(provider_event_subscribers, get_subscriber_returns_members_or_empty) {
 TEST_F(provider_event_subscribers, reset_clears_subscribers_and_current) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
     ev->add_subscriber(group1_, client1_, nullptr);
-    (void)ev->update(make_payload({1, 2, 3}));
+    (void)ev->update(make_payload({1, 2, 3}), false);
 
     ev->reset();
 
@@ -338,8 +338,8 @@ TEST_F(provider_event_adopt, preserves_per_client_debounce_filter) {
     ev->adopt_subscribers(placeholder);
 
     ASSERT_TRUE(ev->is_subscribed(client1_));
-    EXPECT_EQ(ev->update(make_payload({1, 2, 3})).second, std::set<client_t>{client1_}); // changed -> forward
-    EXPECT_TRUE(ev->update(make_payload({1, 2, 3})).second.empty()); // unchanged -> on_change filter suppresses
+    EXPECT_EQ(ev->update(make_payload({1, 2, 3}), false).second, std::set<client_t>{client1_}); // changed -> forward
+    EXPECT_TRUE(ev->update(make_payload({1, 2, 3}), false).second.empty()); // unchanged -> on_change filter suppresses
 }
 
 // ---------------------------------------------------------------------------
@@ -349,7 +349,7 @@ struct provider_event_update : provider_event_test { };
 
 TEST_F(provider_event_update, update_builds_notification_with_definition_fields) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
-    auto [msg, subscribers] = ev->update(make_payload({1}));
+    auto [msg, subscribers] = ev->update(make_payload({1}), false);
 
     EXPECT_EQ(msg->get_service(), service_);
     EXPECT_EQ(msg->get_instance(), instance_);
@@ -360,7 +360,7 @@ TEST_F(provider_event_update, update_sets_payload_on_current) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
     auto payload = make_payload({9, 8, 7});
 
-    auto [msg, subscribers] = ev->update(payload);
+    auto [msg, subscribers] = ev->update(payload, false);
 
     ASSERT_NE(msg->get_payload(), nullptr);
     EXPECT_TRUE(*msg->get_payload() == *payload);
@@ -371,7 +371,7 @@ TEST_F(provider_event_update, update_returns_all_subscribers_across_groups) {
     ev->add_subscriber(group1_, client1_, nullptr);
     ev->add_subscriber(group2_, client2_, nullptr);
 
-    auto [msg, subscribers] = ev->update(make_payload({1}));
+    auto [msg, subscribers] = ev->update(make_payload({1}), false);
 
     EXPECT_EQ(subscribers, (std::set<client_t>{client1_, client2_}));
 }
@@ -381,7 +381,7 @@ TEST_F(provider_event_update, update_deduplicates_multi_group_client) {
     ev->add_subscriber(group1_, client1_, nullptr);
     ev->add_subscriber(group2_, client1_, nullptr);
 
-    auto [msg, subscribers] = ev->update(make_payload({1}));
+    auto [msg, subscribers] = ev->update(make_payload({1}), false);
 
     EXPECT_EQ(subscribers, std::set<client_t>{client1_});
 }
@@ -389,8 +389,8 @@ TEST_F(provider_event_update, update_deduplicates_multi_group_client) {
 TEST_F(provider_event_update, update_reuses_single_current_slot) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
 
-    auto [msg1, s1] = ev->update(make_payload({1}));
-    auto [msg2, s2] = ev->update(make_payload({2}));
+    auto [msg1, s1] = ev->update(make_payload({1}), false);
+    auto [msg2, s2] = ev->update(make_payload({2}), false);
 
     EXPECT_EQ(msg1, msg2); // same message object reused
 }
@@ -407,32 +407,32 @@ TEST_F(provider_event_update, update_without_subscriber_sets_payload_returns_mes
 
 TEST_F(provider_event_update, get_current_returns_message_for_field) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     EXPECT_NE(ev->get_current(), nullptr);
 }
 
 TEST_F(provider_event_update, the_major_version_is_any_if_not_set) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     EXPECT_EQ(ev->get_current()->get_interface_version(), ANY_MAJOR);
 }
 TEST_F(provider_event_update, the_major_version_is_set_when_version_is_set_before_first_update) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
     ev->set_version(0x1);
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     EXPECT_EQ(ev->get_current()->get_interface_version(), 0x1);
 }
 TEST_F(provider_event_update, the_major_version_is_set_when_version_is_set_after_first_update) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
-    (void)ev->update(make_payload({2}));
+    (void)ev->update(make_payload({2}), false);
     ev->set_version(0x1);
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     EXPECT_EQ(ev->get_current()->get_interface_version(), 0x1);
 }
 
 TEST_F(provider_event_update, get_current_returns_null_for_non_field) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     EXPECT_EQ(ev->get_current(), nullptr);
 }
 
@@ -445,7 +445,7 @@ TEST_F(provider_event_gate, update_on_change_false_suppresses_notification) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_}, 0ms, /*update_on_change=*/false);
     ev->add_subscriber(group1_, client1_, nullptr);
 
-    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}));
+    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}), false);
 
     // Payload is still committed (single-slot), but no subscriber is notified.
     EXPECT_NE(msg, nullptr);
@@ -456,7 +456,7 @@ TEST_F(provider_event_gate, update_on_change_true_forwards) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
     ev->add_subscriber(group1_, client1_, nullptr);
 
-    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}));
+    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}), false);
 
     EXPECT_NE(msg, nullptr);
     EXPECT_EQ(subscribers, std::set<client_t>{client1_});
@@ -468,7 +468,7 @@ TEST_F(provider_event_gate, field_dedup_first_empty_payload_forwards) {
 
     // The fresh current_ starts as a non-null empty payload, so an incoming empty payload is
     // byte-equal to it; only the is_set_ guard (first set) makes this forward.
-    auto [msg, subscribers] = ev->update(make_payload({}));
+    auto [msg, subscribers] = ev->update(make_payload({}), false);
 
     EXPECT_FALSE(subscribers.empty());
 }
@@ -477,18 +477,28 @@ TEST_F(provider_event_gate, field_dedup_unchanged_payload_suppresses) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
     ev->add_subscriber(group1_, client1_, nullptr);
 
-    (void)ev->update(make_payload({1, 2, 3}));
-    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}));
+    (void)ev->update(make_payload({1, 2, 3}), false);
+    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}), false);
 
     EXPECT_TRUE(subscribers.empty());
+}
+
+TEST_F(provider_event_gate, field_dedup_bypassed_when_forced) {
+    auto ev = make_event(event_type_e::ET_FIELD, {group1_});
+    ev->add_subscriber(group1_, client1_, nullptr);
+
+    (void)ev->update(make_payload({1, 2, 3}), false);
+    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}), true);
+
+    EXPECT_EQ(subscribers, std::set<client_t>{client1_});
 }
 
 TEST_F(provider_event_gate, field_dedup_changed_payload_forwards) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_});
     ev->add_subscriber(group1_, client1_, nullptr);
 
-    (void)ev->update(make_payload({1, 2, 3}));
-    auto [msg, subscribers] = ev->update(make_payload({1, 2, 4}));
+    (void)ev->update(make_payload({1, 2, 3}), false);
+    auto [msg, subscribers] = ev->update(make_payload({1, 2, 4}), false);
 
     EXPECT_EQ(subscribers, std::set<client_t>{client1_});
 }
@@ -497,8 +507,8 @@ TEST_F(provider_event_gate, field_dedup_not_applied_to_non_field) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, nullptr);
 
-    (void)ev->update(make_payload({1, 2, 3}));
-    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}));
+    (void)ev->update(make_payload({1, 2, 3}), false);
+    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}), false);
 
     // A plain event is not deduplicated: identical payload still forwards.
     EXPECT_FALSE(subscribers.empty());
@@ -508,8 +518,8 @@ TEST_F(provider_event_gate, field_dedup_not_applied_when_cyclic) {
     auto ev = make_event(event_type_e::ET_FIELD, {group1_}, 100ms);
     ev->add_subscriber(group1_, client1_, nullptr);
 
-    (void)ev->update(make_payload({1, 2, 3}));
-    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}));
+    (void)ev->update(make_payload({1, 2, 3}), false);
+    auto [msg, subscribers] = ev->update(make_payload({1, 2, 3}), false);
 
     // cycle > 0 disables field dedup (matches event: guard requires cycle == 0).
     EXPECT_FALSE(subscribers.empty());
@@ -529,7 +539,7 @@ TEST_F(provider_event_filters, no_filter_uses_default_epsilon_change_func) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 0ms, true, false, epsilon);
     ev->add_subscriber(group1_, client1_, nullptr);
 
-    auto [msg, subscribers] = ev->update(make_payload({1}));
+    auto [msg, subscribers] = ev->update(make_payload({1}), false);
 
     EXPECT_TRUE(consulted);
     EXPECT_EQ(subscribers, std::set<client_t>{client1_});
@@ -540,7 +550,7 @@ TEST_F(provider_event_filters, default_epsilon_change_func_can_suppress) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 0ms, true, false, epsilon);
     ev->add_subscriber(group1_, client1_, nullptr);
 
-    auto [msg, subscribers] = ev->update(make_payload({1}));
+    auto [msg, subscribers] = ev->update(make_payload({1}), false);
 
     EXPECT_TRUE(subscribers.empty());
 }
@@ -549,97 +559,97 @@ TEST_F(provider_event_filters, filter_on_change_forwards_only_on_byte_change) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(true));
 
-    EXPECT_EQ(ev->update(make_payload({1, 2, 3})).second, std::set<client_t>{client1_}); // changed
-    EXPECT_TRUE(ev->update(make_payload({1, 2, 3})).second.empty()); // unchanged
-    EXPECT_EQ(ev->update(make_payload({1, 2, 4})).second, std::set<client_t>{client1_}); // changed
+    EXPECT_EQ(ev->update(make_payload({1, 2, 3}), false).second, std::set<client_t>{client1_}); // changed
+    EXPECT_TRUE(ev->update(make_payload({1, 2, 3}), false).second.empty()); // unchanged
+    EXPECT_EQ(ev->update(make_payload({1, 2, 4}), false).second, std::set<client_t>{client1_}); // changed
 }
 
 TEST_F(provider_event_filters, filter_on_change_ignore_mask_full_byte) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(true, -1, false, {{1, 0xFF}}));
 
-    (void)ev->update(make_payload({1, 2, 3})); // first forward
-    EXPECT_TRUE(ev->update(make_payload({1, 0x99, 3})).second.empty()); // only fully-ignored byte changed
+    (void)ev->update(make_payload({1, 2, 3}), false); // first forward
+    EXPECT_TRUE(ev->update(make_payload({1, 0x99, 3}), false).second.empty()); // only fully-ignored byte changed
 }
 
 TEST_F(provider_event_filters, filter_on_change_ignore_mask_partial_bits) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(true, -1, false, {{0, 0x0F}})); // ignore low nibble
 
-    (void)ev->update(make_payload({0x10})); // first forward
-    EXPECT_TRUE(ev->update(make_payload({0x1F})).second.empty()); // only ignored low nibble changed
-    EXPECT_EQ(ev->update(make_payload({0x2F})).second, std::set<client_t>{client1_}); // high nibble changed
+    (void)ev->update(make_payload({0x10}), false); // first forward
+    EXPECT_TRUE(ev->update(make_payload({0x1F}), false).second.empty()); // only ignored low nibble changed
+    EXPECT_EQ(ev->update(make_payload({0x2F}), false).second, std::set<client_t>{client1_}); // high nibble changed
 }
 
 TEST_F(provider_event_filters, filter_on_change_extra_bytes_ignored_when_masked) {
     auto masked = make_event(event_type_e::ET_EVENT, {group1_});
     masked->add_subscriber(group1_, client1_, make_filter(true, -1, false, {{3, 0xFF}}));
-    (void)masked->update(make_payload({1, 2, 3}));
-    EXPECT_TRUE(masked->update(make_payload({1, 2, 3, 9})).second.empty()); // extra byte fully masked
+    (void)masked->update(make_payload({1, 2, 3}), false);
+    EXPECT_TRUE(masked->update(make_payload({1, 2, 3, 9}), false).second.empty()); // extra byte fully masked
 
     auto unmasked = make_event(event_type_e::ET_EVENT, {group1_});
     unmasked->add_subscriber(group1_, client1_, make_filter(true));
-    (void)unmasked->update(make_payload({1, 2, 3}));
-    EXPECT_EQ(unmasked->update(make_payload({1, 2, 3, 9})).second, std::set<client_t>{client1_}); // extra byte counts
+    (void)unmasked->update(make_payload({1, 2, 3}), false);
+    EXPECT_EQ(unmasked->update(make_payload({1, 2, 3, 9}), false).second, std::set<client_t>{client1_}); // extra byte counts
 }
 
 TEST_F(provider_event_filters, filter_interval_forwards_after_elapsed) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(false, 100));
 
-    EXPECT_EQ(ev->update(make_payload({1})).second, std::set<client_t>{client1_}); // first forward
-    EXPECT_TRUE(ev->update(make_payload({2})).second.empty()); // not elapsed
+    EXPECT_EQ(ev->update(make_payload({1}), false).second, std::set<client_t>{client1_}); // first forward
+    EXPECT_TRUE(ev->update(make_payload({2}), false).second.empty()); // not elapsed
     clock_->advance(150ms);
-    EXPECT_EQ(ev->update(make_payload({3})).second, std::set<client_t>{client1_}); // elapsed
+    EXPECT_EQ(ev->update(make_payload({3}), false).second, std::set<client_t>{client1_}); // elapsed
 }
 
 TEST_F(provider_event_filters, filter_interval_suppresses_before_elapsed) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(false, 100));
 
-    (void)ev->update(make_payload({1})); // first forward stores now
+    (void)ev->update(make_payload({1}), false); // first forward stores now
     clock_->advance(50ms);
-    EXPECT_TRUE(ev->update(make_payload({2})).second.empty()); // 50 < 100
+    EXPECT_TRUE(ev->update(make_payload({2}), false).second.empty()); // 50 < 100
 }
 
 TEST_F(provider_event_filters, filter_interval_first_forward_always_allowed) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(false, 1000000));
 
-    EXPECT_EQ(ev->update(make_payload({1})).second, std::set<client_t>{client1_}); // last_forwarded == max
+    EXPECT_EQ(ev->update(make_payload({1}), false).second, std::set<client_t>{client1_}); // last_forwarded == max
 }
 
 TEST_F(provider_event_filters, filter_on_change_resets_interval_true_resets_on_change) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(true, 100, true));
 
-    (void)ev->update(make_payload({1})); // t=0   forward, last=0
+    (void)ev->update(make_payload({1}), false); // t=0   forward, last=0
     clock_->advance(80ms);
-    (void)ev->update(make_payload({2})); // t=80  changed forward, resets last=80
+    (void)ev->update(make_payload({2}), false); // t=80  changed forward, resets last=80
     clock_->advance(40ms);
-    EXPECT_TRUE(ev->update(make_payload({2})).second.empty()); // t=120 unchanged; elapsed 40 < 100 -> suppress
+    EXPECT_TRUE(ev->update(make_payload({2}), false).second.empty()); // t=120 unchanged; elapsed 40 < 100 -> suppress
 }
 
 TEST_F(provider_event_filters, filter_on_change_resets_interval_false_keeps_interval) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(true, 100, false));
 
-    (void)ev->update(make_payload({1})); // t=0   forward, last=0
+    (void)ev->update(make_payload({1}), false); // t=0   forward, last=0
     clock_->advance(80ms);
-    (void)ev->update(make_payload({2})); // t=80  changed forward, last stays 0 (not elapsed, no reset)
+    (void)ev->update(make_payload({2}), false); // t=80  changed forward, last stays 0 (not elapsed, no reset)
     clock_->advance(40ms);
-    EXPECT_EQ(ev->update(make_payload({2})).second, std::set<client_t>{client1_}); // t=120 elapsed 120 >= 100
+    EXPECT_EQ(ev->update(make_payload({2}), false).second, std::set<client_t>{client1_}); // t=120 elapsed 120 >= 100
 }
 
 TEST_F(provider_event_filters, filter_forwards_on_change_or_elapsed) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(true, 100, false));
 
-    (void)ev->update(make_payload({1})); // first forward
-    EXPECT_EQ(ev->update(make_payload({2})).second, std::set<client_t>{client1_}); // changed (not elapsed)
-    EXPECT_TRUE(ev->update(make_payload({2})).second.empty()); // unchanged and not elapsed
+    (void)ev->update(make_payload({1}), false); // first forward
+    EXPECT_EQ(ev->update(make_payload({2}), false).second, std::set<client_t>{client1_}); // changed (not elapsed)
+    EXPECT_TRUE(ev->update(make_payload({2}), false).second.empty()); // unchanged and not elapsed
     clock_->advance(150ms);
-    EXPECT_EQ(ev->update(make_payload({2})).second, std::set<client_t>{client1_}); // unchanged but elapsed
+    EXPECT_EQ(ev->update(make_payload({2}), false).second, std::set<client_t>{client1_}); // unchanged but elapsed
 }
 
 TEST_F(provider_event_filters, mixed_filtered_and_default_subscribers_each_evaluated) {
@@ -648,7 +658,7 @@ TEST_F(provider_event_filters, mixed_filtered_and_default_subscribers_each_evalu
     ev->add_subscriber(group1_, client1_, make_filter(true)); // on_change -> forwards on change
     ev->add_subscriber(group1_, client2_, nullptr); // default epsilon -> suppresses
 
-    auto [msg, subscribers] = ev->update(make_payload({1}));
+    auto [msg, subscribers] = ev->update(make_payload({1}), false);
 
     EXPECT_EQ(subscribers, std::set<client_t>{client1_});
 }
@@ -658,9 +668,9 @@ TEST_F(provider_event_filters, add_subscriber_null_filter_removes_existing_filte
     ev->add_subscriber(group1_, client1_, make_filter(true)); // install on_change filter
     ev->add_subscriber(group1_, client1_, nullptr); // null filter removes it
 
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     // With the filter removed and the default (null) epsilon, an unchanged repeat still forwards.
-    EXPECT_EQ(ev->update(make_payload({1})).second, std::set<client_t>{client1_});
+    EXPECT_EQ(ev->update(make_payload({1}), false).second, std::set<client_t>{client1_});
 }
 
 TEST_F(provider_event_filters, clear_subscriber_clears_filters) {
@@ -669,18 +679,18 @@ TEST_F(provider_event_filters, clear_subscriber_clears_filters) {
     ev->clear_subscriber();
 
     ev->add_subscriber(group1_, client1_, nullptr); // re-subscribe without a filter
-    (void)ev->update(make_payload({1}));
-    EXPECT_EQ(ev->update(make_payload({1})).second, std::set<client_t>{client1_}); // no stale filter
+    (void)ev->update(make_payload({1}), false);
+    EXPECT_EQ(ev->update(make_payload({1}), false).second, std::set<client_t>{client1_}); // no stale filter
 }
 
 TEST_F(provider_event_filters, filter_uses_injected_clock_not_wall_clock) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_});
     ev->add_subscriber(group1_, client1_, make_filter(false, 100));
 
-    (void)ev->update(make_payload({1})); // first forward stores fake now (0)
-    EXPECT_TRUE(ev->update(make_payload({2})).second.empty()); // fake clock not advanced -> not elapsed
+    (void)ev->update(make_payload({1}), false); // first forward stores fake now (0)
+    EXPECT_TRUE(ev->update(make_payload({2}), false).second.empty()); // fake clock not advanced -> not elapsed
     clock_->advance(150ms);
-    EXPECT_EQ(ev->update(make_payload({3})).second, std::set<client_t>{client1_}); // advancing fake clock forwards
+    EXPECT_EQ(ev->update(make_payload({3}), false).second, std::set<client_t>{client1_}); // advancing fake clock forwards
 }
 
 // ---------------------------------------------------------------------------
@@ -693,7 +703,7 @@ TEST_F(provider_event_cyclic, tick_invokes_periodic_poke) {
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
 
-    (void)ev->update(make_payload({1})); // first payload -> cycle starts
+    (void)ev->update(make_payload({1}), false); // first payload -> cycle starts
     ASSERT_EQ(state->start_count_, 1u);
 
     state->handler_(boost::system::error_code{}); // one cycle elapses
@@ -704,7 +714,7 @@ TEST_F(provider_event_cyclic, reschedules_while_alive) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 100ms);
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
 
     state->handler_(boost::system::error_code{});
     state->handler_(boost::system::error_code{});
@@ -716,7 +726,7 @@ TEST_F(provider_event_cyclic, runs_regardless_of_subscriber_count) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 100ms); // no subscribers
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
 
     state->handler_(boost::system::error_code{});
 
@@ -727,7 +737,7 @@ TEST_F(provider_event_cyclic, stopped_on_reset) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 100ms);
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
 
     ev->reset();
     state->handler_(boost::system::error_code{}); // the pending wait must not run the task
@@ -739,7 +749,7 @@ TEST_F(provider_event_cyclic, add_subscriber_does_not_touch_timer) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 100ms);
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     auto const starts = state->start_count_;
     auto const cancels = state->cancel_count_;
 
@@ -754,7 +764,7 @@ TEST_F(provider_event_cyclic, unsubscribe_does_not_touch_timer) {
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
     ev->add_subscriber(group1_, client1_, nullptr);
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     auto const starts = state->start_count_;
     auto const cancels = state->cancel_count_;
 
@@ -769,7 +779,7 @@ TEST_F(provider_event_cyclic, cyclic_send_reads_current_directly) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 100ms); // non-field
     ev->add_subscriber(group1_, client1_, nullptr);
     auto payload = make_payload({7, 7});
-    (void)ev->update(payload);
+    (void)ev->update(payload, false);
 
     auto [msg, subscribers] = ev->cyclic();
 
@@ -783,10 +793,10 @@ TEST_F(provider_event_cyclic, update_resets_cycle_true_resets_interval_on_accept
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 100ms, /*update_on_change*/ true, /*update_resets_cycle*/ true);
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
-    (void)ev->update(make_payload({1})); // first set -> start
+    (void)ev->update(make_payload({1}), false); // first set -> start
     auto const starts = state->start_count_;
 
-    (void)ev->update(make_payload({2})); // accepted change -> restart
+    (void)ev->update(make_payload({2}), false); // accepted change -> restart
 
     EXPECT_GT(state->start_count_, starts);
 }
@@ -795,10 +805,10 @@ TEST_F(provider_event_cyclic, update_resets_cycle_false_does_not_reset) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 100ms, /*update_on_change*/ true, /*update_resets_cycle*/ false);
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     auto const starts = state->start_count_;
 
-    (void)ev->update(make_payload({2})); // change, but update_resets_cycle == false
+    (void)ev->update(make_payload({2}), false); // change, but update_resets_cycle == false
 
     EXPECT_EQ(state->start_count_, starts);
 }
@@ -807,10 +817,10 @@ TEST_F(provider_event_cyclic, update_resets_cycle_resets_on_unchanged_cyclic_upd
     auto ev = make_event(event_type_e::ET_FIELD, {group1_}, 100ms, /*update_on_change*/ true, /*update_resets_cycle*/ true);
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
     auto const starts = state->start_count_;
 
-    (void)ev->update(make_payload({1})); // unchanged, but cyclic -> still restarts
+    (void)ev->update(make_payload({1}), false); // unchanged, but cyclic -> still restarts
 
     EXPECT_GT(state->start_count_, starts);
 }
@@ -819,10 +829,10 @@ TEST_F(provider_event_cyclic, update_resets_cycle_not_reset_when_gate_closed) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 100ms, /*update_on_change*/ false, /*update_resets_cycle*/ true);
     auto state = factory_->last_timer_state_;
     ASSERT_NE(state, nullptr);
-    (void)ev->update(make_payload({1})); // first set still starts the cycle
+    (void)ev->update(make_payload({1}), false); // first set still starts the cycle
     auto const starts = state->start_count_;
 
-    (void)ev->update(make_payload({2})); // gate closed -> not forwarded -> no restart
+    (void)ev->update(make_payload({2}), false); // gate closed -> not forwarded -> no restart
 
     EXPECT_EQ(state->start_count_, starts);
 }
@@ -831,7 +841,7 @@ TEST_F(provider_event_cyclic, zero_cycle_never_pokes) {
     auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 0ms); // no timer
     EXPECT_EQ(factory_->last_timer_state_, nullptr);
 
-    (void)ev->update(make_payload({1}));
+    (void)ev->update(make_payload({1}), false);
 
     EXPECT_EQ(factory_->last_timer_state_, nullptr);
     EXPECT_EQ(poke_count_, 0u);

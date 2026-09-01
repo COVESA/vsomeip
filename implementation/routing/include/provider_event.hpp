@@ -126,10 +126,11 @@ public:
 
     /**
      * @brief Applies a new payload and computes the notify-all result.
+     * @param _force Bypasses the field-value dedup only.
      * @return {message, targets}: the message to send and the (debounce-filtered) subscriber set.
      *         An empty target set means the change was suppressed (dedup / !update_on_change).
      */
-    std::pair<std::shared_ptr<message>, std::set<client_t>> update(std::shared_ptr<payload> const& _payload);
+    std::pair<std::shared_ptr<message>, std::set<client_t>> update(std::shared_ptr<payload> const& _payload, bool _force);
     /**
      * @brief Produces the periodic re-notification of the current value (timer tick path).
      * @return {message, targets} for the cyclic subscriber set; empty if nothing to send.

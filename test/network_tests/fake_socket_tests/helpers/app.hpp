@@ -260,12 +260,12 @@ public:
     /**
      * Forwards the event payload to the vsomeip::application::notify()
      */
-    void send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload);
+    void send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload, bool _force = false);
 
     /**
      * Forwards the event payload to the vsomeip::application::notify_one()
      */
-    void send_event_one(event_ids const& _ei, std::vector<unsigned char> const& _payload, client_t _client);
+    void send_event_one(event_ids const& _ei, std::vector<unsigned char> const& _payload, client_t _client, bool _force = false);
 
     /**
      * Wait for message (payloads!) to reach given state
