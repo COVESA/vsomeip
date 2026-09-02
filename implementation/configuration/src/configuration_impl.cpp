@@ -194,6 +194,8 @@ bool configuration_impl::load(const std::string& _name) {
         logger::logger_impl::init(shared_from_this());
     }
 
+    validate_client_identifiers();
+
     // Log about reading of configuration file(s) that failed.
     // (This may fail if the logger configuration is incomplete/missing).
     for (const auto& f : its_failed) {
@@ -274,6 +276,7 @@ void configuration_impl::load_optional() {
     read_data(input_, its_optional_elements, its_failed, false);
     load_data(its_mandatory_elements, false, true);
     load_data(its_optional_elements, true, true);
+    validate_client_identifiers();
 
     for (const auto& f : its_failed) {
         VSOMEIP_WARNING << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
@@ -942,6 +945,29 @@ std::set<std::pair<port_t, port_t>> configuration_impl::load_routing_guest_port_
     }
 
     return its_ranges;
+}
+
+void configuration_impl::validate_client_identifiers() {
+    // Only meaningful once this configuration declares a diagnosis address of its own: a guest
+    // configuration has none and inherits the client ids of its routing host.
+    if (!is_configured_[ET_DIAGNOSIS]) {
+        return;
+    }
+
+    for (auto& [its_name, its_application] : applications_) {
+        const client_t its_id = its_application.client_;
+        if (its_id == VSOMEIP_CLIENT_UNSET || utility::is_client_id_in_range(its_id, diagnosis_, diagnosis_mask_)) {
+            continue;
+        }
+        // A mask that clears bits of the diagnosis prefix is valid: it enlarges the client id
+        // block, which then spans several prefixes starting at the masked diagnosis address.
+        VSOMEIP_ERROR << "Configured Client ID 0x" << hex4(its_id) << " of application " << its_name
+                      << " is outside the Client ID range of this host (starting at 0x"
+                      << hex4(utility::get_client_id_base(diagnosis_, diagnosis_mask_)) << ", mask 0x" << hex4(diagnosis_mask_)
+                      << "). Ignoring the configuration for application " << its_name;
+        its_application.client_ = VSOMEIP_CLIENT_UNSET;
+        client_identifiers_.erase(its_id);
+    }
 }
 
 bool configuration_impl::load_applications(const configuration_element& _element) {
@@ -1645,12 +1671,6 @@ void configuration_impl::load_diagnosis_address(const configuration_element& _el
             }
             its_converter >> diagnosis_mask_;
             is_configured_[ET_DIAGNOSIS_MASK] = true;
-        }
-        if (is_configured_[ET_DIAGNOSIS] && is_configured_[ET_DIAGNOSIS_MASK]
-            && (static_cast<uint16_t>(diagnosis_ << 8) & diagnosis_mask_) != static_cast<uint16_t>(diagnosis_ << 8)) {
-            VSOMEIP_WARNING << "Diagnosis mask masks bits of diagnosis prefix! Client IDs will start at 0x"
-                            << hex4(static_cast<uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
-                            << hex4(static_cast<uint16_t>(diagnosis_ << 8));
         }
     } catch (...) {
         // intentionally left empty

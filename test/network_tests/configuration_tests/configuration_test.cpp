@@ -309,7 +309,7 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     EXPECT_TRUE(check<size_t>(io_threads, _expected_application_threads, "IO THREADS"));
     EXPECT_TRUE(check<size_t>(request_time, _expected_application_request_debounce_time, "REQUEST DEBOUNCE TIME"));
 
-    EXPECT_EQ(0x9933, its_configuration->get_id("other_application"));
+    EXPECT_EQ(0x5533, its_configuration->get_id("other_application"));
 
     std::map<vsomeip::plugin_type_e, std::set<std::string>> its_plugins = its_configuration->get_plugins(EXPECTED_ROUTING_MANAGER_HOST);
     EXPECT_EQ(1u, its_plugins.size());
@@ -449,15 +449,15 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
 #if !defined(VSOMEIP_DISABLE_SECURITY) && !defined(__QNX__)
     vsomeip_sec_client_t its_x123_x456 = utility::create_uds_client(0x123, 0x456, 0);
 
-    EXPECT_TRUE(its_configuration->check_routing_credentials(0x7788, its_x123_x456));
+    EXPECT_TRUE(its_configuration->check_routing_credentials(0x5588, its_x123_x456));
 
     // GID does not match
     vsomeip_sec_client_t its_x123_x222 = utility::create_uds_client(0x123, 0x222, 0);
-    EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, its_x123_x222));
+    EXPECT_FALSE(its_configuration->check_routing_credentials(0x5588, its_x123_x222));
 
     // UID does not match
     vsomeip_sec_client_t its_x333_x456 = utility::create_uds_client(0x333, 0x456, 0);
-    EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, its_x333_x456));
+    EXPECT_FALSE(its_configuration->check_routing_credentials(0x5588, its_x333_x456));
 
     // client is not the routing manager
     vsomeip_sec_client_t its_x888_x999 = utility::create_uds_client(0x888, 0x999, 0);
