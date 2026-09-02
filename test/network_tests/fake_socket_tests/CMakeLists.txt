@@ -52,6 +52,7 @@ set (TEST_SUITES
     test_connection_control
     test_connection_restoration
     test_client_lifecycle
+    test_climate
     test_debounce
     test_event_subscription_callback
     test_framework
