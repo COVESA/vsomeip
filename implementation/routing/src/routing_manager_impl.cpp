@@ -1076,8 +1076,9 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
     }
 
     // Log messages which could cause routing issues.
-    if (!is_valid_client_id(its_client, its_message_type)) {
-        VSOMEIP_ERROR_P << "Invalid client id. message=" << hex4(its_service) << "." << hex4(its_method) << "."
+    if (!utility::is_valid_client_id(its_client, configuration_->get_diagnosis_address(), configuration_->get_diagnosis_mask(),
+                                     its_message_type)) {
+        VSOMEIP_ERROR_P << "Invalid Client ID. message=" << hex4(its_service) << "." << hex4(its_method) << "."
                         << hex2(static_cast<uint8_t>(its_message_type)) << "." << hex2(static_cast<uint8_t>(its_return_code))
                         << " client=0x" << hex4(its_client) << " source=" << _remote_address << ":" << _remote_port;
     }
@@ -3916,27 +3917,6 @@ void routing_manager_impl::remove_pending_requests_unlocked(pending_request_remo
             ++iter;
         }
     }
-}
-
-bool routing_manager_impl::is_valid_client_id(const client_t _client, const message_type_e _type) const {
-    // The diagnostic address can be used to identify client ids used by this host.
-    const diagnosis_t diag = configuration_->get_diagnosis_address();
-    const diagnosis_t address = (_client & configuration_->get_diagnosis_mask()) >> 8;
-
-    // We only expect responses to requests sent by this host.
-    if (_type == message_type_e::MT_RESPONSE) {
-        return address == diag;
-    }
-
-    // We only expect requests from other hosts.
-    if (_type == message_type_e::MT_REQUEST) {
-        // Requests must not use client ids from this host, otherwise the response will not be
-        // routed back to the remote host.
-        return address != diag;
-    }
-
-    // Any id is valid or can be ignored in every other situation.
-    return true;
 }
 
 bool routing_manager_impl::send_event(client_t _client, std::shared_ptr<message> _message, bool _force) {

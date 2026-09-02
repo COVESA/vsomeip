@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <gtest/gtest.h>
+#include <map>
 #include <vsomeip/defines.hpp>
 
 #include "../../../implementation/configuration/include/configuration_impl.hpp"
@@ -325,6 +326,79 @@ TEST(utility_test, request_client_id) {
     ASSERT_EQ(its_utility->request_client_id(its_config, client_name2_, client2_), VSOMEIP_CLIENT_UNSET);
 
     // Clean up
+    its_utility->remove_lockfile(network_);
+}
+
+namespace {
+// A mask that clears bits 2 and 4 of the diagnosis prefix, giving 1024 client ids spread
+// over the prefixes 0x88, 0x8C, 0x98 and 0x9C.
+constexpr vsomeip_v3::diagnosis_t multi_prefix_diagnosis = 0x98;
+constexpr vsomeip_v3::diagnosis_t multi_prefix_mask = 0xEB00;
+
+class multi_prefix_configuration : public vsomeip_v3::cfg::configuration_impl {
+public:
+    multi_prefix_configuration() : configuration_impl("/tmp/") { }
+
+    unsigned short get_diagnosis_address() const override { return multi_prefix_diagnosis; }
+    uint16_t get_diagnosis_mask() const override { return multi_prefix_mask; }
+    const std::string& get_network() const override { return network_; }
+
+private:
+    std::string network_{"test_network_multi_prefix"};
+};
+
+// The _index-th id of the block: the index bits are spread over the free bits of the mask,
+// ascending, and or-ed onto the base. Computed independently of utility::request_client_id.
+vsomeip_v3::client_t nth_client_id(uint16_t _index) {
+    const uint16_t its_free = static_cast<uint16_t>(~multi_prefix_mask);
+    uint16_t its_id = vsomeip_v3::utility::get_client_id_base(multi_prefix_diagnosis, multi_prefix_mask);
+    uint16_t its_bit = 1;
+    for (uint16_t i = 0; i < 16; ++i) {
+        if (its_free & static_cast<uint16_t>(1 << i)) {
+            if (_index & its_bit) {
+                its_id = static_cast<uint16_t>(its_id | static_cast<uint16_t>(1 << i));
+            }
+            its_bit = static_cast<uint16_t>(its_bit << 1);
+        }
+    }
+    return its_id;
+}
+} // namespace
+
+// Exhaustively walk the client id range of a mask that hides bits of the diagnosis prefix.
+TEST(utility_test, request_client_id_masked_diagnosis_range) {
+    std::unique_ptr<vsomeip_v3::utility> its_utility;
+    auto its_config = std::make_shared<multi_prefix_configuration>();
+    const std::string network_{its_config->get_network()};
+    const vsomeip_v3::client_t base_ = vsomeip_v3::utility::get_client_id_base(multi_prefix_diagnosis, multi_prefix_mask);
+
+    ASSERT_EQ(base_, 0x8800);
+    ASSERT_TRUE(its_utility->is_routing_manager(network_));
+
+    // The routing host takes the base itself, as application_impl does.
+    ASSERT_EQ(its_utility->request_client_id(its_config, "router", base_), base_);
+
+    // The allocation order in plain numbers: one prefix is exhausted before the next one starts.
+    const std::map<uint16_t, vsomeip_v3::client_t> its_expected{
+            {1, 0x8801}, {255, 0x88FF}, {256, 0x8C00}, {511, 0x8CFF}, {512, 0x9800}, {767, 0x98FF}, {768, 0x9C00}, {1023, 0x9CFF},
+    };
+
+    std::set<uint8_t> its_prefixes;
+    for (uint16_t i = 1; i <= 1023; ++i) {
+        const vsomeip_v3::client_t its_client = its_utility->request_client_id(its_config, "app", VSOMEIP_CLIENT_UNSET);
+        ASSERT_EQ(its_client, nth_client_id(i)) << "index " << i;
+        ASSERT_TRUE(vsomeip_v3::utility::is_client_id_in_range(its_client, multi_prefix_diagnosis, multi_prefix_mask)) << "index " << i;
+        const auto found_expected = its_expected.find(i);
+        if (found_expected != its_expected.end()) {
+            ASSERT_EQ(its_client, found_expected->second) << "index " << i;
+        }
+        its_prefixes.insert(static_cast<uint8_t>(its_client >> 8));
+    }
+
+    // The block is exhausted.
+    EXPECT_EQ(its_utility->request_client_id(its_config, "app", VSOMEIP_CLIENT_UNSET), VSOMEIP_CLIENT_UNSET);
+    EXPECT_EQ(its_prefixes, (std::set<uint8_t>{0x88, 0x8C, 0x98, 0x9C}));
+
     its_utility->remove_lockfile(network_);
 }
 

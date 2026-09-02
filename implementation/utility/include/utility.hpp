@@ -71,6 +71,29 @@ public:
 
     static std::string get_base_path(const std::string& _network);
 
+    /// Lowest client id of the block owned by a host with this diagnosis address and mask.
+    ///
+    /// The mask selects the bits that identify the host; the freed bits (`~_mask`) are handed out
+    /// to its applications. A mask that clears bits of `_diagnosis << 8` is valid: it simply
+    /// enlarges the block, which then spans several diagnosis prefixes (e.g. diagnosis `0x98` with
+    /// mask `0xEB00` yields 1024 ids in `0x88xx`, `0x8Cxx`, `0x98xx` and `0x9Cxx`).
+    static client_t get_client_id_base(diagnosis_t _diagnosis, diagnosis_t _mask);
+
+    /// Whether `_client` belongs to the client-id block of a host with this diagnosis and mask.
+    static bool is_client_id_in_range(client_t _client, diagnosis_t _diagnosis, diagnosis_t _mask);
+
+    /// Whether `_client` is plausible for an incoming message of type `_type`.
+    ///
+    /// Returns `false` only for the two cases that break routing:
+    ///
+    /// - a response whose client id is *not* one of this host's ids - it cannot be routed to a
+    ///   local application;
+    /// - a request whose client id *is* one of this host's ids - the response would not be routed
+    ///   back to the remote host.
+    ///
+    /// Every other message type is accepted.
+    static bool is_valid_client_id(client_t _client, diagnosis_t _diagnosis, diagnosis_t _mask, message_type_e _type);
+
     static client_t request_client_id(const std::shared_ptr<configuration>& _config, std::string_view _name, client_t _client);
     static std::string get_client_name(const std::shared_ptr<configuration>& _config, client_t _client);
     static void release_client_id(const std::string& _network, client_t _client);

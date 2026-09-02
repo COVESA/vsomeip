@@ -421,6 +421,47 @@ TEST_F(test_configuration_impl, load_alone_resolves_routing_host_in_non_mandator
     EXPECT_EQ(its_config->get_unicast_address(), boost::asio::ip::make_address("10.10.10.10"));
 }
 
+// A configured application id must belong to the client id range of this host, otherwise its
+// messages cannot be routed, so it is dropped and the application gets an allocated id instead.
+// The range is base | ~mask, so it spans several diagnosis prefixes whenever the mask frees bits
+// of the prefix (here 0x98 & 0xEB -> 0x88, plus bits 2 and 4).
+TEST_F(test_configuration_impl, out_of_range_application_id_is_dropped) {
+    scratch_config_dir dir;
+    dir.write("vsomeip_std.json", R"({
+        "unicast": "10.10.10.10",
+        "diagnosis": "0x98",
+        "diagnosis_mask": "0xEB00",
+        "routing": { "host": { "name": "routingmanager" } },
+        "applications": [
+            { "name": "routingmanager", "id": "0x8800" },
+            { "name": "in-range-other-prefix", "id": "0x9C19" },
+            { "name": "out-of-range", "id": "0x4277" }
+        ]
+    })");
+
+    auto its_config = load(dir, "routingmanager");
+
+    EXPECT_EQ(its_config->get_id("routingmanager"), 0x8800);
+    EXPECT_EQ(its_config->get_id("in-range-other-prefix"), 0x9C19);
+    EXPECT_EQ(its_config->get_id("out-of-range"), VSOMEIP_CLIENT_UNSET);
+    // The dropped id is free again, so the allocator may hand it out.
+    EXPECT_FALSE(its_config->is_configured_client_id(0x4277));
+}
+
+// A guest configuration declares no diagnosis address of its own and inherits the client ids of
+// its routing host, so its ids must not be checked against the local defaults.
+TEST_F(test_configuration_impl, application_ids_are_kept_without_diagnosis) {
+    scratch_config_dir dir;
+    dir.write("vsomeip_std.json", R"({
+        "routing": { "host": { "name": "routingmanager" } },
+        "applications": [ { "name": "guest", "id": "0x9C19" } ]
+    })");
+
+    auto its_config = load(dir, "routingmanager");
+
+    EXPECT_EQ(its_config->get_id("guest"), 0x9C19);
+}
+
 // The shared configuration is loaded once per process, but if a plain
 // application primes it first (mandatory only) and the routing manager takes
 // over the same object later, load_optional() reads the optional files then -

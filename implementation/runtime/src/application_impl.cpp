@@ -199,8 +199,14 @@ bool application_impl::init() {
 
         if (is_routing_manager_host_) {
             VSOMEIP_INFO << "Instantiating routing manager [Host].";
+            const diagnosis_t its_diagnosis = configuration_->get_diagnosis_address();
+            const diagnosis_t its_diagnosis_mask = configuration_->get_diagnosis_mask();
+
+            VSOMEIP_INFO << "Client IDs start at 0x" << hex4(utility::get_client_id_base(its_diagnosis, its_diagnosis_mask))
+                         << " (diagnosis 0x" << hex2(static_cast<uint8_t>(its_diagnosis)) << ", mask 0x" << hex4(its_diagnosis_mask)
+                         << ").";
             if (client_ == VSOMEIP_CLIENT_UNSET) {
-                client_ = static_cast<client_t>((configuration_->get_diagnosis_address() << 8) & configuration_->get_diagnosis_mask());
+                client_ = utility::get_client_id_base(its_diagnosis, its_diagnosis_mask);
                 utility::request_client_id(configuration_, name_, client_);
             }
             routing_app_ = std::make_unique<routing_application>(io_, configuration_, name_, policy_manager_, security_, trace_connector_);

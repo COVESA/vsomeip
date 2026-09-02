@@ -326,6 +326,7 @@ private:
     void load_unicast_address(const configuration_element& _element);
     void load_netmask(const configuration_element& _element);
     void load_diagnosis_address(const configuration_element& _element);
+    void validate_client_identifiers();
     void load_uds_preferred(const configuration_element& _element);
 
     void load_service_discovery(const configuration_element& _element);

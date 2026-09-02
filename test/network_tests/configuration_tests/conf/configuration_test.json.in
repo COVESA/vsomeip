@@ -93,7 +93,7 @@
     [
         {
             "name" : "my_application",
-            "id" : "0x7788",
+            "id" : "0x5588",
             "max_dispatchers" : "25",
             "max_dispatch_time" : "1234",
             "threads" : "12",
@@ -113,7 +113,7 @@
         },
         {
             "name" : "other_application",
-            "id" : "0x9933",
+            "id" : "0x5533",
             "threads" : "0",
             "threads" : "256",
             "request_debounce_time" : "10001"
