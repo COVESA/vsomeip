@@ -1548,7 +1548,9 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 ## Debounce
 
-- **debounce** (optional array) - Events/fields sent by external devices will be forwarded to the applications only if a configurable function evaluates to true. The function checks whether the event/field payload has changed and whether a specified interval has been elapsed since the last forwarding.
+It is common that events/fields are emitted cyclically, often at high frequencies (e.g., >100Hz). In order to reduce the load, these can be debounced in the routing manager, so that client applications receive fewer messages (and fewer wakeups). The debouncing parameters below functions conceptually as a filter - emitted events either pass or are blocked by the debouncing filter. A bit of care with the parameters is necessary - for example, an **interval** that matches the cycle frequency is inherently racy, as events/field will either pass or be blocked dependencing on clock accuracy.
+
+- **debounce** (optional array) - Events/fields sent will be forwarded to the applications only if a configurable function evaluates to true. The function checks whether the event/field payload has changed and whether a specified interval has elapsed since the last forwarding.
     - **service** - Service ID which hosts the events to be debounced.
     - **instance** - Instance ID which hosts the events to be debounced.
     - **events** - Array of events which shall be debounced based on the following configuration options.
@@ -1558,10 +1560,20 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
             - **index** - Payload index to be checked with given bitmask.
             - **mask** - 1 Byte bitmask applied to byte at given payload index. **Example mask**: 0x0f ignores payload changes in low nibble of the byte at given index.
         - **interval** - Specifies if the event shall be debounced based on elapsed time interval. (valid values: `time in ms`, `never`). The default value is  `never`.
+          **NOTE**: avoid setting an **interval** that is a multiple of the event frequency, as this causes non-deterministic debouncing behavior. It is recommended that the interval is always "off by half the cycle".
         - **on_change_resets_interval** (optional) - Specifies if interval timer is reset when payload change was detected, valid values are `false`, `true`. The default value is `false`.
 
+A couple of technical notes:
+- these debounce filters will also apply if a local application is offering the service, and another local application consumes. In that case, of course, it is the offering application that applies the debouncing, not the routing manager.
+- these debounce filters can also be done at runtime using `vsomeip_v3::application::subscribe_with_debounce`
 
 <details><summary>Debounce configuration</summary>
+
+For the example, assume that service 0x7530 has several high-frequency events:
+- 0x8001 is an event emitted at 100Hz, but we want only 50Hz => we set a 15ms debounce interval (lower than 20ms to avoid having a multiple of the cycle time).
+- 0x8002 is an event emitted at 500Hz, but we only want changes => we set **on_change** to true.
+- 0x8005 is an event emitted at 50Hz, but we want changes, and otherwise only 1Hz => we set both **on_change** to true + a 990ms interval.
+- 0x8006 is an event emitted at 10Hz, but we want changes, and never equal values faster than 1Hz => we set **on_change** + **on_change_resets_interval** to true + a 950ms interval.
 
 ```json
 "debounce" :
@@ -1574,27 +1586,22 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
             {
                 "event" : "0x8001",
                 "on_change" : "false",
-                "interval" : "50"
+                "interval" : "15"
             },
             {
                 "event" : "0x8002",
-                "on_change" : "false",
-                "interval" : "50"
+                "on_change" : "true"
             },
             {
                 "event" : "0x8005",
-                "on_change" : "false",
-                "interval" : "50"
+                "on_change" : "true",
+                "interval" : "990"
             },
             {
                 "event" : "0x8006",
-                "on_change" : "false",
-                "interval" : "100"
-            },
-            {
-                "event" : "0x8009",
-                "on_change" : "false",
-                "interval" : "100"
+                "on_change" : "true",
+                "interval" : "950",
+                "on_change_resets_interval": true
             }
         ]
     }
