@@ -42,6 +42,9 @@ public:
         app_->register_state_handler(std::bind(&subscribe_notify_test_service::on_state, this, std::placeholders::_1));
         app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.method_id,
                                        std::bind(&subscribe_notify_test_service::on_request, this, std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id,
+                                       subscribe_notify_test::notifications_received_method_id,
+                                       std::bind(&subscribe_notify_test_service::on_notifications_received, this, std::placeholders::_1));
         app_->register_message_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, vsomeip::ANY_METHOD,
                                        std::bind(&subscribe_notify_test_service::on_message, this, std::placeholders::_1));
 
@@ -201,25 +204,67 @@ public:
         }
     }
 
+    void on_notifications_received(const std::shared_ptr<vsomeip::message>& _message) {
+        if (_message->get_message_type() != vsomeip::message_type_e::MT_REQUEST) {
+            return;
+        }
+
+        uint32_t its_acks(0);
+        {
+            std::scoped_lock its_lock(stop_mutex_);
+            its_acks = ++notification_acks_received_;
+        }
+        stop_condition_.notify_one();
+
+        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << std::dec
+                     << "] Peers that received all our notifications: " << its_acks << "/" << expected_requests_;
+    }
+
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
         if (_message->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
             // another dispatcher might be currently evaluating whether all notifications are received
             std::unique_lock lock{mutex_};
-            other_services_received_notification_[std::make_pair(_message->get_service(), _message->get_method())]++;
+            const auto its_key = std::make_pair(_message->get_service(), _message->get_method());
+            const uint32_t its_count = ++other_services_received_notification_[its_key];
 
             VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] "
                           << "Received a notification with Client/Session [" << std::setw(4) << _message->get_client() << "/"
                           << std::setw(4) << _message->get_session() << "] from Service/Method [" << std::setw(4) << _message->get_service()
-                          << "/" << std::setw(4) << _message->get_method() << "/" << std::dec << _message->get_length() << "] (now have: "
-                          << other_services_received_notification_[std::make_pair(_message->get_service(), _message->get_method())] << ")";
+                          << "/" << std::setw(4) << _message->get_method() << "/" << std::dec << _message->get_length()
+                          << "] (now have: " << its_count << ")";
 
-            if (all_notifications_received()) {
-                lock.unlock();
+            const bool its_peer_is_complete = its_count == subscribe_notify_test::notifications_to_send;
+            const bool its_notifications_complete = all_notifications_received();
+            lock.unlock();
+
+            if (its_peer_is_complete) {
+                send_notifications_received(its_key.first, its_key.second);
+            }
+
+            if (its_notifications_complete) {
                 std::scoped_lock its_lock(stop_mutex_);
                 wait_for_stop_ = false;
                 stop_condition_.notify_one();
             }
         }
+    }
+
+    void send_notifications_received(vsomeip::service_t _service, vsomeip::event_t _event) {
+        const auto its_peer = std::find_if(service_infos_.begin(), service_infos_.end(),
+                                           [=](const auto& s) { return s.service_id == _service && s.event_id == _event; });
+        if (its_peer == service_infos_.end()) {
+            return;
+        }
+
+        std::shared_ptr<vsomeip::message> its_request = vsomeip::runtime::get()->create_request(use_tcp_);
+        its_request->set_service(its_peer->service_id);
+        its_request->set_instance(its_peer->instance_id);
+        its_request->set_method(subscribe_notify_test::notifications_received_method_id);
+        app_->send(its_request);
+
+        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
+                     << "] Received all notifications of [" << std::setw(4) << its_peer->service_id << "." << std::setw(4)
+                     << its_peer->instance_id << "]";
     }
 
     bool all_notifications_received() {
@@ -294,7 +339,7 @@ public:
 
     void wait_for_stop() {
         std::unique_lock its_lock(stop_mutex_);
-        stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
+        stop_condition_.wait(its_lock, [this] { return !wait_for_stop_ && notification_acks_received_ >= expected_requests_; });
 
         // wait until all notifications have been sent out
         notify_thread_.join();
@@ -354,6 +399,7 @@ private:
     std::thread offer_thread_;
 
     bool wait_for_stop_;
+    uint32_t notification_acks_received_{0};
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
     std::thread stop_thread_;

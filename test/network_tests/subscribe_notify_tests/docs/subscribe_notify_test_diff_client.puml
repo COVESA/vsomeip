@@ -60,13 +60,25 @@ loop sending notifications
 
 end
 
+APP -> APP2 : notifications_received
+
+APP -> APP3 : notifications_received
+
+APP2 -> APP : notifications_received
+
+APP3 -> APP : notifications_received
+
 note left of APP
-    When all notifications
-    are sent the applications
-    will stop offering their
-    service and unsubscribe
-    to the other services,
-    and then shutdown
+    Each application acknowledges
+    the reception of all the
+    notifications of a service.
+    Only when all notifications
+    are sent and acknowledged by
+    every peer will the
+    applications stop offering
+    their service and unsubscribe
+    to the other services, and
+    then shutdown
 endnote
 
 APP -> APP2 : Stop offer service
@@ -91,7 +103,4 @@ APP2 -> APP2 : Shutdown
 
 APP3 -> APP3 : Shutdown
 
-
-
-
-
+@enduml
