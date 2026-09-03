@@ -44,5 +44,5 @@ static constexpr int notifications_to_send = 10;
 static constexpr struct service_info service_info_subscriber_based_notification = {0xCAFE, 0x1, 0x8888, 0x8111, 0x1};
 static constexpr vsomeip::method_t shutdown_method_id = 0x6666;
 static constexpr vsomeip::method_t set_method_id = 0x7777;
-
+static constexpr vsomeip::method_t notifications_received_method_id = 0x7000;
 }

@@ -7,13 +7,16 @@ half running on the same container, half running on a different container
 from the application in question. Each application will register and offer
 one service, unique for each application. That service will begin to notify
 as soon as all the other applications have subscribed to it, and will notify
-10 times, after which the application will stop offering the service. At the
-same time, each application will subscribe to all the other services and will
-wait to receive all the 10 notifications for each of the services offered by
-the other applications, after which it is ready to shutdown. The shutdown will
-happen when the application has sent all the notifications for the service
-that it is offering and has received all the notifications sent by the other
-services.
+10 times. At the same time, each application will subscribe to all the other
+services and will wait to receive all the 10 notifications for each of the
+services offered by the other applications. Whenever an application has
+received all the 10 notifications of a given service, it acknowledges that
+back to the application offering it, so that the provider knows the peer no
+longer needs its service. The shutdown will happen when the application has
+sent all the notifications for the service that it is offering, has received
+all the notifications sent by the other services, and every other application
+has acknowledged that it received all the notifications of the service that
+it is offering. Only then does the application stop offering its service.
 
 ## Purpose
 
@@ -46,11 +49,15 @@ it will finally subscribe to each of the services offered
 by the other applications. After it has subscribed to
 all the services, it will begin to send the notifications
 for the service that it offers, while also receiving the
-notifications sent by the other applications. After it
-has received all the notifications from the other
-applications, it will wait to send all of its notifications
-if they have not been sent yet. After this, it will send
-stop offers for its service and after this unsubscribe
-from the services offered by the other applications.
-After this is done, the application will shutdown and
-the test will end.
+notifications sent by the other applications. Each time it
+completes the 10 notifications of one of the other services,
+it sends a request to the `notifications_received` method of
+that service, acknowledging the reception. After it has
+received all the notifications from the other applications,
+it will wait to send all of its notifications if they have
+not been sent yet, and also wait until every other
+application has acknowledged the reception of all its own
+notifications. After this, it will send stop offers for its
+service and after this unsubscribe from the services offered
+by the other applications. After this is done, the
+application will shutdown and the test will end.
