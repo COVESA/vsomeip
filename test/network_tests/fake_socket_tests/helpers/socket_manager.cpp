@@ -518,6 +518,14 @@ void socket_manager::fail_on_tcp_port_bind(port_t _port, bool fail) {
     }
 }
 
+void socket_manager::react_on_unassigned_udp_port(bool _react) {
+    auto lock = std::unique_lock(mtx_);
+    if (_react != react_on_unassigned_udp_port_) {
+        react_on_unassigned_udp_port_ = _react;
+        LOCAL_LOG << "setting react_on_unassigned_udp_port_: " << _react;
+    }
+}
+
 [[nodiscard]] bool socket_manager::await_connectable(std::string const& _app, std::chrono::milliseconds _timeout) {
     // fake_tcp_acceptor_handle need to outlive mtx_ so declare it before
     std::vector<std::shared_ptr<fake_tcp_acceptor_handle>> handles_to_hold;
@@ -600,6 +608,15 @@ void socket_manager::set_ignore_ip(boost::asio::ip::address _ip, bool _ignore_co
         ignored_networks_.insert(_ip);
     } else {
         ignored_networks_.erase(_ip);
+    }
+}
+
+void socket_manager::set_block_udp_messages(boost::asio::ip::address _ip, bool _block) {
+    std::scoped_lock lock(mtx_);
+    bool& current = block_udp_messages_[_ip];
+    if (current != _block) {
+        current = _block;
+        LOCAL_LOG << __func__ << ": setting block udp message to/from " << _ip << ": " << _block;
     }
 }
 
@@ -897,13 +914,17 @@ void socket_manager::leave_multicast_group(boost::asio::ip::address _multicast, 
     }
 }
 
-void socket_manager::send_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src,
+bool socket_manager::send_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src,
                                  boost::asio::ip::udp::endpoint _dst) {
     if (_dst.address().is_multicast()) {
         LOCAL_LOG << " trying to send multicast message from " << _src << " to " << _dst;
         std::vector<std::shared_ptr<fake_socket_handle>> multicast_group;
         {
             auto lock = std::unique_lock(mtx_);
+            if (block_udp_messages_[_src.address()] || block_udp_messages_[_dst.address()]) {
+                LOCAL_LOG << " message from " << _src << " to " << _dst << " blocked";
+                return true;
+            }
             if (auto it_multicast = multicast_to_fds_.find(_dst.address()); it_multicast != multicast_to_fds_.end()) {
                 for (auto const& fd : it_multicast->second) {
                     if (auto handle_it = fd_to_handle_.find(fd); handle_it != fd_to_handle_.end()) {
@@ -920,10 +941,15 @@ void socket_manager::send_someip(std::vector<unsigned char> const& _buffer, boos
                 udp_handle->consume(_buffer, _src, _dst);
             }
         }
+        return true;
     } else {
         LOCAL_LOG << " trying to send unicast message from " << _src << " to " << _dst;
         std::shared_ptr<fake_socket_handle> shared_handle;
         auto lock = std::unique_lock(mtx_);
+        if (block_udp_messages_[_src.address()] || block_udp_messages_[_dst.address()]) {
+            LOCAL_LOG << " message from " << _src << " to " << _dst << " blocked";
+            return !react_on_unassigned_udp_port_;
+        }
         fd_t fd{0};
         if (auto endpoint_it = endpoint_udp_to_fd_.find(_dst); endpoint_it != endpoint_udp_to_fd_.end()) {
             fd = endpoint_it->second;
@@ -932,9 +958,12 @@ void socket_manager::send_someip(std::vector<unsigned char> const& _buffer, boos
             if (shared_handle = handle->second.lock(); shared_handle) {
                 if (auto udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(shared_handle); udp_handle) {
                     udp_handle->consume(_buffer, _src, _dst);
+                    return true;
                 }
             }
         }
+        // if we reach this point -> no corresponding endpoint found -> configuration matters
+        return !react_on_unassigned_udp_port_;
     }
 }
 

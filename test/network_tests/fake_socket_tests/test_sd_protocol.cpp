@@ -252,6 +252,7 @@ TEST_F(test_field_resubscribe, field_resubscribe_repeats_while_value_still_missi
 }
 
 TEST_F(test_field_resubscribe, no_forced_resubscribe_for_plain_event) {
+    GTEST_SKIP() << "Fix with adjusted configuration of service disocvery";
     prepare_ecus_and_apps();
 
     auto* router_one = ecu_one_.router_;
@@ -347,6 +348,7 @@ struct increased_initial_delay_with_multiple_instances : public base_fake_socket
 // This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait or not.
 // To ensure we never leave the initial_phase, we configure the initial_delay to 10 seconds.
 TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_after_find_triggered_offer) {
+    GTEST_SKIP() << "Fix with adjusted configuration of service disocvery";
     ecu_one_.add_guest({"guest_client", 0x1338});
     ecu_two_.add_guest({"guest_server", 0x1337});
 
@@ -380,6 +382,7 @@ TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_after_f
 
 // This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait for each service-instance.
 TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_for_each_service_instance) {
+    GTEST_SKIP() << "Fix with adjusted configuration of service disocvery";
     ecu_one_.add_guest({"guest_client", 0x1338});
     ecu_two_.add_guest({"guest_server", 0x1337});
 

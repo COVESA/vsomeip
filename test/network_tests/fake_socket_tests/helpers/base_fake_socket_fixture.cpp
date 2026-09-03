@@ -230,6 +230,10 @@ void base_fake_socket_fixture::fail_on_tcp_port_bind(port_t _port, bool _fail) {
     socket_manager_->fail_on_tcp_port_bind(_port, _fail);
 }
 
+void base_fake_socket_fixture::react_on_unassigned_udp_port(bool _react) {
+    socket_manager_->react_on_unassigned_udp_port(_react);
+}
+
 void base_fake_socket_fixture::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
     socket_manager_->set_ignore_broken_pipe(_app_name, _set);
 }

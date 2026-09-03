@@ -91,6 +91,19 @@ public:
     void fail_on_tcp_port_bind(port_t _port, bool fail);
 
     /**
+     * In case a udp message is received by a host for a unassigned port the icmp message
+     * Destination port unreachable might be returned to the sending host.
+     * If a linux kernel receives such a message after sending with a "connected" udp port
+     * it will queue the "connection refused" error that will then be returned in the
+     * receive_cbk.
+     * This option enables/disables the simulation of this behavior:
+     * If a connected udp socket tries to send to an unreachable address (no bound udp socket),
+     * the sending udp socket will receive a "connection_refused" error with the next
+     * receive_cbk.
+     **/
+    void react_on_unassigned_udp_port(bool _react);
+
+    /**
      * Waits until either the timeout expires, or the application associated
      * with this name called async_accept on some fake_acceptor.
      * Useful to await the start of the routing application.
@@ -168,6 +181,11 @@ public:
      * Used to simulate a loss of network interface.
      */
     void set_ignore_ip(boost::asio::ip::address _ip, bool _ignore_connections);
+
+    /**
+     * Ensures that every udp message from or to this ip is dropped
+     **/
+    void set_block_udp_messages(boost::asio::ip::address _ip, bool _block);
 
     /**
      * Ensures that write calls from _client are reported to be successful, but if _delay == true,
@@ -426,7 +444,13 @@ public:
      */
     void leave_multicast_group(boost::asio::ip::address _multicast, fd_t _fd);
 
-    void send_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
+    /**
+     * if react_on_unassigned_udp_port_ == true,
+     * this function returns false in case no unicast endpoint could be found
+     * else,
+     * always returns true
+     **/
+    bool send_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
 
     /*
      * Inserts an error into the next receive operation performed by the given endpoint.
@@ -474,6 +498,7 @@ private:
     };
 
     std::mutex mtx_;
+    bool react_on_unassigned_udp_port_{false};
     std::condition_variable assignment_cv_;
     std::condition_variable connectable_cv_;
     std::condition_variable multicast_join_cv_;
@@ -504,6 +529,7 @@ private:
     std::map<std::string, std::set<std::pair<boost::asio::ip::udp::endpoint, fd_t>>> binded_multicast_endpoints_;
     // persisted delay state per sending endpoint; applied immediately if already bound, or on bind otherwise
     std::map<boost::asio::ip::udp::endpoint, bool> udp_sending_delay_;
+    std::map<boost::asio::ip::address, bool> block_udp_messages_;
     std::map<std::string, std::map<boost::asio::ip::udp::endpoint, std::vector<pending_someip_pipe>>> pending_someip_pipes_;
     std::set<std::string> connections_to_ignore_;
     std::set<boost::asio::ip::address> ignored_networks_;
