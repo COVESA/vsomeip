@@ -24,14 +24,11 @@ TEST(someip_application_test_single_process, notify_increasing_counter) {
     for (int var = 0; var < 10; ++var) {
         // every time the client is restarted it becomes the rm_stub again
         application_test_client its_client(application_test::service);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        if (var != 9) {
-            its_client.stop(false);
-        } else {
-            its_client.stop(true);
-        }
+        bool const answered = its_client.await_responses(1);
+        its_client.stop(var == 9);
+        EXPECT_TRUE(answered) << "[Client] service did not answer in iteration " << var;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(common::scaled_timeout(std::chrono::milliseconds(100)));
     its_receiver.on_shutdown_method_called(vsomeip::runtime::get()->create_message());
 }
 

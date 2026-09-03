@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -23,6 +24,7 @@
 #include "application_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_scale.hpp"
 
 class application_test_client {
 public:
@@ -143,6 +145,12 @@ public:
         app_->stop();
     }
 
+    [[nodiscard]] bool await_responses(std::uint32_t _count,
+                                       std::chrono::milliseconds _timeout = common::scaled_timeout(std::chrono::seconds(10))) {
+        std::unique_lock its_lock{requests_mutex_};
+        return responses_condition_.wait_for(its_lock, _timeout, [this, _count] { return received_responses_ >= _count; });
+    }
+
     void stop(bool check) {
         stop_called_ = true;
         std::scoped_lock its_lock{stop_mutex_};
@@ -154,7 +162,8 @@ public:
         }
 
         std::unique_lock its_requests_lock{requests_mutex_};
-        responses_condition_.wait_for(its_requests_lock, std::chrono::seconds(2), [this] { return received_responses_ >= sent_requests_; });
+        responses_condition_.wait_for(its_requests_lock, common::scaled_timeout(std::chrono::seconds(2)),
+                                      [this] { return received_responses_ >= sent_requests_; });
 
         VSOMEIP_INFO << "[Client] Going down. Sent " << sent_requests_ << " requests and received " << received_responses_
                      << " responses. Delta: " << sent_requests_ - received_responses_;
