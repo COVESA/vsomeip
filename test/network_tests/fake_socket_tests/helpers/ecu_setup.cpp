@@ -289,6 +289,9 @@ bool ecu_setup::await_connectable(std::string const& name, std::chrono::millisec
 boost::asio::ip::udp::endpoint ecu_setup::sd_endpoint() {
     return {config_.unicast_ip_, 30490};
 }
+boost::asio::ip::address ecu_setup::address() const {
+    return config_.unicast_ip_;
+}
 
 bool ecu_setup::set_routing(fake_netlink_connector::state_e _state) {
     netlink_state_ = _state;
@@ -298,6 +301,7 @@ bool ecu_setup::set_routing(fake_netlink_connector::state_e _state) {
         sm_.add(router_name_ + "_auxiliary_context_");
     }
 
+    sm_.set_block_udp_messages(config_.unicast_ip_, !allow_comm);
     sm_.set_ignore_ip(config_.unicast_ip_, !allow_comm);
     sm_.allow_ip_address_to_external(config_.unicast_ip_, allow_comm);
     sm_.set_netlink_connector_state(router_name_, _state);

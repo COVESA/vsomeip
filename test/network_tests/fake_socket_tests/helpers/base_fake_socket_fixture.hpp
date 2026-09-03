@@ -253,6 +253,11 @@ struct base_fake_socket_fixture : ::testing::Test {
     void fail_on_tcp_port_bind(port_t _port, bool _fail);
 
     /**
+     * @see socket_manager::react_on_unassigned_udp_port
+     */
+    void react_on_unassigned_udp_port(bool _react);
+
+    /**
      * @see socket_manager::set_ignore_broken_pipe
      */
     void set_ignore_broken_pipe(std::string const& _app_name, bool _set);

@@ -10,6 +10,7 @@
 #include "../test_logging.hpp"
 #include "../someip_message.hpp"
 
+#include <boost/asio/error.hpp>
 #include <mutex>
 #include <span>
 #include <thread>
@@ -363,7 +364,14 @@ void fake_udp_socket_handle::update_sending() {
 
     control_data_t input;
     while (sm_pipe.second->fetch_data(input)) {
-        sm_pipe.first->send_someip(input.buffer_, input.addresses_->src_, input.addresses_->dst_);
+        if (!sm_pipe.first->send_someip(input.buffer_, input.addresses_->src_, input.addresses_->dst_)) {
+            if (std::unique_lock lock{mtx_}; connected_ep_) {
+                LOCAL_LOG << __func__ << ": queueing connection_refused error as a reaction to an unsuccessful send on: " << socket_id_;
+                lock.unlock();
+                // this error is in accordance to the linux kernel on a send problem for a connected udp socket
+                stash_recv_ec(boost::asio::error::connection_refused);
+            }
+        }
     }
 }
 
