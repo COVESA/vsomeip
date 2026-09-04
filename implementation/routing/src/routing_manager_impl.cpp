@@ -51,6 +51,7 @@
 #include "../../service_discovery/include/service_discovery.hpp"
 #include "../../service_discovery/include/service_discovery_impl.hpp"
 #include "../../utility/include/bithelper.hpp"
+#include "../../utility/include/blocking_guard.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../tracing/include/connector_impl.hpp"
 #include "../../tracing/include/header.hpp"
@@ -1560,7 +1561,11 @@ bool routing_manager_impl::is_acl_message_allowed(boardnet_endpoint* _receiver, 
 
         message_acceptance_t message_acceptance{_remote_address.to_v4().to_uint(), _receiver->get_local_port(), is_local, _service,
                                                 _instance};
-        if (!message_acceptance_handler_(message_acceptance)) {
+        if (!invoke_watched(message_acceptance_handler_, lazy_description{[&](std::ostream& _log) {
+                                _log << "message_acceptance_handler(" << _remote_address.to_string() << ", [" << hex4(_service) << "."
+                                     << hex4(_instance) << "])";
+                            }},
+                            message_acceptance)) {
             VSOMEIP_WARNING << "Message from " << _remote_address.to_string() << " with service/instance " << hex4(_service) << "/"
                             << hex4(_instance) << " was rejected by the ACL check.";
             return false;
@@ -2829,7 +2834,7 @@ void routing_manager_impl::set_routing_state_unlocked(routing_state_e _routing_s
             ep_mgr_impl_->suspend();
 
             if (routing_state_handler_) {
-                routing_state_handler_(_routing_state);
+                invoke_watched(routing_state_handler_, "routing_state_handler(RS_SUSPENDED)", _routing_state);
             }
 
             VSOMEIP_INFO_P << "Set routing to RS_SUSPENDED done";
@@ -2861,7 +2866,7 @@ void routing_manager_impl::set_routing_state_unlocked(routing_state_e _routing_s
             VSOMEIP_INFO_P << "Go to normal operation.";
 
             if (routing_state_handler_) {
-                routing_state_handler_(_routing_state);
+                invoke_watched(routing_state_handler_, "routing_state_handler(RS_RESUMED)", _routing_state);
             }
 
             // start processing of SD messages (incoming remote offers should lead to new subscribe
@@ -2913,7 +2918,7 @@ void routing_manager_impl::set_routing_state_unlocked(routing_state_e _routing_s
             }
 
             if (routing_state_handler_) {
-                routing_state_handler_(_routing_state);
+                invoke_watched(routing_state_handler_, "routing_state_handler(RS_RESUMED)", _routing_state);
             }
 
             VSOMEIP_INFO_P << "Set routing to RS_RESUMED done";
@@ -2927,7 +2932,7 @@ void routing_manager_impl::set_routing_state_unlocked(routing_state_e _routing_s
             break;
         case routing_state_e::RS_DELAYED_RESUME:
             if (routing_state_handler_) {
-                routing_state_handler_(_routing_state);
+                invoke_watched(routing_state_handler_, "routing_state_handler(RS_DELAYED_RESUME)", _routing_state);
             }
             break;
         default:
@@ -2997,7 +3002,7 @@ void routing_manager_impl::start_ip_routing() {
 #endif
 
     if (routing_ready_handler_) {
-        routing_ready_handler_();
+        invoke_watched(routing_ready_handler_, "routing_ready_handler()");
     }
 
     if (discovery_) {

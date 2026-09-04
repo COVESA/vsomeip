@@ -40,6 +40,7 @@
 #include "../../routing/include/eventgroupinfo.hpp"
 #include "../../routing/include/serviceinfo.hpp"
 #include "../../utility/include/bithelper.hpp"
+#include "../../utility/include/blocking_guard.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
@@ -1015,7 +1016,7 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
                     ip.address_.v6_ = _sender.to_v6().to_bytes();
                     ip.is_v4_ = false;
                 }
-                reboot_notification_handler_(ip);
+                invoke_watched(reboot_notification_handler_, "reboot_notification_handler(" + _sender.to_string() + ")", ip);
             }
         }
 
@@ -1067,7 +1068,8 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
                         remote.ip_.address_.v6_ = _sender.to_v6().to_bytes();
                         remote.ip_.is_v4_ = false;
                     }
-                    accept_state.accept_entries_ = sd_acceptance_handler_(remote);
+                    accept_state.accept_entries_ =
+                            invoke_watched(sd_acceptance_handler_, "sd_acceptance_handler(" + _sender.to_string() + ")", remote);
                 } else {
                     accept_state.accept_entries_ = true;
                 }
