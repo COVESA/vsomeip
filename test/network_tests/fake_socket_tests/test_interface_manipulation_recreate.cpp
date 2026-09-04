@@ -12,6 +12,7 @@
 #include "helpers/service_state.hpp"
 
 #include "common/iteration_log_capture.hpp"
+#include "sample_interfaces.hpp"
 
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
