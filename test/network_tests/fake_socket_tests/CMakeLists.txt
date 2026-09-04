@@ -60,6 +60,7 @@ set (TEST_SUITES
     test_queue_limit
     test_interface_manipulation_recreate
     test_multiversion_support
+    test_send_offer_check
     test_protocol_messages
     test_registration_ordering
     test_remote_offer_endpoint_change

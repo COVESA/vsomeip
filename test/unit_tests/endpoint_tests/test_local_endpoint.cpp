@@ -26,6 +26,8 @@
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/system/error_code.hpp>
 
+#include <unistd.h>
+
 namespace vsomeip_v3::testing {
 
 class stub_factory : public abstract_socket_factory {
@@ -82,12 +84,17 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
         }
         return std::make_shared<local_server>(io_, std::move(acceptor), configuration_, server_routing_host_, false, "host-env");
     }
-    auto create_client_ep() {
+    auto create_client_ep(std::optional<vsomeip_sec_client_t> _expected_sec_client = {}) {
         return local_endpoint::create_client_ep(
                 local_endpoint_context{io_, configuration_, client_routing_host_},
-                local_endpoint_params{server_, client_, "",
+                local_endpoint_params{server_,
+                                      client_,
+                                      "",
                                       std::make_unique<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint{},
-                                                                              server_endpoint_, socket_role_e::CLIENT)});
+                                                                              server_endpoint_, socket_role_e::CLIENT),
+                                      {},
+                                      ILLEGAL_PORT,
+                                      _expected_sec_client});
     }
     auto create_client_config_command() {
         std::vector<byte_t> msg;
@@ -168,5 +175,58 @@ TEST_F(test_uds_local_endpoint, config_command_leads_to_information_forwarding_t
     io_.poll();
 
     EXPECT_EQ(received_messages, send_messages);
+}
+
+// The identity reported for the peer (passed in when the consumer endpoint is created) is checked
+// against the one actually read off the socket (SO_PEERCRED) once connected. On a mismatch -- e.g.
+// the client id was re-used by another process -- the connection must not become usable.
+TEST_F(test_uds_local_endpoint, connection_is_escalated_when_the_reported_peer_identity_does_not_match) {
+    // The peer is the test process itself, so its real identity is the real uid/gid; report a
+    // different one for it.
+    vsomeip_sec_client_t const its_wrong_identity{.user = getuid() + 1, .group = getgid() + 1, .host = 0, .port = VSOMEIP_SEC_PORT_UNUSED};
+
+    auto server = create_server();
+    auto client = create_client_ep(its_wrong_identity);
+
+    bool cleanup_called{false};
+    bool cleanup_due_to_error{false};
+    client->register_cleanup_handler([&](bool _due_to_error) {
+        cleanup_called = true;
+        cleanup_due_to_error = _due_to_error;
+    });
+
+    server->start([this](auto const& ep) {
+        server_eps_.push_back(ep);
+        ep->start();
+    });
+    client->start();
+    io_.poll();
+
+    EXPECT_TRUE(cleanup_called);
+    EXPECT_TRUE(cleanup_due_to_error);
+}
+
+TEST_F(test_uds_local_endpoint, connection_stays_up_when_the_reported_peer_identity_matches) {
+    vsomeip_sec_client_t const its_real_identity{.user = getuid(), .group = getgid(), .host = 0, .port = VSOMEIP_SEC_PORT_UNUSED};
+
+    auto server = create_server();
+    auto client = create_client_ep(its_real_identity);
+
+    bool cleanup_called{false};
+    client->register_cleanup_handler([&](bool) { cleanup_called = true; });
+
+    server->start([this](auto const& ep) {
+        server_eps_.push_back(ep);
+        ep->start();
+    });
+    client->start();
+    io_.poll();
+
+    EXPECT_FALSE(cleanup_called);
+
+    EXPECT_CALL(*server_routing_host_, lazy_load(::testing::_));
+    auto config_msg = create_client_config_command();
+    client->send(&config_msg[0], static_cast<uint32_t>(config_msg.size()));
+    io_.poll();
 }
 }

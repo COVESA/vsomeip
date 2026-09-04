@@ -9,9 +9,11 @@
 
 static bool is_remote_test = false;
 static bool remote_client_allowed = true;
+static bool is_offer_test = false;
+static bool offer_allowed = false;
 
 TEST(someip_security_test, basic_subscribe_request_response) {
-    security_service test_service(is_remote_test, remote_client_allowed);
+    security_service test_service(is_remote_test, remote_client_allowed, is_offer_test, offer_allowed);
     if (test_service.init()) {
         test_service.start();
         test_service.join_offer_thread();
@@ -24,6 +26,8 @@ int main(int argc, char** argv) {
     std::string test_local("--local");
     std::string test_allow_remote_client("--allow");
     std::string test_deny_remote_client("--deny");
+    std::string test_offer_allow("--offer-allow");
+    std::string test_offer_deny("--offer-deny");
     std::string help("--help");
 
     int i = 1;
@@ -36,6 +40,12 @@ int main(int argc, char** argv) {
             remote_client_allowed = true;
         } else if (test_deny_remote_client == argv[i]) {
             remote_client_allowed = false;
+        } else if (test_offer_allow == argv[i]) {
+            is_offer_test = true;
+            offer_allowed = true;
+        } else if (test_offer_deny == argv[i]) {
+            is_offer_test = true;
+            offer_allowed = false;
         } else if (help == argv[i]) {
             VSOMEIP_INFO << "Parameters:\n"
                          << "--remote: Run test between two hosts\n"
@@ -44,6 +54,10 @@ int main(int argc, char** argv) {
                             "sent by this test client to the service\n"
                          << "--deny: test is started with a policy that denies remote messages "
                             "sent by this test client to the service\n"
+                         << "--offer-allow: the consumer policy authorizes our offer -> it sends "
+                            "requests, including shutdown\n"
+                         << "--offer-deny: the consumer policy omits the offer authorization -> it "
+                            "sends nothing, so shut down on timeout\n"
                          << "--help: print this help";
         }
         i++;

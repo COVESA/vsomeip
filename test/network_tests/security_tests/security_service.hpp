@@ -18,7 +18,7 @@
 
 class security_service {
 public:
-    security_service(bool _is_remote_test, bool _remote_client_allowed);
+    security_service(bool _is_remote_test, bool _remote_client_allowed, bool _is_offer_test, bool _offer_allowed);
     bool init();
     void start();
     void stop();
@@ -42,4 +42,6 @@ private:
 
     bool is_remote_test_;
     bool remote_client_allowed_;
+    bool is_offer_test_;
+    bool offer_allowed_;
 };

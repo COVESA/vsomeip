@@ -7,6 +7,7 @@
 
 #include "protocol.hpp"
 
+#include "internal.hpp"
 #include "../../configuration/include/debounce_filter_impl.hpp"
 
 #include <vsomeip/enumeration_types.hpp>
@@ -361,6 +362,8 @@ struct distribute_security_policies_data {
     command_header header_;
     std::vector<std::span<byte_t const>> payload_;
 };
+static_assert(sizeof(uid_t) == 4 && sizeof(gid_t) == 4, "routing_info_entry_data assumes 4-byte uid_t/gid_t on the wire");
+
 // One entry of a ROUTING_INFO command. Unlike the fixed-size command payloads
 // above, an entry is variable-length: the (IPv4) address is optional and the
 // number of services varies, so this is an owning struct rather than a trivially
@@ -370,6 +373,10 @@ struct routing_info_entry_data {
 
     routing_info_entry_type_e type_{routing_info_entry_type_e::RIE_UNKNOWN};
     client_t client_{};
+    // Credentials of the offering client, as the routing manager host knows them from the
+    // routing connection of that client. ANY_UID/ANY_GID means "unknown to the host".
+    uid_t uid_{ANY_UID};
+    gid_t gid_{ANY_GID};
     boost::asio::ip::address_v4 address_{};
     port_t port_{0};
     std::vector<service_data> services_{};
@@ -436,6 +443,7 @@ inline uint32_t wire_size(routing_info_entry_data const& _entry) {
     if (!_entry.address_.is_unspecified()) {
         its_size += static_cast<uint32_t>(sizeof(boost::asio::ip::address_v4::bytes_type) + sizeof(port_t));
     }
+    its_size += static_cast<uint32_t>(sizeof(uid_t) + sizeof(gid_t)); // offering client's credentials
     its_size += sizeof(uint32_t); // services-array size field
     its_size += static_cast<uint32_t>(_entry.services_.size()) * service_data::wire_size_;
     return its_size;

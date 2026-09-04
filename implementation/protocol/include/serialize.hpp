@@ -191,6 +191,7 @@ uint32_t serialize(T const& _value, unsigned char* _mem) {
             written += write_fields(_mem + written, _value.port_);
         }
 
+        written += write_fields(_mem + written, _value.uid_, _value.gid_);
         written += write_fields(_mem + written, its_services_size, _value.services_);
         return written;
     } else if constexpr (std::is_same_v<T, subscribe_answer_data>) {

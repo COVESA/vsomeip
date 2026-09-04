@@ -308,7 +308,9 @@ inline uint32_t deserialize(std::vector<std::pair<uid_t, gid_t>>& _out, unsigned
 
 inline uint32_t deserialize(routing_info_entry_data& _out, unsigned char const* _mem, uint32_t _size) {
     // Wire layout: type (1) | entry-size (4) | client-info-size (4) | client (2)
-    //              [ IPv4 address (4) | port (2) ] | services-size (4) | N * service (wire_size_)
+    //              [ IPv4 address (4) | port (2) ] | uid (4) | gid (4)
+    //              | services-size (4) | N * service (wire_size_)
+    static constexpr uint32_t ENTRY_SIZE_FIELD_PREFIX = 1 + static_cast<uint32_t>(sizeof(uint32_t)); // type_ + entry-size field
     byte_t its_type{0};
     uint32_t its_entry_size{0};
     uint32_t its_client_size{0};
@@ -345,8 +347,14 @@ inline uint32_t deserialize(routing_info_entry_data& _out, unsigned char const* 
         parsed += consumed;
     }
 
+    uint32_t consumed = parse(_mem + parsed, _size - parsed, _out.uid_, _out.gid_);
+    if (consumed == 0) {
+        return 0;
+    }
+    parsed += consumed;
+
     uint32_t its_services_size{0};
-    uint32_t consumed = parse(_mem + parsed, _size - parsed, its_services_size);
+    consumed = parse(_mem + parsed, _size - parsed, its_services_size);
     if (consumed == 0) {
         return 0;
     }
@@ -363,6 +371,11 @@ inline uint32_t deserialize(routing_info_entry_data& _out, unsigned char const* 
         return 0;
     }
     parsed += consumed;
+
+    // No optional trailing section exists, so a size mismatch means a malformed entry.
+    if (its_entry_size != parsed - ENTRY_SIZE_FIELD_PREFIX) {
+        return 0;
+    }
 
     return parsed;
 }

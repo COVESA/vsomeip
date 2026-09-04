@@ -66,6 +66,17 @@ void socket_manager::clear_handler(std::string const& app) {
     }
 }
 
+void socket_manager::set_peer_identity(std::string const& _app_name, vsomeip_sec_client_t const& _identity) {
+    std::scoped_lock lock{mtx_};
+    app_name_to_identity_[_app_name] = _identity;
+}
+
+std::optional<vsomeip_sec_client_t> socket_manager::get_peer_identity(std::string const& _app_name) const {
+    std::scoped_lock lock{mtx_};
+    auto const it = app_name_to_identity_.find(_app_name);
+    return it == app_name_to_identity_.end() ? std::nullopt : std::optional<vsomeip_sec_client_t>{it->second};
+}
+
 void socket_manager::add_socket(std::weak_ptr<fake_socket_handle> _state, boost::asio::io_context* _io, socket_type _type) {
     if (auto const state = _state.lock(); state) {
         auto fd = next_fd_++;

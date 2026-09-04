@@ -11,7 +11,7 @@ fi
 
 # Select the consumer policy based on the requested offer scenario:
 #   --offer-allow : consumer authorizes the provider's offer  -> messages received
-#   --offer-deny  : consumer omits the offer authorization    -> messages dropped
+#   --offer-deny  : consumer omits the offer authorization    -> requests never sent
 case "${1:-}" in
     --offer-allow)
         CLIENT_CONFIGURATION=security_test_config_client_offer_allow.json
@@ -38,11 +38,14 @@ routingmanagerd &
 PID_VSOMEIPD=$!
 
 export VSOMEIP_APPLICATION_NAME=service-sample
-./security_test_service --local &
+# The service needs the scenario too: on --offer-deny the consumer never sends the shutdown
+# request, so the service has to shut itself down on timeout instead of waiting forever.
+./security_test_service --local "$1" &
 PID_SERVICE=$!
 
 # The consumer runs with its own policy, which either authorizes (allow) or
-# omits (deny) the provider's offer, exercising the receive-side offer check.
+# omits (deny) the provider's offer, exercising the offer check on both the send
+# and the receive path.
 export VSOMEIP_CONFIGURATION=$CLIENT_CONFIGURATION
 
 export VSOMEIP_APPLICATION_NAME=client-sample

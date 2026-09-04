@@ -222,6 +222,15 @@ struct fake_tcp_socket_handle : public fake_socket_handle {
     std::string get_app_name() const override;
 
     /**
+     * Fills @p _client with the identity configured (via socket_manager::set_peer_identity) for
+     * the app on the other end of this connection. Used by fake_uds_socket::get_peer_credentials()
+     * to simulate SO_PEERCRED, which the fake UDS transport does not actually implement. Leaves
+     * @p _client untouched (default/zeroed) if there is no connected peer, or no identity was
+     * configured for it -- mirrors "unknown" credentials.
+     **/
+    [[nodiscard]] bool get_peer_credentials(vsomeip_sec_client_t& _client) const;
+
+    /**
      * If called, then the inner_close call is going to be ignored.
      * This is useful to delay clean-up reactions in one side. Said reaction can then be triggered
      * with disconnect()

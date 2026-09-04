@@ -1389,12 +1389,47 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 }
             }
 
+            std::optional<vsomeip_sec_client_t> its_reported_sec_client;
+            if (its_client != VSOMEIP_ROUTING_CLIENT && (e.uid_ != ANY_UID || e.gid_ != ANY_GID)) {
+                its_reported_sec_client = vsomeip_sec_client_t{};
+                its_reported_sec_client->user = e.uid_;
+                its_reported_sec_client->group = e.gid_;
+                if (its_address.is_unspecified()) {
+                    its_reported_sec_client->port = VSOMEIP_SEC_PORT_UNUSED; // local (UDS) offerer
+                } else {
+                    its_reported_sec_client->host = htonl(e.address_.to_uint()); // remote/guest (TCP) offerer
+                    its_reported_sec_client->port = htons(its_port);
+                }
+
+                // The host is the trusted source for a client's credentials (it reads them off that
+                // client's routing connection). If it now reports a different identity for the same
+                // client id than we previously cached, the id was reused by a new client
+                bool identity_changed{false};
+                {
+                    std::scoped_lock its_lock(consumer_mutex_);
+                    if (auto it = consumer_.find(its_client); it != consumer_.end() && it->second.sec_client_
+                        && (it->second.sec_client_->user != its_reported_sec_client->user
+                            || it->second.sec_client_->group != its_reported_sec_client->group)) {
+                        identity_changed = true;
+                    }
+                }
+                if (identity_changed) {
+                    VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " was told that client 0x" << hex4(its_client)
+                                   << " now has a different security identity (uid/gid=" << its_reported_sec_client->user << "/"
+                                   << its_reported_sec_client->group << ") -> treating as a new client, dropping stale state.";
+                    cleanup_client(its_client, true, connection_role_e::consumer);
+                }
+            }
+
             std::vector<subscription_data_t> collected_subscriptions;
             {
                 std::scoped_lock its_lock(consumer_mutex_);
                 auto& data = consumer_[its_client];
                 data.address_ = its_address;
                 data.port_ = its_port;
+                if (its_reported_sec_client) {
+                    data.sec_client_ = its_reported_sec_client;
+                }
                 for (const auto& s : e.services_) {
                     const auto its_service(s.service_);
                     const auto its_instance(s.instance_);
@@ -2335,9 +2370,27 @@ bool routing_manager_client::send(client_t _client, std::shared_ptr<message> _me
         // Request
         client_t its_offerer = find_local_client(its_service, its_instance);
         if (its_offerer != VSOMEIP_ROUTING_CLIENT) {
-            its_target = find_or_create_consumer_ep(its_offerer);
-            if (!its_target) {
-                VSOMEIP_WARNING_P << "No endpoint to service to client: " << hex4(its_offerer) << " found or created";
+            auto const its_sec_client = find_consumer_sec_client(its_offerer);
+            if (!its_sec_client) {
+                // The offerer's identity is unknown, so it can neither be checked against the offer
+                // policy here nor be verified when connecting to it. Do not use a direct connection:
+                // leave the message to the routing manager host, which checked the offer when it
+                // accepted it.
+                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client())
+                                << " : routing_manager_client::send: identity of peer client 0x" << hex4(its_offerer)
+                                << " is unknown -> route request for service/instance " << hex4(its_service) << "/" << hex4(its_instance)
+                                << " via the routing manager host!";
+            } else if (VSOMEIP_SEC_OK != get_security()->is_client_allowed_to_offer(&*its_sec_client, its_service, its_instance)) {
+                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::send: peer client 0x"
+                              << hex4(its_offerer) << " with uid/gid=" << its_sec_client->user << "/" << its_sec_client->group
+                              << " is not allowed to offer service/instance " << hex4(its_service) << "/" << hex4(its_instance)
+                              << " -> Skip request!";
+                return false;
+            } else {
+                its_target = find_or_create_consumer_ep(its_offerer);
+                if (!its_target) {
+                    VSOMEIP_WARNING_P << "No endpoint to service to client: " << hex4(its_offerer) << " found or created";
+                }
             }
         }
     } else if (!utility::is_notification(its_message_type)) {
@@ -3087,7 +3140,7 @@ std::shared_ptr<local_endpoint> routing_manager_client::find_or_create_consumer_
         return nullptr;
     }
     if (!it->second.ep_) {
-        auto ep = ep_mgr_->create_consumer_endpoint(_client, get_client(), it->second.address_, it->second.port_);
+        auto ep = ep_mgr_->create_consumer_endpoint(_client, get_client(), it->second.address_, it->second.port_, it->second.sec_client_);
         if (!ep) {
             return nullptr;
         }
@@ -3103,6 +3156,12 @@ std::shared_ptr<local_endpoint> routing_manager_client::find_consumer_ep(client_
     std::scoped_lock lock{consumer_mutex_};
     auto const it = consumer_.find(_client);
     return it == consumer_.end() ? nullptr : it->second.ep_;
+}
+
+std::optional<vsomeip_sec_client_t> routing_manager_client::find_consumer_sec_client(client_t _client) const {
+    std::scoped_lock lock{consumer_mutex_};
+    auto const it = consumer_.find(_client);
+    return it == consumer_.end() ? std::nullopt : it->second.sec_client_;
 }
 
 void routing_manager_client::remove_consumer(client_t _client, bool _due_to_error,

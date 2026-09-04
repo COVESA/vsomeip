@@ -16,7 +16,7 @@
 
 TEST(single_process_security_test, basic_subscribe_request_response) {
     security_client client(false, true, false, false);
-    security_service service(false, true);
+    security_service service(false, true, false, false);
 
     auto router = vsomeip::runtime::get()->create_application("routingmanagerd");
 

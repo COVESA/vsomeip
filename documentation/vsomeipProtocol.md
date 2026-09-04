@@ -90,6 +90,8 @@
         Client         xx xx
         [Address]      xx .. xx    ; Client info size - sizeof(Client) - sizeof(Port)
         [Port]         xx xx
+        UID            xx xx xx xx    ; offering client's credentials, as the routing manager
+        GID            xx xx xx xx    ; host knows them (0xffffffff = unknown)
         Size           xx xx xx xx    ; Services size
             Service    xx xx
             Instance   xx xx
