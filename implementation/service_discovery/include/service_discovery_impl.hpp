@@ -48,7 +48,7 @@ class serviceentry_impl;
 class service_discovery_host;
 class subscription;
 
-typedef service_instance_map<std::shared_ptr<request>> requests_t;
+typedef versioned_service_instance_map<std::shared_ptr<request>> requests_t;
 
 struct entry_data_t {
     std::shared_ptr<entry_impl> entry_;
@@ -67,7 +67,7 @@ public:
     void suspend();
 
     void request_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl);
-    void release_service(service_t _service, instance_t _instance);
+    void release_service(service_t _service, instance_t _instance, major_version_t _major);
 
     void subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl, client_t _client,
                    const std::shared_ptr<eventgroupinfo>& _info);
@@ -75,7 +75,7 @@ public:
     void unsubscribe_all(service_t _service, instance_t _instance);
     void unsubscribe_all_on_suspend();
     void remove_subscriptions(service_t _service, instance_t _instance);
-    void reset_request_sent_counter(service_t _service, instance_t _instance);
+    void reset_request_sent_counter(service_t _service, instance_t _instance, major_version_t _major);
 
     bool send(bool _is_announcing);
 
@@ -190,12 +190,12 @@ private:
     bool check_static_header_fields(const std::shared_ptr<const message>& _message, const boost::asio::ip::address& _sender) const;
     bool check_layer_four_protocol(const std::shared_ptr<const ip_option_impl>& _ip_option) const;
 
-    void get_subscription_endpoints(service_t _service, instance_t _instance, std::shared_ptr<boardnet_endpoint>& _reliable,
-                                    std::shared_ptr<boardnet_endpoint>& _unreliable) const;
+    void get_subscription_endpoints(service_t _service, instance_t _instance, major_version_t _major,
+                                    std::shared_ptr<boardnet_endpoint>& _reliable, std::shared_ptr<boardnet_endpoint>& _unreliable) const;
     void get_subscription_address(const std::shared_ptr<boardnet_endpoint>& _reliable,
                                   const std::shared_ptr<boardnet_endpoint>& _unreliable, boost::asio::ip::address& _address) const;
 
-    void update_request(service_t _service, instance_t _instance);
+    void update_request(service_t _service, instance_t _instance, major_version_t _major);
 
     void start_offer_debounce_timer(std::chrono::milliseconds _duration);
     void stop_offer_debounce_timer();

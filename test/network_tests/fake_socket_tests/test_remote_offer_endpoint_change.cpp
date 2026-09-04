@@ -338,7 +338,7 @@ TEST_F(remote_offer_endpoint_change, second_offer_removes_endpoint_) {
 //  5. Expect the service to first became unavailable and then available
 //     and that the client does not send requests to the old port
 
-TEST_F(remote_offer_endpoint_change, second_offer_changes_endpoint_port_) {
+TEST_F(remote_offer_endpoint_change, second_offer_changes_endpoint_port) {
     GTEST_SKIP() << "Fix with adjusted configuration of service disocvery";
     // 1.
     auto* client = start_client_and_request();

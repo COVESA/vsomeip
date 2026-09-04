@@ -118,7 +118,8 @@ public:
                            remote_subscription_id_t _id);
 
     // interface to stub
-    std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, major_version_t _major,
+                                                                    bool _reliable);
 
     void remove_local(client_t _client);
 
@@ -156,7 +157,8 @@ public:
                           const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
                           const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
                           const endpoint_manager_impl::remote_offer_state& _state);
-    void del_routing_info(service_t _service, instance_t _instance, bool _has_reliable, bool _has_unreliable, bool _trigger_availability);
+    void del_routing_info(service_t _service, instance_t _instance, major_version_t _major, bool _has_reliable, bool _has_unreliable,
+                          bool _trigger_availability);
     void update_routing_info(std::chrono::milliseconds _elapsed);
     void is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                  const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
@@ -237,6 +239,17 @@ public:
 
     // endpoint_manager_impl requires this to be accessible
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance, major_version_t _major) const;
+    // Returns every concrete major currently known for (service, instance) -- used by
+    // release_service() to re-check each one individually when a client releases an ANY_MAJOR
+    // request, since such a request could plausibly have been counted (via has_requester()'s
+    // ANY_MAJOR-is-a-wildcard semantics) against any of them, not just whichever single major
+    // find_service(..., ANY_MAJOR) happens to arbitrarily resolve to.
+    std::map<major_version_t, std::shared_ptr<serviceinfo>> find_services(service_t _service, instance_t _instance) const;
+    // Returns the serviceinfo this host itself offers for (service, instance), regardless of
+    // major version -- unlike find_service(..., ANY_MAJOR), never returns an entry that only
+    // exists because a *different* host announced a different major of the same
+    // (service, instance) via SD.
+    std::shared_ptr<serviceinfo> find_local_service(service_t _service, instance_t _instance) const;
     bool offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     std::shared_ptr<serviceinfo> create_service_info(service_t _service, instance_t _instance, major_version_t _major,
                                                      minor_version_t _minor, ttl_t _ttl, bool _is_local_service);
@@ -261,6 +274,8 @@ public:
     void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
 private:
+    client_t find_local_provider(service_t _service, instance_t _instance, major_version_t _major,
+                                 std::scoped_lock<std::mutex> const& _service_state_lock);
     // Assumes mutex_ is already held by the caller.
     void set_routing_state_unlocked(routing_state_e _routing_state);
 
@@ -281,11 +296,8 @@ private:
 
     void init_service_info(service_t _service, instance_t _instance, bool _is_local_service);
 
-    std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable, client_t _client);
-
     std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable, client_t _client);
 
-    void clear_client_endpoints(service_t _service, instance_t _instance, bool _reliable);
     void clear_multicast_endpoints(service_t _service, instance_t _instance);
 
     std::set<eventgroup_t> get_subscribed_eventgroups(service_t _service, instance_t _instance);
@@ -293,8 +305,6 @@ private:
     void clear_targets_and_pending_sub_from_eventgroups(service_t _service, instance_t _instance);
 
     return_code_e check_error(const byte_t* _data, length_t _size, instance_t _instance) const;
-
-    bool supports_selective(service_t _service, instance_t _instance);
 
     void version_log_timer_cbk(boost::system::error_code const& _error, size_t _count);
 
@@ -313,8 +323,6 @@ private:
     void add_requested_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     void remove_requested_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                   minor_version_t _minor);
-    std::set<client_t> get_requesters(service_t _service, instance_t _instance, major_version_t _major);
-    std::set<client_t> get_requesters_unlocked(service_t _service, instance_t _instance, major_version_t _major);
 
     bool has_requester(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     bool has_requester_unlocked(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
@@ -375,8 +383,8 @@ private:
     void stop_offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                  minor_version_t _minor);
 
-    services_t get_services_remote() const;
-    void clear_service_info(service_t _service, instance_t _instance);
+    versioned_services_t get_services_remote() const;
+    void clear_service_info(service_t _service, instance_t _instance, major_version_t _major);
     versioned_services_t get_services() const;
 
     void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
@@ -486,7 +494,7 @@ private:
 
     message_acceptance_handler_t message_acceptance_handler_;
 
-    services_t services_remote_;
+    versioned_services_t services_remote_;
     mutable std::mutex services_remote_mutex_;
     versioned_services_t services_;
     mutable std::mutex services_mutex_;

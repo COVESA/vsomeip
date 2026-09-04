@@ -27,6 +27,7 @@
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
 
+#include <algorithm>
 #include <forward_list>
 #include <iomanip>
 
@@ -137,14 +138,14 @@ void endpoint_manager_impl::stop() {
 }
 
 std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance,
-                                                                                       bool _reliable) {
+                                                                                       major_version_t _major, bool _reliable) {
     std::shared_ptr<boardnet_endpoint> its_endpoint;
     bool start_endpoint(false);
     {
         std::scoped_lock its_lock(endpoint_mutex_);
-        its_endpoint = find_remote_client(_service, _instance, _reliable);
+        its_endpoint = find_remote_client(_service, _instance, _major, _reliable);
         if (!its_endpoint) {
-            its_endpoint = create_remote_client(_service, _instance, _reliable);
+            its_endpoint = create_remote_client(_service, _instance, _major, _reliable);
             start_endpoint = true;
         }
     }
@@ -154,7 +155,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_remote_
     return its_endpoint;
 }
 
-void endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance) {
+void endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance, major_version_t _major) {
     std::shared_ptr<boardnet_endpoint> its_reliable_endpoint;
     std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint;
     bool start_reliable_endpoint(false);
@@ -162,14 +163,14 @@ void endpoint_manager_impl::find_or_create_remote_client(service_t _service, ins
 
     {
         std::scoped_lock its_lock(endpoint_mutex_);
-        its_reliable_endpoint = find_remote_client(_service, _instance, true);
+        its_reliable_endpoint = find_remote_client(_service, _instance, _major, true);
         if (!its_reliable_endpoint) {
-            its_reliable_endpoint = create_remote_client(_service, _instance, true);
+            its_reliable_endpoint = create_remote_client(_service, _instance, _major, true);
             start_reliable_endpoint = true;
         }
-        its_unreliable_endpoint = find_remote_client(_service, _instance, false);
+        its_unreliable_endpoint = find_remote_client(_service, _instance, _major, false);
         if (!its_unreliable_endpoint) {
-            its_unreliable_endpoint = create_remote_client(_service, _instance, false);
+            its_unreliable_endpoint = create_remote_client(_service, _instance, _major, false);
             start_unreliable_endpoint = true;
         }
     }
@@ -191,7 +192,7 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
                                                     uint16_t _unreliable_port, remote_offer_state& _state) const {
 
     std::scoped_lock its_lock(endpoint_mutex_);
-    if (auto found_si = remote_service_info_.find({_service, _instance}); found_si != remote_service_info_.end()) {
+    if (auto found_si = remote_service_info_.find({_service, _instance, _major}); found_si != remote_service_info_.end()) {
         // Check the address of the already existing offer
         boost::asio::ip::address its_known_address;
         if (auto found_reliable = found_si->second.find(true); found_reliable != found_si->second.end()) {
@@ -268,7 +269,7 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
     }
 }
 
-void endpoint_manager_impl::add_remote_service_info(service_t _service, instance_t _instance,
+void endpoint_manager_impl::add_remote_service_info(service_t _service, instance_t _instance, major_version_t _major,
                                                     const std::shared_ptr<endpoint_definition>& _ep_definition) {
 
     std::shared_ptr<serviceinfo> its_info;
@@ -276,13 +277,12 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     bool must_report(false);
     {
         std::scoped_lock its_lock(endpoint_mutex_);
-        remote_service_info_[{_service, _instance}][_ep_definition->is_reliable()] = _ep_definition;
+        remote_service_info_[{_service, _instance, _major}][_ep_definition->is_reliable()] = _ep_definition;
 
-        its_endpoint = find_remote_client(_service, _instance, _ep_definition->is_reliable());
+        its_endpoint = find_remote_client(_service, _instance, _major, _ep_definition->is_reliable());
         must_report = (its_endpoint && its_endpoint->is_established_or_connected());
         if (must_report) {
-            // TODO major version
-            its_info = router_->find_service(_service, _instance, ANY_MAJOR);
+            its_info = router_->find_service(_service, _instance, _major);
         }
     }
 
@@ -291,7 +291,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     }
 }
 
-void endpoint_manager_impl::add_remote_service_info(service_t _service, instance_t _instance,
+void endpoint_manager_impl::add_remote_service_info(service_t _service, instance_t _instance, major_version_t _major,
                                                     const std::shared_ptr<endpoint_definition>& _ep_definition_reliable,
                                                     const std::shared_ptr<endpoint_definition>& _ep_definition_unreliable) {
 
@@ -300,18 +300,17 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     bool must_report(false);
     {
         std::scoped_lock its_lock(endpoint_mutex_);
-        remote_service_info_[{_service, _instance}][false] = _ep_definition_unreliable;
-        remote_service_info_[{_service, _instance}][true] = _ep_definition_reliable;
+        remote_service_info_[{_service, _instance, _major}][false] = _ep_definition_unreliable;
+        remote_service_info_[{_service, _instance, _major}][true] = _ep_definition_reliable;
 
-        its_unreliable = find_remote_client(_service, _instance, false);
-        its_reliable = find_remote_client(_service, _instance, true);
+        its_unreliable = find_remote_client(_service, _instance, _major, false);
+        its_reliable = find_remote_client(_service, _instance, _major, true);
 
         must_report = (its_unreliable && its_unreliable->is_established_or_connected() && its_reliable
                        && its_reliable->is_established_or_connected());
 
         if (must_report) {
-            // TODO major version
-            its_info = router_->find_service(_service, _instance, ANY_MAJOR);
+            its_info = router_->find_service(_service, _instance, _major);
         }
     }
 
@@ -321,13 +320,13 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     }
 }
 
-void endpoint_manager_impl::clear_remote_service_info(service_t _service, instance_t _instance, bool _reliable) {
+void endpoint_manager_impl::clear_remote_service_info(service_t _service, instance_t _instance, major_version_t _major, bool _reliable) {
     std::scoped_lock its_lock(endpoint_mutex_);
-    if (auto found_si = remote_service_info_.find({_service, _instance}); found_si != remote_service_info_.end()) {
-        if (found_si->second.erase(_reliable)) {
-            if (found_si->second.empty()) {
-                remote_service_info_.erase(found_si);
-            }
+
+    auto found = remote_service_info_.find({_service, _instance, _major});
+    if (found != remote_service_info_.end()) {
+        if (found->second.erase(_reliable) && found->second.empty()) {
+            remote_service_info_.erase(found);
         }
     }
 }
@@ -441,7 +440,7 @@ bool endpoint_manager_impl::remove_server_endpoint(uint16_t _port, bool _reliabl
     return false;
 }
 
-void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_t _instance, bool _reliable) {
+void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_t _instance, major_version_t _major, bool _reliable) {
 
     std::shared_ptr<boardnet_endpoint> its_endpoint;
 
@@ -453,8 +452,24 @@ void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_
 
     {
         std::scoped_lock its_lock(endpoint_mutex_);
-        // Clear client endpoints for remote services (generic and specific ones)
-        if (auto found_si = remote_services_.find({_service, _instance}); found_si != remote_services_.end()) {
+        // Major-scoped: only the exact (service, instance, major) entry is matched, so expiring
+        // one major of a (service, instance) never touches a different, still-alive major's
+        // client endpoint bookkeeping.
+        auto found_si = remote_services_.find({_service, _instance, _major});
+        // All known callers now resolve to a concrete major before reaching here (see
+        // routing_manager_impl::request_service()/release_service(), which resolve via
+        // find_service() -- the same one-major-per-(service,instance) resolution used
+        // everywhere else -- rather than forwarding a possibly-ANY_MAJOR value). remote_services_
+        // should therefore never actually be keyed by ANY_MAJOR. Kept as a defensive fallback with
+        // an error log: if this is ever hit, some caller has regressed back to passing ANY_MAJOR.
+        if (found_si == remote_services_.end() && _major == ANY_MAJOR) {
+            VSOMEIP_ERROR_P << "called with ANY_MAJOR for [" << hex4(_service) << "." << hex4(_instance)
+                            << "] -- falling back to an arbitrary concrete-major match; this should be unreachable";
+            found_si = std::find_if(remote_services_.begin(), remote_services_.end(), [&_service, &_instance](auto const& kv) {
+                return kv.first.service == _service && kv.first.instance == _instance;
+            });
+        }
+        if (found_si != remote_services_.end()) {
             if (const auto found_reliability = found_si->second.find(_reliable); found_reliability != found_si->second.end()) {
                 service_instances_[_service].erase(found_reliability->second.get());
                 its_endpoint = found_reliability->second;
@@ -905,8 +920,7 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
         for (auto& [its_si, its_reliability_map] : remote_services_) {
             if (auto found_endpoint = its_reliability_map.find(endpoint_is_reliable); found_endpoint != its_reliability_map.end()) {
                 if (found_endpoint->second == _endpoint) {
-                    // TODO major version
-                    std::shared_ptr<serviceinfo> its_info(router_->find_service(its_si.service, its_si.instance, ANY_MAJOR));
+                    std::shared_ptr<serviceinfo> its_info(router_->find_service(its_si.service, its_si.instance, its_si.major));
                     if (!its_info) {
                         _endpoint->set_established(true);
                         return;
@@ -943,8 +957,7 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _en
             const bool is_reliable = _endpoint->is_reliable();
             if (auto found_endpoint = its_reliability_map.find(is_reliable); found_endpoint != its_reliability_map.end()) {
                 if (found_endpoint->second == _endpoint) {
-                    // TODO major version
-                    std::shared_ptr<serviceinfo> its_info(router_->find_service(its_si.service, its_si.instance, ANY_MAJOR));
+                    std::shared_ptr<serviceinfo> its_info(router_->find_service(its_si.service, its_si.instance, its_si.major));
                     if (!its_info) {
                         return;
                     }
@@ -1018,10 +1031,17 @@ void endpoint_manager_impl::release_used_client_port(const boost::asio::ip::addr
     }
 }
 
-std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_remote_client(service_t _service, instance_t _instance, bool _reliable) {
+std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_remote_client(service_t _service, instance_t _instance,
+                                                                             major_version_t _major, bool _reliable) {
 
     std::shared_ptr<boardnet_endpoint> its_endpoint;
-    if (auto found_si = remote_services_.find({_service, _instance}); found_si != remote_services_.end()) {
+    if (_major == ANY_MAJOR) {
+
+        VSOMEIP_ERROR_P << "called with ANY_MAJOR for [" << hex4(_service) << "." << hex4(_instance)
+                        << "] -- falling back to an arbitrary concrete-major match; this should be unreachable";
+        return nullptr;
+    }
+    if (auto found_si = remote_services_.find({_service, _instance, _major}); found_si != remote_services_.end()) {
         if (auto found_reliability = found_si->second.find(_reliable); found_reliability != found_si->second.end()) {
             its_endpoint = found_reliability->second;
         }
@@ -1036,28 +1056,28 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_remote_client(ser
 
     // If another service within the same partition is hosted on the
     // same server_endpoint reuse the existing client_endpoint.
-    if (auto found_si_info = remote_service_info_.find({_service, _instance}); found_si_info != remote_service_info_.end()) {
+    std::shared_ptr<endpoint_definition> its_ep_def;
+    if (auto found_si_info = remote_service_info_.find({_service, _instance, _major}); found_si_info != remote_service_info_.end()) {
         if (auto found_reliable = found_si_info->second.find(_reliable); found_reliable != found_si_info->second.end()) {
-            std::shared_ptr<endpoint_definition> its_ep_def = found_reliable->second;
-            if (auto found_address = client_endpoints_.find(its_ep_def->get_address()); found_address != client_endpoints_.end()) {
-                if (auto found_port = found_address->second.find(its_ep_def->get_remote_port());
-                    found_port != found_address->second.end()) {
-                    if (auto found_reliable2 = found_port->second.find(_reliable); found_reliable2 != found_port->second.end()) {
-                        if (auto found_partition = found_reliable2->second.find(its_partition_id);
-                            found_partition != found_reliable2->second.end()) {
-                            its_endpoint = found_partition->second;
+            its_ep_def = found_reliable->second;
+        }
+    }
+    if (its_ep_def) {
+        if (auto found_address = client_endpoints_.find(its_ep_def->get_address()); found_address != client_endpoints_.end()) {
+            if (auto found_port = found_address->second.find(its_ep_def->get_remote_port()); found_port != found_address->second.end()) {
+                if (auto found_reliable2 = found_port->second.find(_reliable); found_reliable2 != found_port->second.end()) {
+                    if (auto found_partition = found_reliable2->second.find(its_partition_id);
+                        found_partition != found_reliable2->second.end()) {
+                        its_endpoint = found_partition->second;
 
-                            // store the endpoint under this service/instance id
-                            // as well - needed for later cleanup
-                            remote_services_[{_service, _instance}][_reliable] = its_endpoint;
-                            service_instances_[_service][its_endpoint.get()] = _instance;
+                        // store the endpoint under this service/instance/major id
+                        // as well - needed for later cleanup
+                        remote_services_[{_service, _instance, _major}][_reliable] = its_endpoint;
+                        service_instances_[_service][its_endpoint.get()] = _instance;
 
-                            // add endpoint to serviceinfo object
-                            // TODO major version
-                            if (auto found_service_info_inner = router_->find_service(_service, _instance, ANY_MAJOR);
-                                found_service_info_inner) {
-                                found_service_info_inner->set_endpoint(its_endpoint, _reliable);
-                            }
+                        // add endpoint to serviceinfo object
+                        if (auto found_service_info_inner = router_->find_service(_service, _instance, _major); found_service_info_inner) {
+                            found_service_info_inner->set_endpoint(its_endpoint, _reliable);
                         }
                     }
                 }
@@ -1068,7 +1088,8 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_remote_client(ser
     return its_endpoint;
 }
 
-std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(service_t _service, instance_t _instance, bool _reliable) {
+std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(service_t _service, instance_t _instance,
+                                                                               major_version_t _major, bool _reliable) {
     std::shared_ptr<boardnet_endpoint> its_endpoint;
     std::shared_ptr<endpoint_definition> its_endpoint_def;
     uint16_t its_local_port;
@@ -1076,12 +1097,18 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(s
     boost::asio::ip::address its_remote_address;
     uint16_t its_remote_port = ILLEGAL_PORT;
 
-    if (auto found_si = remote_service_info_.find({_service, _instance}); found_si != remote_service_info_.end()) {
+    if (_major == ANY_MAJOR) {
+        VSOMEIP_ERROR_P << "called with ANY_MAJOR for [" << hex4(_service) << "." << hex4(_instance) << "] -- this should be unreachable";
+        return nullptr;
+    }
+    if (auto found_si = remote_service_info_.find({_service, _instance, _major}); found_si != remote_service_info_.end()) {
         if (auto found_reliability = found_si->second.find(_reliable); found_reliability != found_si->second.end()) {
             its_endpoint_def = found_reliability->second;
-            its_remote_address = its_endpoint_def->get_address();
-            its_remote_port = its_endpoint_def->get_port();
         }
+    }
+    if (its_endpoint_def) {
+        its_remote_address = its_endpoint_def->get_address();
+        its_remote_port = its_endpoint_def->get_port();
     }
 
     if (its_remote_port != ILLEGAL_PORT) {
@@ -1098,13 +1125,12 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(s
                 request_used_client_port(its_remote_address, its_remote_port, _reliable, its_local_port);
 
                 service_instances_[_service][its_endpoint.get()] = _instance;
-                remote_services_[{_service, _instance}][_reliable] = its_endpoint;
+                remote_services_[{_service, _instance, _major}][_reliable] = its_endpoint;
 
                 partition_id_t its_partition = configuration_->get_partition_id(_service, _instance);
                 client_endpoints_[its_endpoint_def->get_address()][its_endpoint_def->get_port()][_reliable][its_partition] = its_endpoint;
                 // Set the basic route to the service in the service info
-                // TODO major version
-                auto found_service_info = router_->find_service(_service, _instance, ANY_MAJOR);
+                auto found_service_info = router_->find_service(_service, _instance, _major);
                 if (found_service_info) {
                     found_service_info->set_endpoint(its_endpoint, _reliable);
                 }
@@ -1422,8 +1448,8 @@ void endpoint_manager_impl::remove_routing_endpoint(client_t _client) {
         }
     }
 
-    // on_register_application must run for the now-installed endpoint, mirroring add_local_routing_endpoint. Must happen outside the lock:
-    // it re-enters via find_local_routing_endpoint, which re-acquires routing_endpoint_mtx_.
+    // on_register_application must run for the now-installed endpoint, mirroring add_local_routing_endpoint. Must happen outside the
+    // lock: it re-enters via find_local_routing_endpoint, which re-acquires routing_endpoint_mtx_.
     if (promoted) {
         router_->on_register_application(_client, promoted->peer_endpoint().address(), promoted->peer_endpoint().port() - 1);
     }

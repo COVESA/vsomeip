@@ -88,6 +88,12 @@ ecu_config& ecu_config::add_secure_service(service_instance si) {
     return *this;
 }
 
+ecu_config& ecu_config::with_diagnosis(vsomeip::diagnosis_t diagnosis, vsomeip::diagnosis_t mask) {
+    diagnosis_ = diagnosis;
+    diagnosis_mask_ = mask;
+    return *this;
+}
+
 namespace {
 
 template<typename T>
@@ -250,6 +256,10 @@ void write_service_discovery(std::ostringstream& o, bool enabled, const service_
     if (enabled) {
         o << R"(, "initial_delay_min" : ")" << sd.initial_delay_min_ << "\"";
         o << R"(, "initial_delay_max" : ")" << sd.initial_delay_max_ << "\"";
+        o << R"(, "repetitions_max" : ")" << sd.repetitions_max_ << "\"";
+        if (sd.repetitions_base_delay_) {
+            o << R"(, "repetitions_base_delay" : ")" << *sd.repetitions_base_delay_ << "\"";
+        }
         o << R"(, "ttl" : ")" << sd.ttl_ << "\"";
     }
     o << R"( })";
@@ -265,6 +275,13 @@ std::string to_json_string(const ecu_config& cfg) {
     o << R"({ "unicast" : ")" << host_ip << "\",";
     o << R"( "logging" : { "level" : "trace", "console" : "true", "version" : { "interval" : 0 } },)";
     o << R"( "tracing" : { "enable" : "true" },)";
+
+    if (cfg.diagnosis_) {
+        o << R"( "diagnosis" : ")" << to_hex(*cfg.diagnosis_) << "\",";
+    }
+    if (cfg.diagnosis_mask_) {
+        o << R"( "diagnosis_mask" : ")" << to_hex(*cfg.diagnosis_mask_) << "\",";
+    }
 
     o << R"( "applications" : )";
     write_array(o, cfg.apps_);

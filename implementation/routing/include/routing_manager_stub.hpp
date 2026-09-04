@@ -187,7 +187,7 @@ private:
 
     std::mutex lazy_load_mtx_;
 
-    std::map<client_t, service_instance_map<std::pair<major_version_t, minor_version_t>>> routing_info_;
+    std::map<client_t, versioned_service_instance_map<minor_version_t>> routing_info_;
     mutable std::mutex routing_info_mutex_;
     std::shared_ptr<configuration> configuration_;
 

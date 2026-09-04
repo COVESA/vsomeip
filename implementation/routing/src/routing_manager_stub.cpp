@@ -524,8 +524,8 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
     std::unique_lock its_lock{routing_info_mutex_};
     auto its_info = routing_info_.find(_client);
     if (its_info != routing_info_.end()) {
-        for (const auto& [si, version] : its_info->second) {
-            services_to_report.push_back(std::make_tuple(si.service, si.instance, version.first, version.second));
+        for (const auto& [si, minor] : its_info->second) {
+            services_to_report.push_back(std::make_tuple(si.service, si.instance, si.major, minor));
         }
     }
 
@@ -547,18 +547,16 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
     for (const auto& found_client : routing_info_) {
         // skip services which are offered on remote hosts
         if (found_client.first != VSOMEIP_ROUTING_CLIENT) {
-            for (const auto& [si, version] : found_client.second) {
-                const auto& [its_service, its_instance] = si;
+            for (const auto& [si, minor] : found_client.second) {
+                const auto& [its_service, its_instance, its_major] = si;
                 uint16_t its_reliable_port = configuration_->get_reliable_port(its_service, its_instance);
                 uint16_t its_unreliable_port = configuration_->get_unreliable_port(its_service, its_instance);
                 bool has_port = (its_reliable_port != ILLEGAL_PORT || its_unreliable_port != ILLEGAL_PORT);
 
                 if (_offer_type == offer_type_e::OT_ALL || (_offer_type == offer_type_e::OT_LOCAL && !has_port)
                     || (_offer_type == offer_type_e::OT_REMOTE && has_port)) {
-                    table.insert(protocol::service_data{.service_ = its_service,
-                                                        .instance_ = its_instance,
-                                                        .major_version_ = version.first,
-                                                        .minor_version_ = version.second});
+                    table.insert(protocol::service_data{
+                            .service_ = its_service, .instance_ = its_instance, .major_version_ = its_major, .minor_version_ = minor});
                 }
             }
         }
@@ -650,7 +648,7 @@ void routing_manager_stub::on_offer_service_unlocked(client_t _client, service_t
     VSOMEIP_INFO << "ON_OFFER_SERVICE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
                  << static_cast<int>(_major) << "." << _minor << "]";
 
-    routing_info_[_client][{_service, _instance}] = std::make_pair(_major, _minor);
+    routing_info_[_client][{_service, _instance, _major}] = _minor;
     if (configuration_->is_security_enabled()) {
         distribute_credentials(_client, _service, _instance);
     }
@@ -683,9 +681,8 @@ void routing_manager_stub::on_stop_offer_service_unlocked(client_t _client, serv
                  << static_cast<int>(_major) << "." << _minor << "]";
 
     if (auto found_client = routing_info_.find(_client); found_client != routing_info_.end()) {
-        if (auto found_si = found_client->second.find({_service, _instance}); found_si != found_client->second.end()) {
-            const auto& [found_major, found_minor] = found_si->second;
-            if ((_major == found_major && _minor == found_minor) || (_major == DEFAULT_MAJOR && _minor == DEFAULT_MINOR)) {
+        if (auto found_si = found_client->second.find({_service, _instance, _major}); found_si != found_client->second.end()) {
+            if (_minor == found_si->second) {
                 found_client->second.erase(found_si);
                 inform_requesters(_client, _service, _instance, _major, _minor,
                                   protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
@@ -784,10 +781,8 @@ bool routing_manager_stub::contained_in_routing_info(client_t _client, service_t
 bool routing_manager_stub::contained_in_routing_info_unlocked(client_t _client, service_t _service, instance_t _instance,
                                                               major_version_t _major, minor_version_t _minor) const {
     if (auto found_client = routing_info_.find(_client); found_client != routing_info_.end()) {
-        if (auto found_si = found_client->second.find({_service, _instance}); found_si != found_client->second.end()) {
-            if (found_si->second.first == _major && found_si->second.second == _minor) {
-                return true;
-            }
+        if (auto found_si = found_client->second.find({_service, _instance, _major}); found_si != found_client->second.end()) {
+            return found_si->second == _minor;
         }
     }
     return false;
@@ -987,8 +982,8 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
         for (const client_t c : its_clients) {
             if (const auto found_client = routing_info_.find(c); found_client != routing_info_.end()) {
                 if (request.instance_ == ANY_INSTANCE) {
-                    for (const auto& [si, version] : found_client->second) {
-                        if (si.service == request.service_ && (version.first == request.major_ || request.major_ == ANY_MAJOR)) {
+                    for (const auto& [si, minor] : found_client->second) {
+                        if (si.service == request.service_ && (si.major == request.major_ || request.major_ == ANY_MAJOR)) {
                             protocol::routing_info_entry_data its_entry;
                             its_entry.type_ = protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
                             its_entry.client_ = c;
@@ -996,14 +991,29 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                                 its_entry.address_ = its_address.to_v4();
                                 its_entry.port_ = its_port;
                             }
-                            its_entry.services_.push_back({request.service_, si.instance, version.first, version.second});
+                            its_entry.services_.push_back({request.service_, si.instance, si.major, minor});
+                            its_entries.emplace_back(std::move(its_entry));
+                        }
+                    }
+                } else if (request.major_ == ANY_MAJOR) {
+                    // No specific major requested: report every major currently offered for this
+                    // (service, instance) -- there may be more than one.
+                    for (const auto& [si, minor] : found_client->second) {
+                        if (si.service == request.service_ && si.instance == request.instance_) {
+                            protocol::routing_info_entry_data its_entry;
+                            its_entry.type_ = protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
+                            its_entry.client_ = c;
+                            if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
+                                its_entry.address_ = its_address.to_v4();
+                                its_entry.port_ = its_port;
+                            }
+                            its_entry.services_.push_back({request.service_, request.instance_, si.major, minor});
                             its_entries.emplace_back(std::move(its_entry));
                         }
                     }
                 } else {
-                    if (auto found_si = found_client->second.find({request.service_, request.instance_});
-                        found_si != found_client->second.end()
-                        && (found_si->second.first == request.major_ || request.major_ == ANY_MAJOR)) {
+                    if (auto found_si = found_client->second.find({request.service_, request.instance_, request.major_});
+                        found_si != found_client->second.end()) {
                         protocol::routing_info_entry_data its_entry;
                         its_entry.type_ = protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
                         its_entry.client_ = c;
@@ -1011,8 +1021,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                             its_entry.address_ = its_address.to_v4();
                             its_entry.port_ = its_port;
                         }
-                        its_entry.services_.push_back(
-                                {request.service_, request.instance_, found_si->second.first, found_si->second.second});
+                        its_entry.services_.push_back({request.service_, request.instance_, request.major_, found_si->second});
                         its_entries.emplace_back(std::move(its_entry));
                     }
                 }

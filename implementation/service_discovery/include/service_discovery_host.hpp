@@ -49,8 +49,8 @@ public:
                                   const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
                                   const endpoint_manager_impl::remote_offer_state& _state) = 0;
 
-    virtual void del_routing_info(service_t _service, instance_t _instance, bool _has_reliable, bool _has_unreliable,
-                                  bool _trigger_availability) = 0;
+    virtual void del_routing_info(service_t _service, instance_t _instance, major_version_t _major, bool _has_reliable,
+                                  bool _has_unreliable, bool _trigger_availability) = 0;
 
     virtual void update_routing_info(std::chrono::milliseconds _elapsed) = 0;
 
@@ -67,7 +67,8 @@ public:
     virtual void on_subscribe_ack_with_multicast(service_t _service, instance_t _instance, const boost::asio::ip::address& _sender,
                                                  const boost::asio::ip::address& _address, uint16_t _port) = 0;
 
-    virtual std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable) = 0;
+    virtual std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance,
+                                                                            major_version_t _major, bool _reliable) = 0;
 
     virtual void expire_subscriptions(const boost::asio::ip::address& _address) = 0;
     virtual void expire_services(const boost::asio::ip::address& _address) = 0;
