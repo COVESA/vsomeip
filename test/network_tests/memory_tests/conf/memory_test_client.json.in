@@ -1,29 +1,53 @@
 {
   "unicast" : "@TEST_IP_SLAVE@",
-  "logging": {
-    "level": "trace",
-    "console": "true"
+  "diagnosis" : "0x02",
+  "logging" : {
+    "level" : "debug",
+    "console" : "true"
   },
-  "tracing" :
-  {
-    "enable" : "false"
+  "tracing" : {
+    "enable" : "true"
   },
-  "services" :
-  [
+  "services" : [
     {
-      "service" : "0xb519",
+      "service" : "0xb51a",
       "instance" : "0x0001",
       "unicast" : "@TEST_IP_MASTER@",
-      "unreliable" : "30503",
-      "someip-tp" : {
-        "client-to-service": [ "0x8008", "0x8009", "0x800a", "0x800b", "0x800c", "0x800d", "0x800e", "0x800f", "0x8010", "0x8011", "0x8012", "0x8013", "0x8014", "0x8015", "0x8016", "0x8017", "0x8018", "0x8019", "0x801a", "0x801b"]
+      "unreliable" : "30504"
+    },
+    {
+      "service" : "0xb51b",
+      "instance" : "0x0001",
+      "unicast" : "@TEST_IP_MASTER@",
+      "reliable" : "30505",
+      "debounce-times" : {
+        "requests" : {
+          "0x0421" : {
+            "debounce-time" : "0",
+            "maximum-retention-time" : "1000"
+          }
+        }
       }
+    },
+    {
+      "service" : "0xb51c",
+      "instance" : "0x0001",
+      "unicast" : "@TEST_IP_MASTER@",
+      "unreliable" : "30506"
     }
   ],
-  "endpoint-queue-limit-local" : "20971520",
-  "endpoint-queue-limit-external" : "20971520",
-  "service-discovery" :
-   {
-      "enable" : "true"
-   }
+  "endpoint-queue-limits" : [
+    {
+      "unicast" : "@TEST_IP_MASTER@",
+      "ports" : [
+        {
+          "port" : "30505",
+          "queue-size-limit" : "300000"
+        }
+      ]
+    }
+  ],
+  "service-discovery" : {
+    "enable" : "true"
+  }
 }

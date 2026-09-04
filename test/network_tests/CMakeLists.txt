@@ -105,17 +105,27 @@ endfunction()
 #   NAME my_test_name
 #   COMMAND ${CMAKE_CURRENT_BINARY_DIR}/my_test_starter.sh ARG1 ARG2...
 #   SLAVES 1 # Number of slave containers needed (0 = none, default 0)
+#   SKIP_VALGRIND # Do not register this test when VALGRIND_TYPE is set.
+#   SKIP_SANITIZERS # Do not register this test in sanitizer builds.
 #   ENVIRONMENT VSOMEIP_CONFIGURATION=my_test_config.json # Optional.
 # )
 function(add_custom_test)
-    set(options)
+    set(options SKIP_VALGRIND SKIP_SANITIZERS)
     set(oneValueArgs NAME TIMEOUT SLAVES)
     set(multiValueArgs COMMAND ENVIRONMENT)
     cmake_parse_arguments(MY_TEST
         "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN}
     )
 
-    # Skip valgrind
+    if(MY_TEST_SKIP_VALGRIND AND DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
+        return()
+    endif()
+
+    if(MY_TEST_SKIP_SANITIZERS AND (ENABLE_SANITIZERS OR ENABLE_THREAD_SANITIZER))
+        return()
+    endif()
+
+    # Configure valgrind exclusions for child processes.
     if(DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
         set(TEST_ENTRYPOINT
             ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES},/usr/bin/seq,/usr/bin/sleep,/usr/bin/netstat,/usr/bin/awk,/usr/bin/mawk,/usr/bin/grep,/usr/bin/wc,/usr/bin/pgrep,/usr/bin/python3,*/python3,/usr/sbin/iptables,*/xtables-nft-multi,/usr/bin/mktemp
@@ -195,7 +205,11 @@ add_subdirectory(initial_event_tests)
 add_subdirectory(lazy_load_tests)
 add_subdirectory(magic_cookies_tests)
 add_subdirectory(malicious_data_tests)
-add_subdirectory(memory_tests)
+# The memory tests rely on Linux-only RSS sampling (/proc/self/statm) and
+# glibc's malloc_trim, which are not available on QNX.
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    add_subdirectory(memory_tests)
+endif()
 add_subdirectory(multicast_group_tests)
 add_subdirectory(offer_stop_offer_test)
 add_subdirectory(offer_tests)
