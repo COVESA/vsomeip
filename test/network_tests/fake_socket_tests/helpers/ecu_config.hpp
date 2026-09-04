@@ -7,6 +7,8 @@
 
 #include "service_state.hpp"
 
+#include "../../../../implementation/service_discovery/include/defines.hpp" // for VSOMEIP_SD_DEFAULT_*
+
 #include <boost/asio/ip/address.hpp>
 #include <sys/types.h>
 #include <cstdint>
@@ -87,10 +89,17 @@ struct acceptance_config {
 };
 
 struct service_discovery_config {
-    uint32_t initial_delay_min_{0};
-    uint32_t initial_delay_max_{0};
+    uint32_t initial_delay_min_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN};
+    uint32_t initial_delay_max_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX};
+    // VSOMEIP_SD_DEFAULT_TTL is DEFAULT_TTL (0xFFFFFF, "forever") -- not a usable default for a
+    // finite offer TTL, so this keeps its own explicit value instead of that macro.
     uint32_t ttl_{3};
+    uint32_t repetitions_max_{VSOMEIP_SD_DEFAULT_REPETITIONS_MAX};
+    // Unset -> omitted from the JSON, so vsomeip's own VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY
+    // applies; only set this when a test actually depends on the repetition-phase cadence.
+    std::optional<uint32_t> repetitions_base_delay_;
 };
+
 struct security_credentials {
     uid_t uid_{};
     gid_t gid_{};
@@ -121,6 +130,12 @@ struct ecu_config {
     /// secure port of a device that has acceptance rules configured.
     ecu_config& add_secure_service(service_instance si);
 
+    /// Sets this ECU's own diagnosis address (and, optionally, mask), giving its auto-assigned
+    /// client ids (via add_app()/apps_ without an explicit id) their own, non-overlapping range --
+    /// needed whenever multiple ecu_setup's share one test process, since utility::get_client_id_base()
+    /// is per-network but auto-assignment still starts from the same default range otherwise.
+    ecu_config& with_diagnosis(vsomeip::diagnosis_t diagnosis, vsomeip::diagnosis_t mask = 0xFF00);
+
     std::vector<application_config> apps_;
     std::vector<service_config> services_;
     std::string network_;
@@ -134,6 +149,8 @@ struct ecu_config {
     bool uds_preferred_{false};
     /// No security node at all means the security implementation stays switched off.
     std::optional<security_config> security_;
+    std::optional<vsomeip::diagnosis_t> diagnosis_;
+    std::optional<vsomeip::diagnosis_t> diagnosis_mask_;
 };
 
 /// Serializes an ecu_config to a vsomeip-compatible JSON configuration string.

@@ -10,6 +10,7 @@
 #include "attribute_recorder.hpp"
 #include "common/timeout_scale.hpp"
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -30,10 +31,14 @@ enum class gate_state { BLOCKED, UNBLOCKED };
  * The pipe is inspected message-by-message. Once the configured trigger fires,
  * the gate blocks further forwarding until explicitly re-opened via block(false).
  *
- * Two trigger kinds are supported:
- *  - trigger     : matches regular SOME/IP messages by service, method, optional
- *                  message type, and optional payload predicate.
- *  - sd_trigger  : matches SD entries by entry type and TTL.
+ * Three trigger kinds are supported:
+ *  - trigger      : matches regular SOME/IP messages by service, method, optional
+ *                   message type, and optional payload predicate.
+ *  - sd_trigger   : matches SD entries by entry type and TTL.
+ *  - sd_predicate : matches a whole SD message via an arbitrary caller-supplied
+ *                   predicate, for criteria sd_trigger can't express (e.g. a
+ *                   specific service/instance/major, or a condition spanning
+ *                   multiple entries in the same message).
  *
  * @note For SD multicast endpoints that may be restarted internally, it is
  *       important to call block(false) after the gated test part is complete.
@@ -78,6 +83,13 @@ public:
         bool operator==(sd_trigger const& _other) const { return id_ == _other.id_ && ttl_ == _other.ttl_; }
     };
 
+    /// Trigger matching a whole SD message via an arbitrary predicate -- for criteria
+    /// sd_trigger can't express (specific service/instance/major, or a condition that
+    /// spans multiple entries in the same message). Returning true means "match found".
+    struct sd_predicate {
+        std::function<bool(std::shared_ptr<sd::message_impl> const&)> predicate_;
+    };
+
     /// Lets the first _count SOME/IP messages matching _trigger through, then blocks.
     /// Resets any in-progress search and reopens the pipe to flush buffered data.
     void block_at(trigger _trigger, uint32_t _count = 1);
@@ -86,6 +98,11 @@ public:
     /// Resets any in-progress search and reopens the pipe to flush buffered data.
     /// @note See class-level note for SD multicast endpoint lifecycle details.
     void block_at(sd_trigger _trigger, uint32_t _count = 1);
+
+    /// Lets the first _count SD messages matching _predicate through, then blocks.
+    /// Resets any in-progress search and reopens the pipe to flush buffered data.
+    /// @note See class-level note for SD multicast endpoint lifecycle details.
+    void block_at(sd_predicate _predicate, uint32_t _count = 1);
 
     /// Unconditionally blocks (_block=true) or unblocks (_block=false),
     /// cancelling any active block_at search.
@@ -108,7 +125,7 @@ private:
     std::shared_ptr<data_pipe> pipe_;
 
     struct search {
-        std::variant<trigger, sd_trigger> trigger_;
+        std::variant<trigger, sd_trigger, sd_predicate> trigger_;
         uint32_t barrier_;
         uint32_t count_;
     };

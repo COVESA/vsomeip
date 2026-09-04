@@ -42,19 +42,20 @@ public:
         bool endpoints_changed{false};
     };
 
-    std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, major_version_t _major,
+                                                                    bool _reliable);
 
-    void find_or_create_remote_client(service_t _service, instance_t _instance);
-    void start_endpoint(vsomeip_v3::boardnet_endpoint& _endpoint);
+    void find_or_create_remote_client(service_t _service, instance_t _instance, major_version_t _major);
     void is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                  const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
                                  const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
                                  remote_offer_state& _state) const;
-    void add_remote_service_info(service_t _service, instance_t _instance, const std::shared_ptr<endpoint_definition>& _ep_definition);
-    void add_remote_service_info(service_t _service, instance_t _instance,
+    void add_remote_service_info(service_t _service, instance_t _instance, major_version_t _major,
+                                 const std::shared_ptr<endpoint_definition>& _ep_definition);
+    void add_remote_service_info(service_t _service, instance_t _instance, major_version_t _major,
                                  const std::shared_ptr<endpoint_definition>& _ep_definition_reliable,
                                  const std::shared_ptr<endpoint_definition>& _ep_definition_unreliable);
-    void clear_remote_service_info(service_t _service, instance_t _instance, bool _reliable);
+    void clear_remote_service_info(service_t _service, instance_t _instance, major_version_t _major, bool _reliable);
 
     std::shared_ptr<boardnet_endpoint> create_server_endpoint(uint16_t _port, bool _reliable, bool _start);
 
@@ -64,7 +65,7 @@ public:
                                                                       instance_t _instance, bool& _is_found, bool _is_multicast = false);
     bool remove_server_endpoint(uint16_t _port, bool _reliable);
 
-    void clear_client_endpoints(service_t _service, instance_t _instance, bool _reliable);
+    void clear_client_endpoints(service_t _service, instance_t _instance, major_version_t _major, bool _reliable);
     void find_or_create_multicast_endpoint(service_t _service, instance_t _instance, const boost::asio::ip::address& _sender,
                                            const boost::asio::ip::address& _address, uint16_t _port);
     void clear_multicast_endpoints(service_t _service, instance_t _instance);
@@ -119,8 +120,9 @@ public:
     void add_local_routing_endpoint(std::shared_ptr<local_endpoint> _ep);
 
 private:
-    std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable);
-    std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, major_version_t _major, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, major_version_t _major,
+                                                            bool _reliable);
     std::shared_ptr<boardnet_endpoint> create_client_endpoint(const boost::asio::ip::address& _address, uint16_t _local_port,
                                                               uint16_t _remote_port, bool _reliable);
 
@@ -154,11 +156,12 @@ private:
     bool const is_uds_preferred_;
 
     mutable std::recursive_mutex endpoint_mutex_;
-    // Client endpoints for remote services
-    service_instance_map<std::map<bool, std::shared_ptr<endpoint_definition>>> remote_service_info_;
+    // Client endpoints for remote services -- keyed including major version: two majors of the
+    // same (service, instance), discovered from different remote hosts, must not collapse into a
+    // single tracked endpoint.
+    versioned_service_instance_map<std::map<bool, std::shared_ptr<endpoint_definition>>> remote_service_info_;
 
-    typedef service_instance_map<std::map<bool, std::shared_ptr<boardnet_endpoint>>> remote_services_t;
-    remote_services_t remote_services_;
+    versioned_service_instance_map<std::map<bool, std::shared_ptr<boardnet_endpoint>>> remote_services_;
 
     using client_endpoints_t = std::map<boost::asio::ip::address,
                                         std::map<uint16_t, std::map<bool, std::map<partition_id_t, std::shared_ptr<boardnet_endpoint>>>>>;

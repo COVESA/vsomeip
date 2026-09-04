@@ -205,7 +205,11 @@ void service_discovery_impl::request_service(service_t _service, instance_t _ins
     bool state_changed = false;
     {
         std::scoped_lock its_lock(requested_mutex_);
-        auto [it, inserted] = requested_.emplace(service_instance_t{_service, _instance}, std::shared_ptr<request>{});
+        // Keyed including major: two majors of the same (service, instance) are tracked as
+        // separate pending requests, each with its own FindService repetition/debounce state --
+        // otherwise the second request silently no-ops because the (service, instance) slot is
+        // already taken by the first.
+        auto [it, inserted] = requested_.emplace(versioned_service_instance_t{_service, _instance, _major}, std::shared_ptr<request>{});
         if (inserted) {
             it->second = std::make_shared<request>(_major, _minor, _ttl);
             state_changed = true;
@@ -217,28 +221,54 @@ void service_discovery_impl::request_service(service_t _service, instance_t _ins
     }
 }
 
-void service_discovery_impl::release_service(service_t _service, instance_t _instance) {
+void service_discovery_impl::release_service(service_t _service, instance_t _instance, major_version_t _major) {
     bool state_changed = false;
     {
         std::scoped_lock its_lock(requested_mutex_);
-        state_changed = requested_.erase({_service, _instance}) > 0;
+        // Keyed including major: only forget the specific major being released, so a different
+        // client's still-active request for another major of the same (service, instance) keeps
+        // its own FindService repetition/debounce state untouched.
+        if (auto it = requested_.find(versioned_service_instance_t{_service, _instance, _major}); it != requested_.end()) {
+            requested_.erase(it);
+            state_changed = true;
+        }
     }
     if (state_changed) {
-        VSOMEIP_INFO << "RELEASE SD: [" << hex4(_service) << "." << hex4(_instance) << "]";
+        VSOMEIP_INFO << "RELEASE SD: [" << hex4(_service) << "." << hex4(_instance) << ":" << static_cast<int>(_major) << "]";
     }
 }
 
-void service_discovery_impl::reset_request_sent_counter(service_t _service, instance_t _instance) {
+void service_discovery_impl::reset_request_sent_counter(service_t _service, instance_t _instance, major_version_t _major) {
     std::scoped_lock its_lock{requested_mutex_};
-    if (auto find_instance = requested_.find({_service, _instance}); find_instance != requested_.end()) {
-        find_instance->second->set_sent_counter(0);
+    // Major-scoped: only the exact (service, instance, major) whose TTL actually expired goes
+    // back into the FindService repetition phase. A different, still-fully-available major of the
+    // same (service, instance) must keep its own "already found" state untouched, otherwise its
+    // request gets spuriously reset too and a stale Find entry reappears in the next SD message.
+    if (auto it = requested_.find(versioned_service_instance_t{_service, _instance, _major}); it != requested_.end()) {
+        it->second->set_sent_counter(0);
+    }
+    // A request made with ANY_MAJOR is stored under its own {service, instance, ANY_MAJOR} key -- but TTL expiry is
+    // always reported for the concrete major that actually went away. Reset that ANY_MAJOR entry
+    // too, if present: it cares about any concrete major disappearing exactly as much as it cared
+    // about one appearing, otherwise its sent-counter is never reset and no further Find is ever
+    // sent again for it.
+    if (auto it = requested_.find(versioned_service_instance_t{_service, _instance, ANY_MAJOR}); it != requested_.end()) {
+        it->second->set_sent_counter(0);
     }
 }
 
-void service_discovery_impl::update_request(service_t _service, instance_t _instance) {
+void service_discovery_impl::update_request(service_t _service, instance_t _instance, major_version_t _major) {
     std::scoped_lock its_lock(requested_mutex_);
-    if (auto find_instance = requested_.find({_service, _instance}); find_instance != requested_.end()) {
+    if (auto find_instance = requested_.find({_service, _instance, _major}); find_instance != requested_.end()) {
         find_instance->second->set_sent_counter(uint8_t(repetitions_max_ + 1));
+    }
+    // A request made with ANY_MAJOR is stored under its own {service, instance, ANY_MAJOR} key -- but an
+    // incoming OfferService always carries the concrete major that satisfied it. Stop that ANY_MAJOR
+    // entry's repetition phase too, if present, the same way the exact-major entry above was just
+    // stopped -- otherwise it is left free to keep sending redundant FindService messages even
+    // though the service it was looking for is already available.
+    if (auto it = requested_.find(versioned_service_instance_t{_service, _instance, ANY_MAJOR}); it != requested_.end()) {
+        it->second->set_sent_counter(uint8_t(repetitions_max_ + 1));
     }
 }
 
@@ -267,7 +297,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
     }
 
     std::shared_ptr<boardnet_endpoint> its_reliable, its_unreliable;
-    get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
+    get_subscription_endpoints(_service, _instance, _major, its_reliable, its_unreliable);
 
     // New subscription
     std::shared_ptr<subscription> its_subscription = create_subscription(_major, _ttl, its_reliable, its_unreliable, _info);
@@ -338,11 +368,16 @@ void service_discovery_impl::send_subscription(const std::shared_ptr<subscriptio
     }
 }
 
-void service_discovery_impl::get_subscription_endpoints(service_t _service, instance_t _instance,
+void service_discovery_impl::get_subscription_endpoints(service_t _service, instance_t _instance, major_version_t _major,
                                                         std::shared_ptr<boardnet_endpoint>& _reliable,
                                                         std::shared_ptr<boardnet_endpoint>& _unreliable) const {
-    _unreliable = host_->find_or_create_remote_client(_service, _instance, false);
-    _reliable = host_->find_or_create_remote_client(_service, _instance, true);
+    // Always resolve to the concrete major of this subscription -- never ANY_MAJOR. This keeps
+    // endpoint_manager_impl::remote_services_ consistently keyed by a concrete major, so a later
+    // release (which recovers the requester's own possibly-ANY_MAJOR bookkeeping key) can't
+    // silently create a second, independent connection to the same remote service alongside this
+    // one, or leave this one's key ambiguous.
+    _unreliable = host_->find_or_create_remote_client(_service, _instance, _major, false);
+    _reliable = host_->find_or_create_remote_client(_service, _instance, _major, true);
 }
 
 void service_discovery_impl::get_subscription_address(const std::shared_ptr<boardnet_endpoint>& _reliable,
@@ -1311,14 +1346,14 @@ void service_discovery_impl::process_serviceentry(std::shared_ptr<serviceentry_i
         }
 
         // stop sending find service in repetition phase
-        update_request(its_service, its_instance);
+        update_request(its_service, its_instance, its_major);
 
         remove_remote_offer_type(its_service, its_instance, its_reliable_address, its_reliable_port, its_unreliable_address,
                                  its_unreliable_port);
         remove_subscriptions(its_service, its_instance);
         if (!is_suspended_) {
-            host_->del_routing_info(its_service, its_instance, (its_reliable_port != ILLEGAL_PORT), (its_unreliable_port != ILLEGAL_PORT),
-                                    true);
+            host_->del_routing_info(its_service, its_instance, its_major, (its_reliable_port != ILLEGAL_PORT),
+                                    (its_unreliable_port != ILLEGAL_PORT), true);
         }
     }
 }
@@ -1391,7 +1426,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
     }
 
     // stop sending find service in repetition phase
-    update_request(_service, _instance);
+    update_request(_service, _instance, _major);
 
     endpoint_manager_impl::remote_offer_state its_offer_state;
     host_->is_remote_service_known(_service, _instance, _major, _minor, _reliable_address, _reliable_port, _unreliable_address,
@@ -1417,7 +1452,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
     if (its_offer_state.endpoints_changed && (!its_offer_state.reliable_known && !its_offer_state.unreliable_known)) {
         VSOMEIP_WARNING_P << "Endpoints changed for [" << hex4(_service) << "." << hex4(_instance)
                           << "] and none of the previous endpoints are still known - updating routing info";
-        host_->del_routing_info(_service, _instance, true, true, true);
+        host_->del_routing_info(_service, _instance, _major, true, true, true);
     }
 
     if (update_remote_offer_type(_service, _instance, offer_type, _reliable_address, _reliable_port, _unreliable_address, _unreliable_port,
@@ -1449,7 +1484,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
         if (const auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
             for (const auto& [its_eventgroup_id, its_subscription] : found_si->second) {
                 std::shared_ptr<boardnet_endpoint> its_reliable, its_unreliable;
-                get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
+                get_subscription_endpoints(_service, _instance, its_subscription->get_major(), its_reliable, its_unreliable);
                 its_subscription->set_endpoint(its_reliable, true);
                 its_subscription->set_endpoint(its_unreliable, false);
                 for (const auto& its_client : its_subscription->get_clients()) {
@@ -1583,7 +1618,7 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
 
                             std::shared_ptr<boardnet_endpoint> its_unreliable;
                             std::shared_ptr<boardnet_endpoint> its_reliable;
-                            get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
+                            get_subscription_endpoints(_service, _instance, its_subscription->get_major(), its_reliable, its_unreliable);
                             get_subscription_address(its_reliable, its_unreliable, its_address);
 
                             its_subscription->set_endpoint(its_reliable, true);
