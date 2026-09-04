@@ -23,6 +23,7 @@
 #include <boost/asio.hpp>
 
 #include <limits>
+#include <optional>
 #include <vector>
 #include <cstdint>
 #include <memory>
@@ -64,6 +65,7 @@ struct local_endpoint_params {
     /// TCP endpoint the peer advertised during the assign_client handshake
     boost::asio::ip::address routing_address_{};
     port_t routing_port_{ILLEGAL_PORT};
+    std::optional<vsomeip_sec_client_t> expected_sec_client_{};
 };
 
 /**
@@ -329,6 +331,8 @@ private:
     // Note that only in case of the endpoint being
     // the server does the env contain meaningful data.
     local_client_data peer_data_;
+    /// @see local_endpoint_params::expected_sec_client_
+    std::optional<vsomeip_sec_client_t> const expected_sec_client_;
 
     uint32_t const max_connection_attempts_{0};
     uint32_t reconnect_counter_{0};

@@ -103,6 +103,11 @@ struct service_discovery_config {
 struct security_credentials {
     uid_t uid_{};
     gid_t gid_{};
+    /// Service instances this uid/gid may offer. An empty list means it may offer nothing --
+    /// is_offer_allowed() only accepts what an allow-policy lists explicitly.
+    std::vector<service_instance> offers_{};
+    /// Service instances this uid/gid may request (all methods).
+    std::vector<service_instance> requests_{};
 };
 
 /// Credential based security. Every entry of allowed_ becomes an allow-policy for that uid/gid

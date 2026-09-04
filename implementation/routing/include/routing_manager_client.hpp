@@ -9,6 +9,7 @@
 #include <mutex>
 #include <atomic>
 #include <chrono>
+#include <optional>
 #include <span>
 #include <tuple>
 #include <vector>
@@ -431,8 +432,13 @@ private:
         std::shared_ptr<local_endpoint> ep_;
         boost::asio::ip::address address_;
         port_t port_;
+        std::optional<vsomeip_sec_client_t> sec_client_;
     };
     std::unordered_map<client_t, consumer_data> consumer_;
+
+    /// @brief Returns the offering client's security identity as reported by the routing manager
+    /// host, or std::nullopt when unknown (no consumer entry, or the host did not report it).
+    [[nodiscard]] std::optional<vsomeip_sec_client_t> find_consumer_sec_client(client_t _client) const;
 
     bool request_debounce_timer_running_;
     boost::asio::steady_timer request_debounce_timer_;

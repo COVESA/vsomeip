@@ -119,6 +119,7 @@ std::string to_string(vsomeip_v3::protocol::routing_info_entry_data const& e) {
     s << ", client_id: " << hex4(e.client_);
     s << ", address: " << e.address_;
     s << ", port: " << e.port_;
+    s << ", uid/gid: " << e.uid_ << "/" << e.gid_;
     s << ", services: " << to_string(e.services_);
     return s.str();
 }

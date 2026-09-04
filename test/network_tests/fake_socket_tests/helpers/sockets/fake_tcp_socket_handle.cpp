@@ -517,6 +517,26 @@ std::string fake_tcp_socket_handle::get_app_name() const {
     return socket_id_.app_name_;
 }
 
+bool fake_tcp_socket_handle::get_peer_credentials(vsomeip_sec_client_t& _client) const {
+    auto const peer = [&]() -> std::shared_ptr<fake_tcp_socket_handle> {
+        auto const lock = std::scoped_lock(mtx_);
+        return connected_socket_.lock();
+    }();
+    if (!peer) {
+        return true; // not connected (yet); leave _client as-is, same as an unread real socket
+    }
+    auto const sm = [&]() -> std::shared_ptr<socket_manager> {
+        auto const lock = std::scoped_lock(mtx_);
+        return socket_manager_.lock();
+    }();
+    if (sm) {
+        if (auto const identity = sm->get_peer_identity(peer->get_app_name()); identity) {
+            _client = *identity;
+        }
+    }
+    return true;
+}
+
 void fake_tcp_socket_handle::ignore_inner_close() {
     auto const lock = std::scoped_lock(mtx_);
     ignore_inner_close_ = true;

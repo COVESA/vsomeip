@@ -82,6 +82,8 @@ vsomeip_routing_info_client = ProtoField.uint16(vsomeip_routing_info_name .. '.c
 vsomeip_routing_info_address = ProtoField.ipv4(vsomeip_routing_info_name .. '.address' , "Address", base_HEX)
 vsomeip_routing_info_port = ProtoField.uint16(vsomeip_routing_info_name .. '.port' , "Port", base.DEC)
 vsomeip_routing_info_size_client = ProtoField.uint32(vsomeip_routing_info_name .. '.sizeClient' , "Client Info Size", base.DEC)
+vsomeip_routing_info_uid = ProtoField.uint32(vsomeip_routing_info_name .. '.uid' , "UID", base.DEC)
+vsomeip_routing_info_gid = ProtoField.uint32(vsomeip_routing_info_name .. '.gid' , "GID", base.DEC)
 vsomeip_routing_info_size_service = ProtoField.uint32(vsomeip_routing_info_name .. '.sizeService' , "Service Info Size", base.DEC)
 
 vsomeip_routing_info.fields = {
@@ -91,6 +93,8 @@ vsomeip_routing_info.fields = {
     vsomeip_routing_info_address,
     vsomeip_routing_info_port,
     vsomeip_routing_info_size_client,
+    vsomeip_routing_info_uid,
+    vsomeip_routing_info_gid,
     vsomeip_routing_info_size_service
 }
 
@@ -237,6 +241,11 @@ function load_routing_service_instance_command(buffer, initial_position, routing
     local next_position = initial_position + client_size_field_size
     local client_buffer = buffer(next_position, client_size:le_uint())
     next_position = next_position + client_size:le_uint()
+    local credentials_field_size = 4
+    local uid = buffer(next_position, credentials_field_size)
+    next_position = next_position + credentials_field_size
+    local gid = buffer(next_position, credentials_field_size)
+    next_position = next_position + credentials_field_size
     local services_info_size_field_size = 4
     local services_info_size = buffer(next_position, services_info_size_field_size)
     next_position = next_position + services_info_size_field_size
@@ -245,6 +254,9 @@ function load_routing_service_instance_command(buffer, initial_position, routing
     routing_tree:add_le(vsomeip_routing_info_size_client, client_size)
 
     load_routing_info_client(client_buffer, routing_tree)
+
+    routing_tree:add_le(vsomeip_routing_info_uid, uid)
+    routing_tree:add_le(vsomeip_routing_info_gid, gid)
 
     routing_tree:add_le(vsomeip_routing_info_size_service, services_info_size)
     if number_of_services > 0 then

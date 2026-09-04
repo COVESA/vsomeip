@@ -49,7 +49,8 @@ void security_client::start() {
 void security_client::stop() {
     VSOMEIP_INFO << "Stopping...";
 
-    if (is_remote_client_allowed_ || is_offer_test_) {
+    bool const its_request_shutdown = is_offer_test_ ? offer_allowed_ : is_remote_client_allowed_;
+    if (its_request_shutdown) {
         shutdown_service();
 
         // Wait for the service to become unavailable, confirming the shutdown
@@ -168,9 +169,8 @@ void security_client::run() {
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
     if (is_offer_test_) {
-        // The consumer authorizes (allow) or omits (deny) the provider's offer.
-        // When missing, every response/notification is dropped by the receive-side
-        // offer check.
+        // The consumer authorizes (allow) or omits (deny) the provider's offer. When missing, the
+        // send-side offer check already skips the requests, so no response can come back either.
         if (offer_allowed_) {
             EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS, received_responses_);
             EXPECT_GE(received_allowed_events_, (uint32_t)0x01); // can be >= 1 due to multiple initial notifications

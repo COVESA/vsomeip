@@ -17,6 +17,7 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip/vsomeip_sec.h>
 #include <vsomeip/enumeration_types.hpp>
 #include "local_endpoint_manager_host.hpp"
 
@@ -44,7 +45,7 @@ public:
 
     std::shared_ptr<local_endpoint> create_routing_client();
     std::shared_ptr<local_endpoint> create_consumer_endpoint(client_t _client, client_t _own_id, boost::asio::ip::address _remote_address,
-                                                             port_t _remote_port);
+                                                             port_t _remote_port, std::optional<vsomeip_sec_client_t> _expected_sec_client);
 
 private:
     client_t get_client_id() const;
@@ -52,7 +53,8 @@ private:
 
     std::shared_ptr<local_endpoint> create_local_client_endpoint(client_t _client, client_t _own_id,
                                                                  boost::asio::ip::address const& _remote_address, port_t _remote_port,
-                                                                 bool _is_guest);
+                                                                 bool _is_guest,
+                                                                 std::optional<vsomeip_sec_client_t> _expected_sec_client = {});
 
     bool get_local_server_port(port_t& _port, const std::set<port_t>& _used_ports) const;
 

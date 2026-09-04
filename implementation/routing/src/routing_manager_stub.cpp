@@ -739,7 +739,13 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
                                              minor_version_t _minor, protocol::routing_info_entry_type_e _type) {
 
     boost::asio::ip::address its_address;
-    port_t its_port;
+    port_t its_port{0};
+    bool has_guest_address{false};
+    std::optional<vsomeip_sec_client_t> its_sec_client;
+    if (_type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE) {
+        has_guest_address = host_->get_endpoint_manager()->get_guest(_hoster, its_address, its_port);
+        its_sec_client = find_sec_client(_hoster);
+    }
 
     for (const client_t its_requester : host_->collect_requesters(_service, _instance, _major)) {
         if (its_requester == VSOMEIP_ROUTING_CLIENT) {
@@ -748,10 +754,13 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
         protocol::routing_info_entry_data its_entry;
         its_entry.type_ = _type;
         its_entry.client_ = _hoster;
-        if (_type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
-            && host_->get_endpoint_manager()->get_guest(_hoster, its_address, its_port)) {
+        if (has_guest_address) {
             its_entry.address_ = its_address.to_v4();
             its_entry.port_ = its_port;
+        }
+        if (its_sec_client) {
+            its_entry.uid_ = its_sec_client->user;
+            its_entry.gid_ = its_sec_client->group;
         }
         its_entry.services_.push_back({_service, _instance, _major, _minor});
         send_client_routing_info(its_requester, std::move(its_entry));
@@ -967,7 +976,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
     }
 
     boost::asio::ip::address its_address;
-    port_t its_port;
+    port_t its_port{0};
 
     std::vector<protocol::routing_info_entry_data> its_entries;
     std::scoped_lock its_guard{routing_info_mutex_};
@@ -981,16 +990,26 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
         its_clients.insert(VSOMEIP_ROUTING_CLIENT);
         for (const client_t c : its_clients) {
             if (const auto found_client = routing_info_.find(c); found_client != routing_info_.end()) {
+                bool const has_guest_address = host_->get_endpoint_manager()->get_guest(c, its_address, its_port);
+                auto const its_sec_client = find_sec_client(c);
+                auto const fill = [&](protocol::routing_info_entry_data& _entry) {
+                    _entry.type_ = protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
+                    _entry.client_ = c;
+                    if (has_guest_address) {
+                        _entry.address_ = its_address.to_v4();
+                        _entry.port_ = its_port;
+                    }
+                    if (its_sec_client) {
+                        _entry.uid_ = its_sec_client->user;
+                        _entry.gid_ = its_sec_client->group;
+                    }
+                };
+
                 if (request.instance_ == ANY_INSTANCE) {
                     for (const auto& [si, minor] : found_client->second) {
                         if (si.service == request.service_ && (si.major == request.major_ || request.major_ == ANY_MAJOR)) {
                             protocol::routing_info_entry_data its_entry;
-                            its_entry.type_ = protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
-                            its_entry.client_ = c;
-                            if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
-                                its_entry.address_ = its_address.to_v4();
-                                its_entry.port_ = its_port;
-                            }
+                            fill(its_entry);
                             its_entry.services_.push_back({request.service_, si.instance, si.major, minor});
                             its_entries.emplace_back(std::move(its_entry));
                         }
@@ -1001,12 +1020,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                     for (const auto& [si, minor] : found_client->second) {
                         if (si.service == request.service_ && si.instance == request.instance_) {
                             protocol::routing_info_entry_data its_entry;
-                            its_entry.type_ = protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
-                            its_entry.client_ = c;
-                            if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
-                                its_entry.address_ = its_address.to_v4();
-                                its_entry.port_ = its_port;
-                            }
+                            fill(its_entry);
                             its_entry.services_.push_back({request.service_, request.instance_, si.major, minor});
                             its_entries.emplace_back(std::move(its_entry));
                         }
@@ -1015,12 +1029,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                     if (auto found_si = found_client->second.find({request.service_, request.instance_, request.major_});
                         found_si != found_client->second.end()) {
                         protocol::routing_info_entry_data its_entry;
-                        its_entry.type_ = protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
-                        its_entry.client_ = c;
-                        if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
-                            its_entry.address_ = its_address.to_v4();
-                            its_entry.port_ = its_port;
-                        }
+                        fill(its_entry);
                         its_entry.services_.push_back({request.service_, request.instance_, request.major_, found_si->second});
                         its_entries.emplace_back(std::move(its_entry));
                     }

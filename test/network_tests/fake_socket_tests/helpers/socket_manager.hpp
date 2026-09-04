@@ -10,6 +10,8 @@
 #include "fake_netlink_connector.hpp"
 #include "app_connection.hpp"
 
+#include <vsomeip/vsomeip_sec.h>
+
 #include <boost/asio/ip/address.hpp>
 #include <cstdint>
 #include <mutex>
@@ -310,6 +312,20 @@ public:
     [[nodiscard]] bool ignore_broken_pipe(fake_tcp_socket_handle const& _handle);
 
     /**
+     * Configures the identity (uid/gid) to be reported as SO_PEERCRED-equivalent for UDS
+     * connections to _app_name -- the fake UDS socket has no real peer credentials to read
+     * (see fake_uds_socket::get_peer_credentials), so tests that need distinct, deterministic
+     * local peer identities (e.g. to exercise identity-based security checks) configure them
+     * here instead.
+     **/
+    void set_peer_identity(std::string const& _app_name, vsomeip_sec_client_t const& _identity);
+
+    /**
+     * Returns the identity configured via set_peer_identity() for _app_name, if any.
+     **/
+    [[nodiscard]] std::optional<vsomeip_sec_client_t> get_peer_identity(std::string const& _app_name) const;
+
+    /**
      * associates a fake_tcp_socket_handle to a io_context and therefore to an app_name.
      **/
     void add_socket(std::weak_ptr<fake_socket_handle> _state, boost::asio::io_context* _io, socket_type _type);
@@ -497,7 +513,7 @@ private:
         socket_role applied_on_;
     };
 
-    std::mutex mtx_;
+    mutable std::mutex mtx_;
     bool react_on_unassigned_udp_port_{false};
     std::condition_variable assignment_cv_;
     std::condition_variable connectable_cv_;
@@ -521,6 +537,7 @@ private:
     // is no longer used to schedule any other task.
     std::map<std::string, std::unique_ptr<boost::asio::steady_timer>> timers_;
 
+    std::map<std::string, vsomeip_sec_client_t> app_name_to_identity_;
     std::map<std::string, size_t> app_name_to_ignore_connections_count_;
     std::map<std::string, std::vector<boost::system::error_code>> app_to_next_connection_errors_;
     std::map<boost::asio::ip::address, std::set<fd_t>> multicast_to_fds_;

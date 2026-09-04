@@ -39,10 +39,7 @@ private:
     }
 
     void set_reuse_address(boost::system::error_code& _ec) override { _ec = boost::system::error_code(); }
-    [[nodiscard]] bool get_peer_credentials([[maybe_unused]] vsomeip_sec_client_t& _client) override {
-        // TODO
-        return true;
-    }
+    [[nodiscard]] bool get_peer_credentials(vsomeip_sec_client_t& _client) override { return state_->get_peer_credentials(_client); }
 
     void async_connect(endpoint const& _ep, connect_handler _handler) override { state_->connect(_ep, std::move(_handler)); }
     void async_receive(boost::asio::mutable_buffer _buffer, rw_handler _handler) {

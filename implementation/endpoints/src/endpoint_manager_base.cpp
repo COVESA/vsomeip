@@ -40,8 +40,9 @@ void endpoint_manager_base::init(std::shared_ptr<routing_host> const& _local_mes
 
 std::shared_ptr<local_endpoint> endpoint_manager_base::create_consumer_endpoint(client_t _client, client_t _own_id,
                                                                                 boost::asio::ip::address _remote_address,
-                                                                                port_t _remote_port) {
-    return create_local_client_endpoint(_client, _own_id, _remote_address, _remote_port, true);
+                                                                                port_t _remote_port,
+                                                                                std::optional<vsomeip_sec_client_t> _expected_sec_client) {
+    return create_local_client_endpoint(_client, _own_id, _remote_address, _remote_port, true, _expected_sec_client);
 }
 
 std::shared_ptr<local_acceptor> endpoint_manager_base::create_uds_local_acceptor(const std::string& _path, client_t _client) {
@@ -160,9 +161,10 @@ std::string endpoint_manager_base::get_client_env() const {
     return client_host_;
 }
 
-std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_endpoint(client_t _client, client_t _own_id,
-                                                                                    boost::asio::ip::address const& _remote_address,
-                                                                                    port_t _remote_port, bool _is_guest) {
+std::shared_ptr<local_endpoint>
+endpoint_manager_base::create_local_client_endpoint(client_t _client, client_t _own_id, boost::asio::ip::address const& _remote_address,
+                                                    port_t _remote_port, bool _is_guest,
+                                                    std::optional<vsomeip_sec_client_t> _expected_sec_client) {
     std::shared_ptr<local_endpoint> its_endpoint;
     boost::asio::ip::address const its_local_address = configuration_->get_routing_guest_address();
     bool const same_address = _is_guest && its_local_address == _remote_address;
@@ -175,10 +177,15 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_endpo
         its_path << utility::get_base_path(configuration_->get_network()) << std::hex << _client;
         its_endpoint = local_endpoint::create_client_ep(
                 context,
-                local_endpoint_params{_client, _own_id, "",
+                local_endpoint_params{_client,
+                                      _own_id,
+                                      "",
                                       std::make_shared<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(""),
                                                                               boost::asio::local::stream_protocol::endpoint(its_path.str()),
-                                                                              socket_role_e::CLIENT)});
+                                                                              socket_role_e::CLIENT),
+                                      {},
+                                      ILLEGAL_PORT,
+                                      _expected_sec_client});
         VSOMEIP_INFO << "Client [" << hex4(_own_id) << "] is connecting to [" << hex4(_client) << "] at " << its_path.str()
                      << " endpoint > " << its_endpoint;
     } else {
@@ -194,7 +201,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_endpo
                                               std::make_shared<local_socket_tcp_impl>(
                                                       io_, boost::asio::ip::tcp::endpoint(its_local_address, local_port_),
                                                       boost::asio::ip::tcp::endpoint(_remote_address, _remote_port), socket_role_e::CLIENT),
-                                              _remote_address, _remote_port});
+                                              _remote_address, _remote_port, _expected_sec_client});
 
                 VSOMEIP_INFO << "Client [" << hex4(_own_id) << "] @ " << its_local_address.to_string() << ":" << local_port_
                              << " is connecting to [" << hex4(_client) << "] @ " << _remote_address.to_string() << ":" << _remote_port

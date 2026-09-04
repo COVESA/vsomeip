@@ -134,8 +134,35 @@ void to_json(std::ostringstream& o, const eventgroup_config& eg) {
     o << " }";
 }
 
+/// One "offers"/"requests" section of a policy body. The legacy single-instance form is enough
+/// here and implies "all methods" for requests.
+void write_policy_section(std::ostringstream& o, char const* _key, std::vector<service_instance> const& _instances) {
+    o << R"( ")" << _key << R"(" : [)";
+    for (size_t i = 0; i < _instances.size(); ++i) {
+        o << R"( { "service" : ")" << to_hex(_instances[i].service_) << R"(", "instance" : ")" << to_hex(_instances[i].instance_) << "\" }";
+        if (i + 1 < _instances.size()) {
+            o << ",";
+        }
+    }
+    o << " ]";
+}
+
 void to_json(std::ostringstream& o, const security_credentials& credentials) {
-    o << R"({ "credentials" : { "uid" : ")" << credentials.uid_ << R"(", "gid" : ")" << credentials.gid_ << R"(" } })";
+    o << R"({ "credentials" : { "uid" : ")" << credentials.uid_ << R"(", "gid" : ")" << credentials.gid_ << R"(" })";
+    if (!credentials.offers_.empty() || !credentials.requests_.empty()) {
+        o << R"(, "allow" : {)";
+        if (!credentials.offers_.empty()) {
+            write_policy_section(o, "offers", credentials.offers_);
+        }
+        if (!credentials.offers_.empty() && !credentials.requests_.empty()) {
+            o << ",";
+        }
+        if (!credentials.requests_.empty()) {
+            write_policy_section(o, "requests", credentials.requests_);
+        }
+        o << " }";
+    }
+    o << " }";
 }
 
 void to_json(std::ostringstream& o, const service_config& svc) {

@@ -9,6 +9,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <string>
 #include <utility>
 #include <vector>
@@ -711,6 +712,50 @@ TEST(ut_commands_roundtrip, routing_info_multiple_services_and_entries) {
 
     auto cmd = create_routing_info_cmd(0x0001, {entry_a, entry_b});
     EXPECT_EQ(roundtrip(cmd), cmd);
+}
+
+TEST(ut_commands_roundtrip, routing_info_entry_with_credentials) {
+    routing_info_entry_data entry;
+    entry.type_ = routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
+    entry.client_ = 0x0002;
+    entry.uid_ = 1000;
+    entry.gid_ = 1001;
+    entry.services_.push_back({0x1234, 0x0001, 0x01, 0x00000000});
+
+    auto cmd = create_routing_info_cmd(0x0001, {entry});
+    EXPECT_EQ(roundtrip(cmd), cmd);
+}
+
+// An entry without the credentials section (an IPC_VERSION 3 peer) must be rejected instead of
+// being read as a shorter entry with a garbage services section.
+TEST(ut_commands_roundtrip, routing_info_entry_without_credentials_rejected) {
+    routing_info_entry_data entry;
+    entry.type_ = routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
+    entry.client_ = 0x4242;
+    entry.uid_ = 4242;
+    entry.gid_ = 4343;
+    entry.services_.push_back({0x1111, 0x0001, 0x02, 0x00000003});
+
+    std::vector<uint8_t> its_buffer(wire_size(entry));
+    serialize(entry, its_buffer.data());
+
+    // Rewrite the buffer into the pre-credentials layout: drop the uid/gid fields that follow the
+    // client-info section and shrink the declared entry size accordingly.
+    constexpr uint32_t its_credentials_size = sizeof(uid_t) + sizeof(gid_t);
+    uint32_t its_entry_size{};
+    uint32_t its_client_size{};
+    std::memcpy(&its_entry_size, its_buffer.data() + 1, sizeof(its_entry_size));
+    std::memcpy(&its_client_size, its_buffer.data() + 1 + sizeof(uint32_t), sizeof(its_client_size));
+    its_entry_size -= its_credentials_size;
+    std::memcpy(its_buffer.data() + 1, &its_entry_size, sizeof(its_entry_size));
+
+    auto const its_credentials_offset = 1 + 2 * sizeof(uint32_t) + its_client_size;
+    ASSERT_GE(its_buffer.size(), its_credentials_offset + its_credentials_size);
+    its_buffer.erase(its_buffer.begin() + static_cast<long>(its_credentials_offset),
+                     its_buffer.begin() + static_cast<long>(its_credentials_offset + its_credentials_size));
+
+    routing_info_entry_data out;
+    EXPECT_EQ(deserialize(out, its_buffer.data(), static_cast<uint32_t>(its_buffer.size())), 0u);
 }
 
 } // namespace vsomeip_v3::protocol

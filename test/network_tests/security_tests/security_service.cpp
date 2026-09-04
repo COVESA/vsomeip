@@ -8,10 +8,10 @@
 
 #include "security_service.hpp"
 
-security_service::security_service(bool _is_remote_test, bool _remote_client_allowed) :
+security_service::security_service(bool _is_remote_test, bool _remote_client_allowed, bool _is_offer_test, bool _offer_allowed) :
     app_(vsomeip::runtime::get()->create_application()), is_registered_(false), blocked_(false), number_of_received_messages_(0),
     offer_thread_(std::bind(&security_service::run, this)), is_remote_test_(_is_remote_test),
-    remote_client_allowed_(_remote_client_allowed) { }
+    remote_client_allowed_(_remote_client_allowed), is_offer_test_(_is_offer_test), offer_allowed_(_offer_allowed) { }
 
 bool security_service::init() {
     std::scoped_lock its_lock(mutex_);
@@ -129,11 +129,9 @@ void security_service::on_message(const std::shared_ptr<vsomeip::message>& _requ
 
 void security_service::on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request) {
     (void)_request;
-    // The client always sends all data requests before the shutdown request, and
-    // both travel the same ordered connection. Requests are permitted by every
-    // security policy under test (allow, deny and offer-deny), so the service must
-    // have received them all. This proves the request path worked end-to-end and
-    // isolates any missing responses on the client to the receive-side offer check.
+    // Shutdown arrives after all data requests on the same ordered connection, and only in the
+    // scenarios where the consumer actually sends requests (offer-deny has them all skipped by the
+    // send-side offer check and shuts the service down via timeout instead), so all must be here.
     EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS, number_of_received_messages_);
     VSOMEIP_INFO << "Shutdown method was called, going down now.";
     stop();
@@ -152,6 +150,15 @@ void security_service::run() {
         std::this_thread::sleep_for(std::chrono::milliseconds(250 * vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS + 10000));
         VSOMEIP_INFO << "Shutdown the service after timeout as remote client is not allowed by "
                         "policy to call shutdown method!";
+        stop();
+    }
+
+    // offer-deny: the consumer's send-side offer check skips every request to us, shutdown
+    // included, so terminate on timeout and confirm that nothing got through.
+    if (is_offer_test_ && !offer_allowed_) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(250 * vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS + 5000));
+        EXPECT_EQ((std::uint32_t)0, number_of_received_messages_);
+        VSOMEIP_INFO << "Shutdown the service after timeout as the consumer's offer-deny policy blocks all requests!";
         stop();
     }
 }
