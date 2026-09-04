@@ -17,6 +17,7 @@
 #include "../../../implementation/service_discovery/include/ipv4_option_impl.hpp"
 #include "../../../implementation/service_discovery/include/message_impl.hpp"
 #include "../../../implementation/service_discovery/include/serviceentry_impl.hpp"
+#include "sample_interfaces.hpp"
 
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
@@ -120,7 +121,10 @@ struct remote_offer_endpoint_change : public base_fake_socket_fixture {
 
     // Start the provider ecu and offer the service
     app* start_provider(vsomeip::port_t _udp, vsomeip::port_t _tcp) {
-        provider_.emplace("ecu_two", make_offering_cfg(boardnet::ecu_two_config, _udp, _tcp), *socket_manager_);
+        provider_.emplace(
+                "ecu_two",
+                make_offering_cfg(ecu_config{boardnet::ecu_two_config}.add_interface({interfaces::boardnet::service_3344}), _udp, _tcp),
+                *socket_manager_);
         provider_->prepare();
         provider_->start_router();
 
@@ -221,7 +225,10 @@ TEST_F(remote_offer_endpoint_change, second_offer_adds_endpoint_) {
     client->availability_record_.clear();
 
     // 3.
-    provider_.emplace("ecu_two", make_offering_cfg(boardnet::ecu_two_config, udp_a_, tcp_a_), *socket_manager_);
+    provider_.emplace(
+            "ecu_two",
+            make_offering_cfg(ecu_config{boardnet::ecu_two_config}.add_interface({interfaces::boardnet::service_3344}), udp_a_, tcp_a_),
+            *socket_manager_);
     provider_->prepare();
     provider_->start_router();
     block_provider_sd();

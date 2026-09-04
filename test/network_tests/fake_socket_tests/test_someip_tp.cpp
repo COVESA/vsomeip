@@ -10,6 +10,7 @@
 #include "helpers/base_fake_socket_fixture.hpp"
 #include "helpers/ecu_setup.hpp"
 #include "helpers/message_checker.hpp"
+#include "sample_interfaces.hpp"
 
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
@@ -25,7 +26,7 @@ struct test_someip_tp : public base_fake_socket_fixture {
 
     interface multi_field_service_{{.service_ = 0x3344, .instance_ = 0x1, .major_ = 1, .minor_ = 0}, {}, fields_specs_, tp_};
     ecu_config ecu_one_config_extended_{boardnet::ecu_one_config};
-    ecu_config ecu_two_config_extended_{boardnet::ecu_two_config};
+    ecu_config ecu_two_config_extended_{ecu_config{boardnet::ecu_two_config}.add_interface({interfaces::boardnet::service_3344})};
 
     ecu_setup ecu_one_{"ecu_one", ecu_one_config_extended_.add_interface({multi_field_service_}), *socket_manager_};
     ecu_setup ecu_two_{"ecu_two", ecu_two_config_extended_.add_interface({multi_field_service_}), *socket_manager_};

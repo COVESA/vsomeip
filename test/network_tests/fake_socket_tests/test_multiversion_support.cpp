@@ -503,31 +503,10 @@ struct test_multiversion_support_aggregate_consumption : public base_fake_socket
     // Each ECU gets its own diagnosis address so their auto-assigned client ids don't collide --
     // utility::request_client_id() reads diagnosis/mask fresh from _config per call (no longer
     // function-local-static-cached), so this now gives each ECU its own non-overlapping range.
-    ecu_setup provider_v1_ecu_{"provider_v1",
-                               []() {
-                                   ecu_config cfg{boardnet::ecu_one_config};
-                                   cfg.with_diagnosis(0x01);
-                                   return cfg;
-                               }()
-                                       .add_interface({interface_v1_}),
-                               *socket_manager_};
-    ecu_setup provider_v2_ecu_{"provider_v2",
-                               []() {
-                                   ecu_config cfg{boardnet::ecu_two_config};
-                                   cfg.services_.clear();
-                                   cfg.with_diagnosis(0x02);
-                                   return cfg;
-                               }()
-                                       .add_interface({interface_v2_}),
-                               *socket_manager_};
+    ecu_setup provider_v1_ecu_{"provider_v1", ecu_config{boardnet::ecu_one_config}.add_interface({interface_v1_}), *socket_manager_};
+    ecu_setup provider_v2_ecu_{"provider_v2", ecu_config{boardnet::ecu_two_config}.add_interface({interface_v2_}), *socket_manager_};
     // consumer_ecu_ never offers anything.
-    ecu_setup consumer_ecu_{"consumer",
-                            []() {
-                                ecu_config cfg{boardnet::ecu_three_config};
-                                cfg.with_diagnosis(0x03);
-                                return cfg;
-                            }(),
-                            *socket_manager_};
+    ecu_setup consumer_ecu_{"consumer", boardnet::ecu_three_config, *socket_manager_};
 
     app* provider_v1_;
     app* provider_v2_;

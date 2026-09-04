@@ -16,6 +16,7 @@
 #include "helpers/service_state.hpp"
 #include "helpers/someip_gate.hpp"
 #include "helpers/command_gate.hpp"
+#include "sample_interfaces.hpp"
 
 #include <boost/asio/error.hpp>
 #include <vsomeip/enumeration_types.hpp>
@@ -934,7 +935,8 @@ TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
 
 struct guest_offering : public base_fake_socket_fixture {
     ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
-    ecu_setup ecu_two_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", ecu_config{boardnet::ecu_two_config}.add_interface({interfaces::boardnet::service_3344}),
+                       *socket_manager_};
 };
 
 TEST_F(guest_offering, guests_provide_and_consume_interface) {
@@ -1402,11 +1404,11 @@ struct length_field_too_big : public base_fake_socket_fixture {
     method_t method_ = 0x8001;
     request request_tcp_{interface_tcp_.instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
     message expected_reply_tcp_{
-            client_session{0x6310 /*client id*/, 1}, interface_tcp_.instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
+            client_session{0x100 /*client id*/, 1}, interface_tcp_.instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
 
     request request_udp_{interface_udp_.instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
     message expected_reply_udp_{
-            client_session{0x6310 /*client id*/, 1}, interface_udp_.instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
+            client_session{0x100 /*client id*/, 1}, interface_udp_.instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
 
     ecu_config ecu_one_config_{boardnet::ecu_one_config};
     ecu_config ecu_two_config_{boardnet::ecu_two_config};
@@ -2140,7 +2142,8 @@ TEST_F(tcp_send_error_target_recreate, recreate_after_send_error_does_not_crash)
 struct test_someip_record : public base_fake_socket_fixture {
     // UDP boardnet (unreliable)
     ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
-    ecu_setup ecu_two_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", ecu_config{boardnet::ecu_two_config}.add_interface({interfaces::boardnet::service_3344}),
+                       *socket_manager_};
 
     // TCP boardnet (reliable)
     std::vector<event_spec> const tcp_events_{{0x8001, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE}};
