@@ -1,0 +1,48 @@
+@startuml
+title memory_test_pending_trains
+
+actor Client as C
+actor Service as S
+
+S --\ C : service 0xb51b becomes available
+
+loop 16 warm-up requests
+  C -> S : REQUEST_NO_RETURN (256 KiB, reliable)
+end
+C -> C : wait for warm-up train to drain
+
+C -> S : REQUEST START_METHOD
+S -> S : enable request counter
+S --\ C : RESPONSE
+C -> C : malloc_trim(0); read baseline RSS
+
+note over C
+  Client endpoint configuration:
+  maximum retention = 1 s
+  external queue limit = 300,000 bytes
+end note
+
+loop 16-request burst
+  C -> C : enqueue REQUEST_NO_RETURN (256 KiB, reliable)
+end
+note over C
+  Requests collect in pending trains;
+  excess bytes are rejected by the queue limit.
+end note
+loop accepted subset (fewer than 16)
+  C -> S : accepted TRAFFIC_METHOD request
+  S -> S : count requests that reached service
+end
+
+C -> C : poll lowest RSS for 500 ms\nwhile the trains are still parked
+C -> C : assert held RSS <= baseline + 512 KiB
+
+C -> C : wait 1.2 s for endpoint to drain
+C -> C : trim and poll retained RSS\nfor up to 2 seconds
+C -> C : assert retained RSS <= baseline + 128 KiB
+
+C -> S : REQUEST STOP_METHOD
+S -> S : stop request counter
+S --\ C : RESPONSE
+S -> S : assert 0 < received requests < 16
+@enduml

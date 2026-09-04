@@ -1,0 +1,35 @@
+@startuml
+title memory_test_someip_tp
+
+actor Client as C
+actor Service as S
+
+S --\ C : service 0xb51c and event 0x8001 become available
+C -> S : SUBSCRIBE eventgroup 0x0001
+S --\ C : SUBSCRIBE_ACK
+
+C -> S : REQUEST WARMUP_METHOD
+S --\ C : 1,500-byte TP notification
+S --\ C : RESPONSE
+C -> C : verify warm-up notification
+
+C -> S : REQUEST START_METHOD
+S -> S : malloc_trim(0); read baseline RSS
+S --\ C : RESPONSE
+
+group completed-train retention phase
+  loop 500 sequential notifications
+    C -> S : REQUEST WARMUP_METHOD
+    S --\ C : 1,500-byte TP notification
+    S --\ C : RESPONSE
+    C -> C : wait for notification
+  end
+  C -> S : REQUEST RETENTION_CHECK_METHOD
+  S -> S : trim and poll post-retention RSS\nfor up to 1 second
+  S -> S : assert RSS <= baseline + 256 KiB
+  S --\ C : RESPONSE
+end
+
+C -> S : REQUEST STOP_METHOD
+S --\ C : RESPONSE
+@enduml

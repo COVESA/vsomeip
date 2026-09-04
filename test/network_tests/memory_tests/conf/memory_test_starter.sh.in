@@ -1,0 +1,49 @@
+#!/bin/bash -x
+# Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source "$SCRIPT_DIRECTORY/../setup_test.sh"; then
+    exit 1
+fi
+
+TEST_NAME="${1:-}"
+ROLE="${2:-master}"
+
+case "$TEST_NAME" in
+    memory_test_request_and_response|memory_test_pending_trains|memory_test_someip_tp)
+        ;;
+    *)
+        echo "Usage: $0 <memory-test-name> [master|slave]" >&2
+        exit 2
+        ;;
+esac
+
+if [ "$ROLE" = "slave" ]; then
+    export VSOMEIP_CONFIGURATION=memory_test_client.json
+    export VSOMEIP_APPLICATION_NAME="${TEST_NAME}_client"
+    "./${TEST_NAME}_client"
+    exit $?
+fi
+
+if [ "$ROLE" != "master" ]; then
+    echo "Usage: $0 <memory-test-name> [master|slave]" >&2
+    exit 2
+fi
+
+FAIL=0
+
+export VSOMEIP_CONFIGURATION=memory_test_service.json
+export VSOMEIP_APPLICATION_NAME="${TEST_NAME}_service"
+"./${TEST_NAME}_service" &
+PID_MASTER=$!
+
+exec_slave "./memory_test_starter.sh $TEST_NAME slave"
+PID_SLAVE=$!
+
+wait "$PID_MASTER" || FAIL=$((FAIL + 1))
+wait "$PID_SLAVE" || FAIL=$((FAIL + 1))
+
+exit "$FAIL"

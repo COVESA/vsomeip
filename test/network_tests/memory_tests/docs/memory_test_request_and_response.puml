@@ -1,0 +1,35 @@
+@startuml
+title memory_test_request_and_response
+
+actor Client as C
+actor Service as S
+
+S --\ C : service 0xb51a becomes available
+
+loop 20 warm-up exchanges
+  C -> S : REQUEST (256-byte payload)
+  S --\ C : RESPONSE (echo payload)
+end
+
+C -> S : REQUEST START_MEASUREMENT_METHOD
+S -> S : read baseline RSS
+S --\ C : RESPONSE
+C -> C : read baseline RSS
+
+loop 100 measured batches
+  loop 100 requests
+    C -> S : REQUEST REQUEST_METHOD
+    S -> S : count request; do not respond
+  end
+  C -> S : REQUEST BARRIER_METHOD
+  S --\ C : RESPONSE (next batch may start)
+end
+
+C -> C : trim and poll final RSS\nfor up to 2 seconds
+C -> C : assert final <= baseline + 512 KiB
+C -> S : REQUEST STOP_MEASUREMENT_METHOD
+S -> S : trim and poll final RSS\nfor up to 2 seconds
+S -> S : assert 10,000 requests received
+S -> S : assert final <= baseline + 512 KiB
+S --\ C : RESPONSE
+@enduml
