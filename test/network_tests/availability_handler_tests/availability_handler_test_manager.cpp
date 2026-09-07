@@ -108,7 +108,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                     availability_handler::availability_handler_test_steps::STATE_REGISTERED));
 
             std::cout << "Notify S1 - Service registered." << std::endl;
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_,
+                                                              availability_handler_shared_->service_ack_);
 
             std::cout << "S2 - Waiting for offers to be sent." << std::endl;
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
@@ -134,7 +135,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                     availability_handler::availability_handler_test_steps::UNAVAILABILITY_RECEIVED));
 
             std::cout << "Notify C1 - Client registered." << std::endl;
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->client_cv_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->client_cv_,
+                                                              availability_handler_shared_->client_ack_);
 
             std::cout << "C2 - Waiting for requests to be sent." << std::endl;
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
@@ -148,7 +150,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                     availability_handler::availability_handler_test_steps::AVAILABILITY_RECEIVED));
 
             std::cout << "Notify C2 - Client availability received." << std::endl;
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->client_cv_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->client_cv_,
+                                                              availability_handler_shared_->client_ack_);
 
             std::cout << "C3 - Waiting for the handler to re-register." << std::endl;
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
@@ -168,7 +171,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                     availability_handler_shared_->service_mutex_);
 
             std::cout << "Notify S2 - Client availability received." << std::endl;
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_,
+                                                              availability_handler_shared_->service_ack_);
 
             std::cout << "S3 - Waiting for stop offers to be sent" << std::endl;
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
@@ -192,7 +196,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                     availability_handler_shared_->service_mutex_);
 
             std::cout << "Notify S3 - Client unavailability received." << std::endl;
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_,
+                                                              availability_handler_shared_->service_ack_);
 
             std::cout << "S4 - Waiting for offers to be sent" << std::endl;
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
@@ -216,7 +221,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                     availability_handler_shared_->service_mutex_);
 
             std::cout << "Notify S4 - Client availability received again" << std::endl;
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_,
+                                                              availability_handler_shared_->service_ack_);
 
             std::cout << "S5 - Waiting for stop offers to be sent" << std::endl;
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
@@ -229,7 +235,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                     availability_handler_shared_->client_mutex_);
 
             std::cout << "Notify C6 - Services are being released." << std::endl;
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->client_cv_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->client_cv_,
+                                                              availability_handler_shared_->client_ack_);
 
             std::cout << "C7 - Waiting for client to be deregistered" << std::endl;
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
@@ -242,7 +249,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                     availability_handler_shared_->service_mutex_);
 
             std::cout << "Notify S5 - Client is deregistered." << std::endl;
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_,
+                                                              availability_handler_shared_->service_ack_);
 
             std::cout << "S6 - Waiting for service to be deregistered." << std::endl;
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
@@ -260,8 +268,10 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
             std::cout << "Notify both - Service is deregistered. All applications deregistered "
                          "going down."
                       << std::endl;
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->client_cv_);
-            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->client_cv_,
+                                                              availability_handler_shared_->client_ack_);
+            vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_,
+                                                              availability_handler_shared_->service_ack_);
         }
 
         ASSERT_EQ(service_consumer.wait(), 0);

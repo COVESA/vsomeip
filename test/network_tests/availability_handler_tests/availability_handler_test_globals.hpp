@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/sync/interprocess_condition.hpp>
 #include "../someip_test_utils.hpp"
@@ -26,6 +28,10 @@ struct availability_handler_test_steps {
     boost::interprocess::interprocess_mutex client_mutex_;
     boost::interprocess::interprocess_condition service_cv_;
     boost::interprocess::interprocess_condition client_cv_;
+
+    // Advanced by the manager to release the component blocked in notify_and_wait_unlocked.
+    std::uint32_t service_ack_ = 0;
+    std::uint32_t client_ack_ = 0;
 
     registration_status service_status_ = STATE_NOT_REGISTERED;
     registration_status client_status_ = STATE_NOT_REGISTERED;
