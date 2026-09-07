@@ -112,7 +112,8 @@ private:
 
             availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
 
-            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock,
+                                                             availability_handler_shared_->client_ack_);
         }
     }
 
@@ -130,7 +131,8 @@ private:
 
         availability_handler_shared_->reregister_status_ = availability_handler::availability_handler_test_steps::REREGISTER_DONE;
 
-        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock,
+                                                         availability_handler_shared_->client_ack_);
     }
 
     void on_state(vsomeip::state_type_e _state) {
@@ -150,7 +152,8 @@ private:
                 availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_NOT_REGISTERED;
             }
 
-            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock,
+                                                             availability_handler_shared_->client_ack_);
         }
 
         local_client_cv_.notify_one();
@@ -159,19 +162,17 @@ private:
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
         boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->client_mutex_);
 
-        availability_handler_shared_->availability_status_ =
-                availability_handler::availability_handler_test_steps::AVAILABILITY_NOT_RECEIVED;
-
         VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                      << (_is_available ? "available." : "NOT available.");
 
-        if (_is_available) {
-            availability_handler_shared_->availability_status_ =
-                    availability_handler::availability_handler_test_steps::AVAILABILITY_RECEIVED;
-        } else {
-            availability_handler_shared_->availability_status_ =
-                    availability_handler::availability_handler_test_steps::UNAVAILABILITY_RECEIVED;
-        }
+        availability_handler_shared_->availability_status_ = _is_available
+                ? availability_handler::availability_handler_test_steps::AVAILABILITY_RECEIVED
+                : availability_handler::availability_handler_test_steps::UNAVAILABILITY_RECEIVED;
+
+        // Unlike the other steps, this one is reached on the dispatch thread while the main thread is
+        // parked in notify_and_wait_unlocked: without this the manager only learns about the new
+        // availability when its own wait times out.
+        vt::interprocess_utils::notify_all_component_unlocked(availability_handler_shared_->client_cv_);
     }
 
     void send_requests() {
@@ -180,11 +181,11 @@ private:
         availability_handler_shared_->request_status_ = availability_handler::availability_handler_test_steps::REQUESTS_NOT_SENT;
 
         app_->request_service(SERVICE_ID, INSTANCE_ID);
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
         availability_handler_shared_->request_status_ = availability_handler::availability_handler_test_steps::REQUESTS_SENT;
 
-        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock,
+                                                         availability_handler_shared_->client_ack_);
     }
 };
 

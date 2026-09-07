@@ -117,7 +117,8 @@ private:
 
             availability_handler_shared_->service_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
 
-            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
+            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock,
+                                                             availability_handler_shared_->service_ack_);
         }
     }
 
@@ -137,7 +138,8 @@ private:
                 availability_handler_shared_->service_status_ = availability_handler::availability_handler_test_steps::STATE_NOT_REGISTERED;
             }
 
-            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
+            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock,
+                                                             availability_handler_shared_->service_ack_);
         }
 
         local_service_cv_.notify_one();
@@ -153,7 +155,8 @@ private:
 
         availability_handler_shared_->offer_status_ = availability_handler::availability_handler_test_steps::OFFERS_SENT;
 
-        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock,
+                                                         availability_handler_shared_->service_ack_);
     }
 
     void send_stop_offers() {
@@ -166,7 +169,8 @@ private:
 
         availability_handler_shared_->offer_status_ = availability_handler::availability_handler_test_steps::STOP_OFFERS_SENT;
 
-        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock,
+                                                         availability_handler_shared_->service_ack_);
     }
 };
 

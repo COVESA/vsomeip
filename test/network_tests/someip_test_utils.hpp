@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/sync/interprocess_condition.hpp>
@@ -35,11 +37,19 @@ struct interprocess_utils {
     }
 
     /**
-     * @brief Performs a notify one on the parameterized condition variable.
+     * @brief Releases the component that is blocked in notify_and_wait_unlocked.
+     *
+     * The acknowledgement counter, and not the notification itself, is what the component waits
+     * for: a bare notification is lost when the component has not reached its wait yet, and it
+     * cannot be told apart from a notification another waiter on the same cv is interested in.
      *
      * @param cv Condition variable to be notified.
+     * @param ack Handshake counter shared with the component.
      */
-    static void notify_component_unlocked(boost::interprocess::interprocess_condition& cv) { cv.notify_one(); }
+    static void notify_component_unlocked(boost::interprocess::interprocess_condition& cv, std::uint32_t& ack) {
+        ++ack;
+        cv.notify_all();
+    }
 
     /**
      * @brief Performs a notify all on the parameterized condition variable.
@@ -51,17 +61,22 @@ struct interprocess_utils {
     /**
      * To be used on components side
      *
-     * @brief Performs a notify one on the parameterized condition variable and waits to be notified again.
+     * @brief Publishes the state the component has just reached and blocks until the manager
+     *        acknowledges it by advancing @param ack.
      *
      * @param cv Condition variable to be notified.
      * @param its_lock Lock being held.
+     * @param ack Handshake counter shared with the manager.
      */
     static void notify_and_wait_unlocked(boost::interprocess::interprocess_condition& cv,
-                                         boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock) {
+                                         boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock,
+                                         std::uint32_t& ack) {
 
-        cv.notify_one();
+        const std::uint32_t its_ack = ack;
 
-        cv.wait(its_lock);
+        cv.notify_all();
+
+        cv.wait(its_lock, [&] { return ack != its_ack; });
     }
 };
 
