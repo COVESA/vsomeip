@@ -1042,7 +1042,12 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
 
             host_->expire_subscriptions(_sender);
             host_->expire_services(_sender);
-            if (reboot_notification_handler_) {
+            reboot_notification_handler_t its_reboot_notification_handler;
+            {
+                std::scoped_lock its_lock(handlers_mutex_);
+                its_reboot_notification_handler = reboot_notification_handler_;
+            }
+            if (its_reboot_notification_handler) {
                 ip_address_t ip;
                 if (_sender.is_v4()) {
                     ip.address_.v4_ = _sender.to_v4().to_bytes();
@@ -1051,7 +1056,7 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
                     ip.address_.v6_ = _sender.to_v6().to_bytes();
                     ip.is_v4_ = false;
                 }
-                invoke_watched(reboot_notification_handler_, "reboot_notification_handler(" + _sender.to_string() + ")", ip);
+                invoke_watched(its_reboot_notification_handler, "reboot_notification_handler(" + _sender.to_string() + ")", ip);
             }
         }
 
@@ -1090,7 +1095,12 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
         for (auto iter = its_entries.begin(); iter != its_end; iter++) {
             if (!sd_acceptance_queried) {
                 sd_acceptance_queried = true;
-                if (sd_acceptance_handler_) {
+                sd_acceptance_handler_t its_sd_acceptance_handler;
+                {
+                    std::scoped_lock its_lock(handlers_mutex_);
+                    its_sd_acceptance_handler = sd_acceptance_handler_;
+                }
+                if (its_sd_acceptance_handler) {
                     accept_state.sd_acceptance_required_ = configuration_->is_protected_device(_sender);
                     remote_info_t remote;
                     remote.first_ = ANY_PORT;
@@ -1104,7 +1114,7 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
                         remote.ip_.is_v4_ = false;
                     }
                     accept_state.accept_entries_ =
-                            invoke_watched(sd_acceptance_handler_, "sd_acceptance_handler(" + _sender.to_string() + ")", remote);
+                            invoke_watched(its_sd_acceptance_handler, "sd_acceptance_handler(" + _sender.to_string() + ")", remote);
                 } else {
                     accept_state.accept_entries_ = true;
                 }
@@ -3417,10 +3427,12 @@ void service_discovery_impl::add_entry_data_to_remote_subscription_ack_msg(const
 }
 
 void service_discovery_impl::register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler) {
+    std::scoped_lock its_lock(handlers_mutex_);
     sd_acceptance_handler_ = _handler;
 }
 
 void service_discovery_impl::register_reboot_notification_handler(const reboot_notification_handler_t& _handler) {
+    std::scoped_lock its_lock(handlers_mutex_);
     reboot_notification_handler_ = _handler;
 }
 
