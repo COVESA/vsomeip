@@ -74,8 +74,11 @@ inline uint32_t deserialize(command_header& _out, unsigned char const* _mem, uin
     return parse(_mem, _size, _out.id_, _out.version_, _out.client_, _out.length_);
 }
 
+inline uint32_t deserialize(service_key& _out, unsigned char const* _mem, uint32_t _size) {
+    return parse(_mem, _size, _out.service_, _out.instance_, _out.major_);
+}
 inline uint32_t deserialize(service_data& _out, unsigned char const* _mem, uint32_t _size) {
-    return parse(_mem, _size, _out.service_, _out.instance_, _out.major_version_, _out.minor_version_);
+    return parse(_mem, _size, _out.key_, _out.minor_version_);
 }
 
 // Deserializes a length-prefixed string. Returns bytes parsed (0 on error); _out owns the data.
@@ -162,8 +165,8 @@ inline uint32_t deserialize(assign_client_data& _out, unsigned char const* _mem,
 
 inline uint32_t deserialize(register_event_data& _out, unsigned char const* _mem, uint32_t _size) {
     uint16_t num_eventgroups{0};
-    auto const parsed = parse(_mem, _size, _out.service_, _out.instance_, _out.event_, _out.event_type_, _out.is_provided_,
-                              _out.reliability_, _out.is_cyclic_, num_eventgroups);
+    auto const parsed = parse(_mem, _size, _out.service_key_, _out.event_, _out.event_type_, _out.is_provided_, _out.reliability_,
+                              _out.is_cyclic_, num_eventgroups);
     if (parsed == 0) {
         return 0;
     }
@@ -217,27 +220,23 @@ inline uint32_t deserialize(ipc_message_header& _out, unsigned char const* _mem,
     return parse(_mem, _size, _out.instance_, _out.reliable_, _out.status_, _out.target_);
 }
 
-inline uint32_t deserialize(release_service_data& _out, unsigned char const* _mem, uint32_t _size) {
-    return parse(_mem, _size, _out.service_, _out.instance_);
-}
-
 inline uint32_t deserialize(unregister_event_data& _out, unsigned char const* _mem, uint32_t _size) {
-    return parse(_mem, _size, _out.service_, _out.instance_, _out.event_, _out.is_provided_);
+    return parse(_mem, _size, _out.service_key_, _out.event_, _out.is_provided_);
 }
 
 inline uint32_t deserialize(unsubscribe_ack_data& _out, unsigned char const* _mem, uint32_t _size) {
-    return parse(_mem, _size, _out.service_, _out.instance_, _out.eventgroup_, _out.pending_id_);
+    return parse(_mem, _size, _out.service_key_, _out.eventgroup_, _out.pending_id_);
 }
 
 inline uint32_t deserialize(remove_security_policy_data& _out, unsigned char const* _mem, uint32_t _size) {
     return parse(_mem, _size, _out.update_id_, _out.uid_, _out.gid_);
 }
 inline uint32_t deserialize(subscribe_answer_data& _out, unsigned char const* _mem, uint32_t _size) {
-    return parse(_mem, _size, _out.service_, _out.instance_, _out.eventgroup_, _out.subscriber_, _out.event_, _out.pending_id_);
+    return parse(_mem, _size, _out.service_key_, _out.eventgroup_, _out.subscriber_, _out.event_, _out.pending_id_);
 }
 
 inline uint32_t deserialize(subscribe_data& _out, unsigned char const* _mem, uint32_t _size) {
-    return parse(_mem, _size, _out.service_, _out.instance_, _out.eventgroup_, _out.major_, _out.event_, _out.pending_id_);
+    return parse(_mem, _size, _out.service_key_, _out.eventgroup_, _out.event_, _out.pending_id_);
 }
 
 inline uint32_t deserialize(std::map<size_t, byte_t>& _out, unsigned char const* _mem, uint32_t _size) {

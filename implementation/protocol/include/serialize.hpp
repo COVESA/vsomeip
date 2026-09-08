@@ -102,8 +102,10 @@ uint32_t serialize(T const& _value, unsigned char* _mem) {
         return sizeof(T);
     } else if constexpr (std::is_same_v<T, command_header>) {
         return write_fields(_mem, _value.id_, _value.version_, _value.client_, _value.length_);
+    } else if constexpr (std::is_same_v<T, service_key>) {
+        return write_fields(_mem, _value.service_, _value.instance_, _value.major_);
     } else if constexpr (std::is_same_v<T, service_data>) {
-        return write_fields(_mem, _value.service_, _value.instance_, _value.major_version_, _value.minor_version_);
+        return write_fields(_mem, _value.key_, _value.minor_version_);
     } else if constexpr (std::is_same_v<T, std::string_view>) {
         return write_string(_mem, _value);
     } else if constexpr (std::is_same_v<T, config_entry>) {
@@ -118,8 +120,8 @@ uint32_t serialize(T const& _value, unsigned char* _mem) {
         }
         return written;
     } else if constexpr (std::is_same_v<T, register_event_data>) {
-        return write_fields(_mem, _value.service_, _value.instance_, _value.event_, _value.event_type_, _value.is_provided_,
-                            _value.reliability_, _value.is_cyclic_, static_cast<uint16_t>(_value.eventgroups_.size()), _value.eventgroups_);
+        return write_fields(_mem, _value.service_key_, _value.event_, _value.event_type_, _value.is_provided_, _value.reliability_,
+                            _value.is_cyclic_, static_cast<uint16_t>(_value.eventgroups_.size()), _value.eventgroups_);
     } else if constexpr (std::is_same_v<T, ipc_message_header>) {
         return write_fields(_mem, _value.instance_, _value.reliable_, _value.status_, _value.target_);
     } else if constexpr (std::is_same_v<T, extended_someip_message>) {
@@ -148,16 +150,14 @@ uint32_t serialize(T const& _value, unsigned char* _mem) {
         }
         written += length;
         return written;
-    } else if constexpr (std::is_same_v<T, release_service_data>) {
-        return write_fields(_mem, _value.service_, _value.instance_);
     } else if constexpr (std::is_same_v<T, unregister_event_data>) {
-        return write_fields(_mem, _value.service_, _value.instance_, _value.event_, _value.is_provided_);
+        return write_fields(_mem, _value.service_key_, _value.event_, _value.is_provided_);
     } else if constexpr (std::is_same_v<T, unsubscribe_ack_data>) {
-        return write_fields(_mem, _value.service_, _value.instance_, _value.eventgroup_, _value.pending_id_);
+        return write_fields(_mem, _value.service_key_, _value.eventgroup_, _value.pending_id_);
     } else if constexpr (std::is_same_v<T, remove_security_policy_data>) {
         return write_fields(_mem, _value.update_id_, _value.uid_, _value.gid_);
     } else if constexpr (std::is_same_v<T, subscribe_data>) {
-        return write_fields(_mem, _value.service_, _value.instance_, _value.eventgroup_, _value.major_, _value.event_, _value.pending_id_);
+        return write_fields(_mem, _value.service_key_, _value.eventgroup_, _value.event_, _value.pending_id_);
     } else if constexpr (is_pair<T>) {
         return write_fields(_mem, _value.first, _value.second);
     } else if constexpr (std::is_same_v<T, std::shared_ptr<debounce_filter_impl_t>>) {
@@ -167,8 +167,7 @@ uint32_t serialize(T const& _value, unsigned char* _mem) {
     } else if constexpr (std::is_same_v<T, subscribe_with_filter_data>) {
         return write_fields(_mem, _value.data_, _value.filter_);
     } else if constexpr (std::is_same_v<T, subscribe_answer_data>) {
-        return write_fields(_mem, _value.service_, _value.instance_, _value.eventgroup_, _value.subscriber_, _value.event_,
-                            _value.pending_id_);
+        return write_fields(_mem, _value.service_key_, _value.eventgroup_, _value.subscriber_, _value.event_, _value.pending_id_);
     } else if constexpr (std::is_same_v<T, update_security_policy_view>) {
         return write_fields(_mem, _value.update_id_, _value.policy_);
     } else if constexpr (std::is_same_v<T, routing_info_entry_data>) {

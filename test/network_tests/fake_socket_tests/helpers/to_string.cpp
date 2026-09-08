@@ -109,7 +109,7 @@ char const* to_string(vsomeip_v3::sd::entry_type_e _id, ttl_t _ttl) {
 }
 std::string to_string(vsomeip_v3::protocol::service_data const& service) {
     std::stringstream s;
-    s << "[" << hex4(service.service_) << "." << hex4(service.instance_) << ":" << static_cast<int>(service.major_version_) << "."
+    s << "[" << hex4(service.key_.service_) << "." << hex4(service.key_.instance_) << ":" << static_cast<int>(service.key_.major_) << "."
       << service.minor_version_ << "]";
     return s.str();
 }

@@ -152,8 +152,8 @@
     Size               xx xx xx xx
     Service            xx xx
     Instance           xx xx
-    Eventgroup         xx xx
     Major              xx
+    Eventgroup         xx xx
     Event              xx xx
     Pending ID         xx xx
     Filter
@@ -167,14 +167,26 @@
 
 ## VSOMEIP_UNSUBSCRIBE (0x13)
 
+    Command            13
+    Version            xx xx
+    Client             xx xx
+    Size               0b 00 00 00
+    Service            xx xx
+    Instance           xx xx
+    Major              xx
+    Eventgroup         xx xx
+    Event              xx xx
+    Pending ID         xx xx
+
 ## VSOMEIP_EXPIRE (0x2A)
 
     Command            13/2A
     Version            xx xx
     Client             xx xx
-    Size               0a 00 00 00
+    Size               0b 00 00 00
     Service            xx xx
     Instance           xx xx
+    Major              xx
     Eventgroup         xx xx
     Event              xx xx
     Pending ID         xx xx
@@ -198,9 +210,10 @@
     Command            15
     Version            xx xx
     Client             xx xx
-    Size               04 00 00 00
+    Size               05 00 00 00
     Service            xx xx
     Instance           xx xx
+    Major              xx
 
 
 ## VSOMEIP_SUBSCRIBE_NACK (0x16)
@@ -208,9 +221,10 @@
     Command            16
     Version            xx xx
     Client             xx xx
-    Size               0c 00 00 00
+    Size               0d 00 00 00
     Service            xx xx
     Instance           xx xx
+    Major              xx
     Eventgroup         xx xx
     Subscriber         xx xx
     Event              xx xx
@@ -222,9 +236,10 @@
     Command            17
     Version            xx xx
     Client             xx xx
-    Size               0c 00 00 00
+    Size               0d 00 00 00
     Service            xx xx
     Instance           xx xx
+    Major              xx
     Eventgroup         xx xx
     Subscriber         xx xx
     Event              xx xx
@@ -253,10 +268,11 @@
     Command            1b
     Version            xx xx
     Client             xx xx
-    Size               xx xx xx xx    ; 10 + #eventgroups * 2
+    Size               xx xx xx xx    ; 11 + #eventgroups * 2
     Entries
         Service            xx xx
         Instance           xx xx
+        Major              xx
         Notifier           xx xx
         Type               xx    ; ET_EVENT (00), ET_SELECTIVE_EVENT(01) or ET_FIELD(02)
         Provided           xx    ; False (00) or True (01)
@@ -272,9 +288,10 @@
     Command            1c
     Version            xx xx
     Client             xx xx
-    Size               07 00 00 00
+    Size               08 00 00 00
     Service            xx xx
     Instance           xx xx
+    Major              xx
     Notifier           xx xx
     Provided           xx
 
@@ -319,9 +336,10 @@
     Command            21
     Version            xx xx
     Client             xx xx
-    Size               08 00 00 00
+    Size               09 00 00 00
     Service            xx xx
     Instance           xx xx
+    Major              xx
     Eventgroup         xx xx
     Id                 xx xx
 
