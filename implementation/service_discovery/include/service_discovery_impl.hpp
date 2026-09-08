@@ -405,6 +405,7 @@ private:
 
     std::map<boost::asio::ip::address, std::map<std::pair<bool, uint16_t>, std::set<remote_offer_info_t>>> remote_offers_by_ip_;
 
+    std::mutex handlers_mutex_;
     reboot_notification_handler_t reboot_notification_handler_;
     sd_acceptance_handler_t sd_acceptance_handler_;
 
