@@ -431,8 +431,14 @@ void utility::reset_client_ids(const std::string& _network) {
 
 void utility::set_thread_niceness(int _nice) noexcept {
 #if defined(__linux__)
+    // nice(0) cannot change the priority, but glibc still implements it as
+    // getpriority()+setpriority(), which a seccomp allow-list may reject with SIGSYS.
+    if (_nice == VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL) {
+        return;
+    }
+
     errno = 0;
-    if ((nice(_nice) == -1) && (errno < 0)) {
+    if ((nice(_nice) == -1) && (errno != 0)) {
         VSOMEIP_WARNING << "Failed to set niceness for thread " << std::this_thread::get_id() << ", errno: " << errno;
         return;
     }
