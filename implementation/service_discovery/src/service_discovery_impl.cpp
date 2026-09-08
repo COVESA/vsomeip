@@ -126,9 +126,11 @@ void service_discovery_impl::start() {
 
     if (is_suspended_) {
         // make sure to sent out FindService messages after resume
-        std::scoped_lock its_lock(requested_mutex_);
-        for (const auto& [si, req] : requested_) {
-            req->set_sent_counter(0);
+        {
+            std::scoped_lock its_lock(requested_mutex_);
+            for (const auto& [si, req] : requested_) {
+                req->set_sent_counter(0);
+            }
         }
 
         // rejoin multicast group

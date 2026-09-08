@@ -5,9 +5,6 @@
 
 #pragma once
 
-#include <condition_variable>
-#include <queue>
-#include <thread>
 #include <unordered_map>
 
 #include "../include/boardnet_endpoint_host.hpp"
@@ -98,8 +95,6 @@ public:
     void log_client_states() const;
     void log_server_states() const;
 
-    // add join/leave options
-    void add_multicast_option(const multicast_option_t& _option);
     std::unordered_map<client_t, vsomeip_sec_client_t> get_connected_clients() const;
     void suspend();
     void resume();
@@ -135,9 +130,6 @@ private:
     bool create_local_tcp_acceptor(std::shared_ptr<local_acceptor>& _tcp_acceptor) const;
     void setup_root_server(std::shared_ptr<local_server>& _root, std::shared_ptr<local_acceptor> _acceptor,
                            const std::shared_ptr<routing_host>& _host);
-
-    // process join/leave options
-    void process_multicast_options();
 
     bool is_used_endpoint(boardnet_endpoint* const _endpoint) const;
 
@@ -179,13 +171,6 @@ private:
     // Multicast endpoint info (notifications)
     service_instance_map<std::shared_ptr<endpoint_definition>> multicast_info_;
     auxiliary_context auxiliary_context_;
-
-    // Socket option processing (join, leave)
-    std::mutex options_mutex_;
-    bool is_processing_options_;
-    std::condition_variable options_condition_;
-    std::queue<multicast_option_t> options_queue_;
-    std::thread options_thread_;
 
     mutable std::mutex routing_endpoint_mtx_;
     std::unordered_map<client_t, std::shared_ptr<local_endpoint>> routing_endpoints_;

@@ -240,7 +240,6 @@ struct mock_endpoint_host : public vsomeip_v3::boardnet_endpoint_host {
     MOCK_CONST_METHOD0(get_client_host, std::string());
     MOCK_CONST_METHOD2(find_instance,
                        vsomeip_v3::instance_t(vsomeip_v3::service_t _service, vsomeip_v3::boardnet_endpoint* const _endpoint));
-    MOCK_METHOD1(add_multicast_option, void(const vsomeip_v3::multicast_option_t& _option));
 };
 
 struct mock_boardnet_routing_host : public vsomeip_v3::boardnet_routing_host {

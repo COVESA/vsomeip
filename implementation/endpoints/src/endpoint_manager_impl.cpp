@@ -3,10 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#if defined(__linux__)
-#include <unistd.h>
-#endif
-
 #include "../include/endpoint_manager_impl.hpp"
 
 #include "logger_ext.hpp"
@@ -36,10 +32,6 @@
 #define SYSTEMD_SOCKET_ACTIVATION 1
 #endif
 
-#if defined(__linux__)
-#include <sys/syscall.h>
-#endif
-
 #define VSOMEIP_LOG_PREFIX "emi"
 
 namespace vsomeip_v3 {
@@ -48,30 +40,11 @@ endpoint_manager_impl::endpoint_manager_impl(routing_manager_impl* const _rm, bo
                                              const std::shared_ptr<configuration>& _configuration) :
     io_(_io), configuration_(_configuration), router_(_rm), is_local_routing_(configuration_->is_local_routing()),
     is_uds_preferred_(configuration_->is_uds_preferred()),
-    auxiliary_context_(configuration_->get_io_thread_nice_level(router_->get_name())), is_processing_options_(true) { }
+    auxiliary_context_(configuration_->get_io_thread_nice_level(router_->get_name())) { }
 
 endpoint_manager_impl::~endpoint_manager_impl() { }
 
 void endpoint_manager_impl::start() {
-    options_thread_ = std::thread([this]() {
-#if defined(__linux__) || defined(__QNX__)
-        pthread_setname_np(pthread_self(), "m_multicast");
-#endif
-        utility::set_thread_niceness(configuration_->get_io_thread_nice_level(router_->get_name()));
-
-        VSOMEIP_INFO << "Started thread m_multicast " << std::hex << std::this_thread::get_id()
-#if defined(__linux__)
-                     << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-                ;
-        process_multicast_options();
-        VSOMEIP_INFO << "Stopped thread m_multicast " << std::hex << std::this_thread::get_id()
-#if defined(__linux__)
-                     << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-                ;
-    });
-
     auxiliary_context_.start();
 }
 
@@ -120,19 +93,6 @@ void endpoint_manager_impl::stop() {
     }
 
     endpoints.clear();
-
-    {
-        std::scoped_lock its_guard(options_mutex_);
-        is_processing_options_ = false;
-        options_condition_.notify_one();
-    }
-
-    try {
-        options_thread_.join();
-        VSOMEIP_INFO_P << "Joined thread m_multicast " << std::hex << std::this_thread::get_id();
-    } catch (...) {
-        // Ignore exception if thread already joined
-    }
 
     auxiliary_context_.stop();
 }
@@ -1246,64 +1206,6 @@ void endpoint_manager_impl::log_server_states() const {
 
     if (its_log.str().length() > 0) {
         VSOMEIP_INFO << "ESQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
-    }
-}
-
-void endpoint_manager_impl::add_multicast_option(const multicast_option_t& _option) {
-
-    std::scoped_lock its_guard(options_mutex_);
-    options_queue_.push(_option);
-    options_condition_.notify_one();
-}
-
-void endpoint_manager_impl::process_multicast_options() {
-    constexpr unsigned MAX_REPEAT_DELAY_MS = 32;
-    constexpr unsigned INITIAL_REPEAT_DELAY_MS = 1;
-    unsigned repeat_delay_ms = INITIAL_REPEAT_DELAY_MS;
-
-    std::unique_lock its_lock(options_mutex_);
-    while (is_processing_options_) {
-        options_condition_.wait(its_lock, [this] { return !options_queue_.empty() || !is_processing_options_; });
-
-        if (!is_processing_options_) {
-            return;
-        }
-
-        auto its_front = options_queue_.front();
-        options_queue_.pop();
-        auto its_udp_server_endpoint = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_front.endpoint_);
-        if (its_udp_server_endpoint) {
-            // Unlock before setting the option as this might block
-            its_lock.unlock();
-
-            boost::system::error_code its_error;
-            its_udp_server_endpoint->set_multicast_option(its_front.address_, its_front.is_join_, its_error);
-
-            // Lock again after setting the option
-            its_lock.lock();
-
-            if (its_error) {
-                VSOMEIP_ERROR_P << (its_front.is_join_ ? "joining " : "leaving ") << its_front.address_ << " (" << its_error.message()
-                                << ")";
-
-                if (its_front.is_join_) {
-                    multicast_option_t its_leave_option{its_front.endpoint_, false, its_front.address_};
-
-                    options_queue_.push(its_leave_option);
-                    options_queue_.push(its_front);
-
-                    its_lock.unlock();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(repeat_delay_ms));
-                    its_lock.lock();
-
-                    if ((repeat_delay_ms *= 2) > MAX_REPEAT_DELAY_MS) {
-                        repeat_delay_ms = MAX_REPEAT_DELAY_MS;
-                    }
-                }
-            } else {
-                repeat_delay_ms = INITIAL_REPEAT_DELAY_MS;
-            }
-        }
     }
 }
 

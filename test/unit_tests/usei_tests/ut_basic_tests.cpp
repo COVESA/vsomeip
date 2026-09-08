@@ -22,6 +22,25 @@
 #include "mocked_vsomeip_dependencies.hpp"
 #include "common/timeout_scale.hpp"
 
+namespace {
+// How many of the next join/leave attempts should be faked as failing
+int multicast_join_failures_remaining{0};
+int multicast_leave_failures_remaining{0};
+// Which thread ran the last IP_ADD_MEMBERSHIP call -- proves join() blocks its own caller
+std::atomic<std::thread::id> multicast_join_thread_id{};
+// How long (ms) the next IP_ADD_MEMBERSHIP call should block, simulating a slow syscall
+std::atomic<int> multicast_join_delay_ms{0};
+
+// If _counter has any fake failures left, uses one up (returns true); otherwise returns false
+bool try_consume_one(int& _counter) {
+    if (_counter > 0) {
+        --_counter;
+        return true;
+    }
+    return false;
+}
+} // namespace
+
 struct usei_fixture : public ::testing::Test {
     std::shared_ptr<boost::asio::io_context> context_;
     std::shared_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_guard_;
@@ -36,6 +55,10 @@ struct usei_fixture : public ::testing::Test {
     int udp_socket_{-1};
 
     void SetUp() override {
+        multicast_join_failures_remaining = 0;
+        multicast_leave_failures_remaining = 0;
+        multicast_join_delay_ms.store(0);
+
         // Boost ASIO main loop
         context_ = std::make_shared<boost::asio::io_context>();
         work_guard_ = std::make_shared<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(context_->get_executor());
@@ -105,7 +128,27 @@ extern "C" int __real_setsockopt(int sockfd, int level, int optname, const void*
 extern "C" int __wrap_setsockopt(int sockfd, int level, int optname, const void* optval, socklen_t optlen);
 
 int __wrap_setsockopt(int sockfd, int level, int optname, const void* optval, socklen_t optlen) {
-    if (level == IPPROTO_IP && (optname == IP_ADD_MEMBERSHIP || optname == IP_DROP_MEMBERSHIP || optname == IP_PKTINFO)) {
+    if (level == IPPROTO_IP && optname == IP_ADD_MEMBERSHIP) {
+        multicast_join_thread_id.store(std::this_thread::get_id());
+        if (int its_delay = multicast_join_delay_ms.load(); its_delay > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(its_delay));
+        }
+        if (try_consume_one(multicast_join_failures_remaining)) {
+            errno = EADDRNOTAVAIL;
+            return -1;
+        }
+        return 0;
+    }
+
+    if (level == IPPROTO_IP && optname == IP_DROP_MEMBERSHIP) {
+        if (try_consume_one(multicast_leave_failures_remaining)) {
+            errno = EADDRNOTAVAIL;
+            return -1;
+        }
+        return 0;
+    }
+
+    if (level == IPPROTO_IP && optname == IP_PKTINFO) {
         return 0;
     }
 
@@ -250,7 +293,6 @@ TEST_F(usei_fixture, no_overwrite_during_restart_with_multicast) {
     std::atomic<bool> finished{false};
 
     EXPECT_CALL(*endpoint_, on_error).Times(0);
-    EXPECT_CALL(*endpoint_, add_multicast_option).Times(AtLeast(5));
     EXPECT_CALL(*routing_, on_message).Times(AtLeast(1000));
 
     boost::system::error_code error;
@@ -281,6 +323,124 @@ TEST_F(usei_fixture, no_overwrite_during_restart_with_multicast) {
     server_->joined_.clear();
     server_->set_multicast_option(multicast_parameters_.address(), false, error);
     producer.join();
+    server_->stop(false);
+}
+
+// join()/leave() run synchronously on the caller's own thread and complete before returning
+TEST_F(usei_fixture, join_leave_are_synchronous) {
+    boost::system::error_code error;
+    server_->init(unicast_parameters_, error);
+    server_->start();
+
+    server_->join(multicast_parameters_.address().to_string());
+    EXPECT_EQ(server_->join_status_.count(multicast_parameters_.address()), 1);
+    EXPECT_EQ(multicast_join_thread_id.load(), std::this_thread::get_id());
+
+    server_->leave(multicast_parameters_.address().to_string());
+    EXPECT_EQ(server_->join_status_.count(multicast_parameters_.address()), 0);
+
+    server_->stop(false);
+}
+
+// A join that fails a few times in a row should still succeed once the retry kicks in
+TEST_F(usei_fixture, join_retries_on_transient_failure) {
+    boost::system::error_code error;
+    server_->init(unicast_parameters_, error);
+    server_->start();
+
+    // Fail the first 3 attempts, succeed on the 4th.
+    multicast_join_failures_remaining = 3;
+
+    server_->join(multicast_parameters_.address().to_string());
+
+    EXPECT_EQ(multicast_join_failures_remaining, 0);
+    EXPECT_EQ(server_->join_status_.count(multicast_parameters_.address()), 1);
+
+    server_->leave(multicast_parameters_.address().to_string());
+    server_->stop(false);
+}
+
+// A join that always fails must eventually give up instead of retrying forever
+TEST_F(usei_fixture, join_gives_up_after_max_retries) {
+    boost::system::error_code error;
+    server_->init(unicast_parameters_, error);
+    server_->start();
+
+    // Always fail the join attempts
+    multicast_join_failures_remaining = 1000;
+    server_->join(multicast_parameters_.address().to_string());
+
+    EXPECT_EQ(server_->join_status_.count(multicast_parameters_.address()), 0);
+    EXPECT_FALSE(server_->is_joined(multicast_parameters_.address().to_string()));
+
+    // Reset counter
+    multicast_join_failures_remaining = 0;
+    server_->stop(false);
+}
+
+// Inject LEAVE failure
+TEST_F(usei_fixture, leave_can_report_a_real_failure) {
+    boost::system::error_code error;
+    server_->init(unicast_parameters_, error);
+    server_->start();
+
+    server_->join(multicast_parameters_.address().to_string());
+    ASSERT_EQ(server_->join_status_.count(multicast_parameters_.address()), 1);
+
+    multicast_leave_failures_remaining = 1;
+    server_->leave(multicast_parameters_.address().to_string());
+
+    EXPECT_EQ(multicast_leave_failures_remaining, 0);
+
+    server_->stop(false);
+}
+
+// Concurrent join()/leave() for the same address
+TEST_F(usei_fixture, concurrent_join_and_leave_stay_consistent) {
+    boost::system::error_code error;
+    server_->init(unicast_parameters_, error);
+    server_->start();
+
+    auto its_address = multicast_parameters_.address().to_string();
+
+    for (int i = 0; i < 50; ++i) {
+        std::thread its_joiner([&] { server_->join(its_address); });
+        std::thread its_leaver([&] { server_->leave(its_address); });
+        its_joiner.join();
+        its_leaver.join();
+
+        bool its_is_joined = server_->is_joined(its_address);
+        bool its_is_confirmed = server_->join_status_.count(multicast_parameters_.address()) == 1;
+        EXPECT_EQ(its_is_joined, its_is_confirmed)
+                << "iteration " << i << ": is_joined()=" << its_is_joined << " join_status_ confirmed=" << its_is_confirmed;
+
+        // Converge to a known state before the next iteration.
+        if (its_is_joined) {
+            server_->leave(its_address);
+        }
+    }
+
+    server_->stop(false);
+}
+
+// The caller blocks on the syscall itself, proves join() only returns after it completes
+TEST_F(usei_fixture, join_blocks_the_caller_for_the_duration_of_the_syscall) {
+    using namespace std::chrono_literals;
+
+    boost::system::error_code error;
+    server_->init(unicast_parameters_, error);
+    server_->start();
+
+    multicast_join_delay_ms.store(50);
+
+    auto its_start = std::chrono::steady_clock::now();
+    server_->join(multicast_parameters_.address().to_string());
+    auto its_elapsed = std::chrono::steady_clock::now() - its_start;
+
+    EXPECT_GE(its_elapsed, 50ms);
+    EXPECT_EQ(multicast_join_thread_id.load(), std::this_thread::get_id());
+    EXPECT_TRUE(server_->is_joined(multicast_parameters_.address().to_string()));
+
     server_->stop(false);
 }
 
