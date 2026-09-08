@@ -132,4 +132,49 @@ TEST_F(test_registration_ordering, host_is_notified_before_pending_offers_are_fl
 
     EXPECT_TRUE(wait_for_command(server_name_, routingmanager_name_, protocol::id_e::OFFER_SERVICE_ID, socket_role::server));
 }
+
+TEST_F(test_registration_ordering, offers_arriving_during_the_registration_are_sent_once) {
+    constexpr size_t its_offers{128};
+
+    start_router();
+
+    auto gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(server_name_, routingmanager_name_, socket_role::client, gate->get_data_pipe()));
+    gate->block_at(protocol::id_e::ASSIGN_CLIENT_ACK_ID);
+
+    std::atomic<size_t> its_offer_count{0};
+    set_custom_command_handler(
+            server_name_, routingmanager_name_,
+            [&its_offer_count](command_message const& _command) {
+                if (_command.id_ == protocol::id_e::OFFER_SERVICE_ID) {
+                    ++its_offer_count;
+                }
+                return false;
+            },
+            socket_role::client);
+
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(gate->wait_for_blocked());
+
+    // Nothing is sent while deregistered, so this offer is left for send_pending_commands.
+    server_->offer(interfaces::cafe.instance_);
+
+    // From here the registration and the offers overlap.
+    gate->block(false);
+
+    // Each service is offered once, so each must produce exactly one command.
+    for (size_t i = 0; i < its_offers; ++i) {
+        server_->offer(service_instance{static_cast<service_t>(0x1000 + i), 0x1});
+    }
+
+    // Registered means the stop offer below is actually sent, so it can serve as the marker.
+    ASSERT_TRUE(server_->app_state_record_.wait_for_any(vsomeip::state_type_e::ST_REGISTERED));
+
+    // The local connection is FIFO: once the stop offer arrives, every offer written before it
+    // has been counted.
+    server_->stop_offer(interfaces::cafe.instance_);
+    ASSERT_TRUE(wait_for_command(server_name_, routingmanager_name_, protocol::id_e::STOP_OFFER_SERVICE_ID, socket_role::server));
+    EXPECT_EQ(its_offers + 1, its_offer_count.load()) << "an offer reached the routing manager more than once";
+}
 } // vsomeip_v3::testing
