@@ -47,7 +47,6 @@ public:
                                             std::chrono::nanoseconds* _maximum_retention) const override;
 
     void join(const std::string& _address);
-    void join_unlocked(const std::string& _address);
     void leave(const std::string& _address);
     void set_multicast_option(const boost::asio::ip::address& _address, bool _is_join, boost::system::error_code& _error);
 
@@ -91,12 +90,13 @@ private:
     void init_unlocked(const endpoint_type& _local, boost::system::error_code& _error);
 
     bool send_queued_unlocked(const target_data_iterator_type _it);
-    void leave_unlocked(const std::string& _address);
+    void join_multicast_with_retry(const boost::asio::ip::address& _address);
+    void set_multicast_option_unlocked(const boost::asio::ip::address& _address, bool _is_join, boost::system::error_code& _error);
     void receive_unicast_unlocked(std::shared_ptr<message_buffer_t> _unicast_recv_buffer);
     void receive_multicast_unlocked(std::shared_ptr<message_buffer_t> _multicast_recv_buffer,
                                     std::shared_ptr<endpoint_type> _multicast_sender);
-    bool is_joined_unlocked(const std::string& _address) const;
-    bool is_joined_unlocked(const std::string& _address, bool& _received) const;
+    bool is_joined_unlocked(const boost::asio::ip::address& _address) const;
+    bool is_joined_unlocked(const boost::asio::ip::address& _address, bool& _received) const;
     std::string get_remote_information(const target_data_iterator_type _it) const override;
     std::string get_remote_information(const endpoint_type& _remote) const override;
 
@@ -126,8 +126,8 @@ private:
 
     std::atomic<unsigned> lifecycle_idx_; // for unicast jhandler (and otherwise for usei as a whole)
     std::atomic<unsigned> multicast_lifecycle_idx_; // for multicast handler
-    std::map<std::string, bool, std::less<>> joined_;
-    std::map<std::string, bool, std::less<>> join_status_;
+    std::map<boost::asio::ip::address, bool> joined_;
+    std::map<boost::asio::ip::address, bool> join_status_;
 
     std::map<service_t, endpoint_type> default_targets_;
 

@@ -5,6 +5,7 @@
 
 #include <iomanip>
 #include <thread>
+#include <vector>
 
 #ifndef _WIN32
 #include <sys/socket.h>
@@ -16,9 +17,9 @@
 
 #include <vsomeip/constants.hpp>
 
+#include "internal.hpp"
 #include "logger_ext.hpp"
 #include "../include/endpoint_definition.hpp"
-#include "../include/boardnet_endpoint_host.hpp"
 #include "../include/tp.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
 #include "../include/abstract_socket_factory.hpp"
@@ -198,8 +199,10 @@ void udp_server_endpoint_impl::receive() { }
 
 void udp_server_endpoint_impl::start() {
     VSOMEIP_INFO_P << instance_name_ << "lifecycle_idx=" << lifecycle_idx_.load();
+
     std::scoped_lock its_lock(sync_);
     start_unlocked();
+
     VSOMEIP_INFO_P << instance_name_ << "Done, lifecycle_idx=" << lifecycle_idx_.load();
 }
 
@@ -214,6 +217,7 @@ void udp_server_endpoint_impl::restart(bool _force) {
     std::ignore = _force;
 
     VSOMEIP_INFO_P << instance_name_ << "lifecycle_idx=" << lifecycle_idx_.load();
+
     std::scoped_lock its_lock(sync_);
 
     stop_unlocked();
@@ -252,13 +256,13 @@ void udp_server_endpoint_impl::start_unlocked() {
     receive_unicast_unlocked(nullptr);
 
     VSOMEIP_INFO_P << instance_name_ << "Join " << joined_.size() << " groups";
-    auto its_endpoint_host = endpoint_host_.lock();
-    if (its_endpoint_host) {
-        for (const auto& [its_address, its_joined] : joined_) {
-            VSOMEIP_INFO_P << instance_name_ << "Rejoin " << its_address << ", was joined " << its_joined;
-            multicast_option_t its_join_option{shared_from_this(), true, boost::asio::ip::make_address(its_address)};
-            its_endpoint_host->add_multicast_option(its_join_option);
-        }
+    std::vector<boost::asio::ip::address> its_to_rejoin;
+    for (const auto& [its_address, its_joined] : joined_) {
+        VSOMEIP_INFO_P << instance_name_ << "Rejoin " << its_address << ", was joined " << its_joined;
+        its_to_rejoin.push_back(its_address);
+    }
+    for (const auto& its_address : its_to_rejoin) {
+        join_multicast_with_retry(its_address);
     }
 }
 
@@ -276,6 +280,7 @@ void udp_server_endpoint_impl::stop_unlocked() {
 
     unicast_socket_.reset();
     multicast_socket_.reset();
+    join_status_.clear();
     tp_reassembler_->stop();
 }
 
@@ -461,25 +466,34 @@ void udp_server_endpoint_impl::get_configured_times_from_endpoint(service_t _ser
 
 bool udp_server_endpoint_impl::is_joined(const std::string& _address) const {
     std::scoped_lock its_lock(sync_);
-    auto result = is_joined_unlocked(_address);
-    return result;
+    try {
+        return is_joined_unlocked(boost::asio::ip::make_address(_address));
+    } catch (const std::exception& e) {
+        VSOMEIP_ERROR_P << instance_name_ << "Exception " << e.what();
+        return false;
+    }
 }
 
 bool udp_server_endpoint_impl::is_joined(const std::string& _address, bool& _received) const {
     std::scoped_lock its_lock(sync_);
-    auto result = is_joined_unlocked(_address, _received);
-    return result;
+    try {
+        return is_joined_unlocked(boost::asio::ip::make_address(_address), _received);
+    } catch (const std::exception& e) {
+        VSOMEIP_ERROR_P << instance_name_ << "Exception " << e.what();
+        _received = false;
+        return false;
+    }
 }
 
 //
 // Both is_joined_unlocked - methods must be called with sync_ being hold!
 //
-bool udp_server_endpoint_impl::is_joined_unlocked(const std::string& _address) const {
+bool udp_server_endpoint_impl::is_joined_unlocked(const boost::asio::ip::address& _address) const {
 
     return (joined_.count(_address) > 0);
 }
 
-bool udp_server_endpoint_impl::is_joined_unlocked(const std::string& _address, bool& _received) const {
+bool udp_server_endpoint_impl::is_joined_unlocked(const boost::asio::ip::address& _address, bool& _received) const {
     const auto found_address = joined_.find(_address);
     if (found_address != joined_.end()) {
         _received = found_address->second;
@@ -492,23 +506,15 @@ bool udp_server_endpoint_impl::is_joined_unlocked(const std::string& _address, b
 
 void udp_server_endpoint_impl::join(const std::string& _address) {
     VSOMEIP_INFO_P << instance_name_ << _address;
+
     std::scoped_lock its_lock(sync_);
-    join_unlocked(_address);
-}
-
-void udp_server_endpoint_impl::join_unlocked(const std::string& _address) {
-    // The caller must hold the lock
-
     try {
-        if (!is_joined_unlocked(_address)) {
-            joined_[_address] = false;
-
-            auto its_endpoint_host = endpoint_host_.lock();
-            if (its_endpoint_host) {
-                multicast_option_t its_join_option{shared_from_this(), true, boost::asio::ip::make_address(_address)};
-                its_endpoint_host->add_multicast_option(its_join_option);
-            }
+        auto its_parsed_address = boost::asio::ip::make_address(_address);
+        if (is_joined_unlocked(its_parsed_address)) {
+            return;
         }
+        joined_[its_parsed_address] = false;
+        join_multicast_with_retry(its_parsed_address);
     } catch (const std::exception& e) {
         VSOMEIP_ERROR_P << instance_name_ << "Exception " << e.what();
     }
@@ -516,22 +522,14 @@ void udp_server_endpoint_impl::join_unlocked(const std::string& _address) {
 
 void udp_server_endpoint_impl::leave(const std::string& _address) {
     VSOMEIP_INFO_P << instance_name_ << _address;
+
     std::scoped_lock its_lock(sync_);
-    leave_unlocked(_address);
-}
-
-void udp_server_endpoint_impl::leave_unlocked(const std::string& _address) {
-    // The caller must hold the lock
-
     try {
-        if (is_joined_unlocked(_address)) {
-            joined_.erase(_address);
-
-            auto its_endpoint_host = endpoint_host_.lock();
-            if (its_endpoint_host) {
-                multicast_option_t its_leave_option{shared_from_this(), false, boost::asio::ip::make_address(_address)};
-                its_endpoint_host->add_multicast_option(its_leave_option);
-            }
+        auto its_parsed_address = boost::asio::ip::make_address(_address);
+        if (is_joined_unlocked(its_parsed_address)) {
+            joined_.erase(its_parsed_address);
+            boost::system::error_code its_error;
+            set_multicast_option_unlocked(its_parsed_address, false, its_error);
         }
     } catch (const std::exception& e) {
         VSOMEIP_ERROR_P << instance_name_ << "Exception " << e.what();
@@ -830,17 +828,24 @@ bool udp_server_endpoint_impl::tp_segmentation_enabled(service_instance_t _si, m
 
 void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::address& _address, bool _is_join,
                                                     boost::system::error_code& _error) {
+    std::scoped_lock its_lock(sync_);
+    set_multicast_option_unlocked(_address, _is_join, _error);
+}
+
+void udp_server_endpoint_impl::set_multicast_option_unlocked(const boost::asio::ip::address& _address, bool _is_join,
+                                                             boost::system::error_code& _error) {
+    // The caller must hold the lock
+
     VSOMEIP_INFO_P << instance_name_ << (_is_join ? "Join " : "Leave ") << _address
                    << ", multicast_lifecycle_idx=" << multicast_lifecycle_idx_.load() << ", stopped=" << is_stopped_;
 
-    std::unique_lock its_lock(sync_);
-
     if (is_stopped_) {
         VSOMEIP_INFO_P << instance_name_ << "Ignored because server is stopping";
+        _error = boost::asio::error::make_error_code(boost::asio::error::operation_aborted);
         return;
     }
 
-    bool has_joined = multicast_socket_ && join_status_.count(_address.to_string()) > 0;
+    bool has_joined = multicast_socket_ && join_status_.count(_address) > 0;
 
     if (_is_join && has_joined) {
         // We can skip the join operation, but we don't skip the leave operation
@@ -966,6 +971,12 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             receive_multicast_unlocked(nullptr, nullptr);
         }
 
+        if (is_v4_ != _address.is_v4()) {
+            VSOMEIP_ERROR_P << instance_name_ << "Address family mismatch for " << _address;
+            _error = boost::asio::error::make_error_code(boost::asio::error::address_family_not_supported);
+            return;
+        }
+
         boost::asio::ip::multicast::join_group its_join_option;
 
         if (is_v4_) {
@@ -979,28 +990,45 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         // "Both ADD_MEMBERSHIP and DROP_MEMBERSHIP are nonblocking operations. They
         // should return immediately indicating either success or failure."
         // https://tldp.org/HOWTO/Multicast-HOWTO-6.html
+        VSOMEIP_INFO_P << instance_name_ << "Joining multicast group " << _address;
+        auto its_start = std::chrono::steady_clock::now();
         multicast_socket_->set_option(its_join_option, _error);
+        auto its_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - its_start);
+        if (its_elapsed.count() > VSOMEIP_MULTICAST_OPTION_SLOW_THRESHOLD) {
+            VSOMEIP_ERROR_P << instance_name_ << "Joining multicast group " << _address << " took " << its_elapsed.count() << "ms";
+        } else {
+            VSOMEIP_INFO_P << instance_name_ << "Joining multicast group " << _address << " took " << its_elapsed.count() << "ms";
+        }
 
         if (!_error) {
-            joined_[_address.to_string()] = true;
-            join_status_[_address.to_string()] = true;
+            if (auto its_joined = joined_.find(_address); its_joined != joined_.end()) {
+                its_joined->second = true;
+            }
+            join_status_[_address] = true;
             VSOMEIP_INFO_P << instance_name_ << "Join successful";
         } else {
             VSOMEIP_ERROR_P << instance_name_ << "Join failure, " << _error.message() << ", could happen during restart operation";
-            // Non-fatal error, that must be reported to endpoint_manager_impl
-            // so it can repeat the operation. It could occur after a restart,
-            // and Linux didn't have time to clean the previous memberships.
-            // See https://stackoverflow.com/questions/45442416
+            // Non-fatal error. It could occur after a restart, and Linux didn't have
+            // time to clean the previous memberships (see  https://stackoverflow.com/questions/45442416).
+            // The caller is responsible for retrying. See join_multicast_with_retry().
         }
     } else {
-        join_status_.erase(_address.to_string());
+        join_status_.erase(_address);
 
         if (multicast_socket_ && multicast_socket_->is_open()) {
             boost::asio::ip::multicast::leave_group its_leave_option(_address);
+            VSOMEIP_INFO_P << instance_name_ << "Leaving multicast group " << _address;
+            auto its_start = std::chrono::steady_clock::now();
             multicast_socket_->set_option(its_leave_option, _error);
+            auto its_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - its_start);
+            if (its_elapsed.count() > VSOMEIP_MULTICAST_OPTION_SLOW_THRESHOLD) {
+                VSOMEIP_ERROR_P << instance_name_ << "Leaving multicast group " << _address << " took " << its_elapsed.count() << "ms";
+            } else {
+                VSOMEIP_INFO_P << instance_name_ << "Leaving multicast group " << _address << " took " << its_elapsed.count() << "ms";
+            }
 
             if (_error) {
-                VSOMEIP_ERROR_P << instance_name_ << "Leave failure, " << _error.message();
+                VSOMEIP_WARNING_P << instance_name_ << "Leave failure, " << _error.message();
             } else {
                 VSOMEIP_INFO_P << instance_name_ << "Leave successful";
             }
@@ -1010,6 +1038,41 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
                 multicast_socket_.reset();
                 multicast_lifecycle_idx_ += 1;
             }
+        }
+    }
+}
+
+void udp_server_endpoint_impl::join_multicast_with_retry(const boost::asio::ip::address& _address) {
+    constexpr unsigned MAX_ATTEMPTS = 6;
+    constexpr unsigned INITIAL_REPEAT_DELAY_MS = 1;
+    constexpr unsigned MAX_REPEAT_DELAY_MS = 32;
+    unsigned its_repeat_delay_ms = INITIAL_REPEAT_DELAY_MS;
+
+    for (unsigned its_attempt = 0; its_attempt < MAX_ATTEMPTS; ++its_attempt) {
+        if (its_attempt > 0) {
+            boost::system::error_code its_drop_error;
+            set_multicast_option_unlocked(_address, false, its_drop_error);
+        }
+
+        boost::system::error_code its_error;
+        set_multicast_option_unlocked(_address, true, its_error);
+        if (!its_error) {
+            return;
+        }
+        if (its_error == boost::asio::error::operation_aborted) {
+            return;
+        }
+
+        if (its_attempt + 1 == MAX_ATTEMPTS) {
+            joined_.erase(_address);
+            VSOMEIP_ERROR_P << instance_name_ << "Giving up joining " << _address << " after " << MAX_ATTEMPTS
+                            << " attempts, last error: " << its_error.message();
+            return;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(its_repeat_delay_ms));
+        if ((its_repeat_delay_ms *= 2) > MAX_REPEAT_DELAY_MS) {
+            its_repeat_delay_ms = MAX_REPEAT_DELAY_MS;
         }
     }
 }
