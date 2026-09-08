@@ -57,14 +57,22 @@ struct simple_command_data {
     command_header header_;
 };
 
-struct service_data {
-    auto operator<=>(service_data const&) const = default;
+struct service_key {
+    auto operator<=>(service_key const&) const = default;
 
-    static constexpr uint32_t wire_size_{sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)};
+    static constexpr uint32_t wire_size_{sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t)};
 
     service_t service_;
     instance_t instance_;
-    major_version_t major_version_;
+    major_version_t major_;
+};
+
+struct service_data {
+    auto operator<=>(service_data const&) const = default;
+
+    static constexpr uint32_t wire_size_{service_key::wire_size_ + sizeof(minor_version_t)};
+
+    service_key key_;
     minor_version_t minor_version_;
 };
 
@@ -74,7 +82,7 @@ struct service_command_data {
     static service_command_data create(id_e _id, client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                        minor_version_t _minor) {
         return {.header_ = command_header::create(_id, service_data::wire_size_, _client),
-                .payload_ = {.service_ = _service, .instance_ = _instance, .major_version_ = _major, .minor_version_ = _minor}};
+                .payload_ = {.key_ = {.service_ = _service, .instance_ = _instance, .major_ = _major}, .minor_version_ = _minor}};
     }
 
     command_header header_;
@@ -91,25 +99,16 @@ struct multiple_service_command_data {
     std::span<service_data const> payload_;
 };
 
-struct release_service_data {
-    auto operator<=>(release_service_data const&) const = default;
-
-    static constexpr uint32_t wire_size_{sizeof(service_t) + sizeof(instance_t)};
-
-    service_t service_;
-    instance_t instance_;
-};
-
 struct release_service_command_data {
     auto operator<=>(release_service_command_data const&) const = default;
 
-    static release_service_command_data create(client_t _client, service_t _service, instance_t _instance) {
-        return {.header_ = command_header::create(id_e::RELEASE_SERVICE_ID, release_service_data::wire_size_, _client),
-                .payload_ = {.service_ = _service, .instance_ = _instance}};
+    static release_service_command_data create(client_t _client, service_t _service, instance_t _instance, major_version_t _major) {
+        return {.header_ = command_header::create(id_e::RELEASE_SERVICE_ID, service_key::wire_size_, _client),
+                .payload_ = {.service_ = _service, .instance_ = _instance, .major_ = _major}};
     }
 
     command_header header_;
-    release_service_data payload_;
+    service_key payload_;
 };
 
 template<typename T>
@@ -148,15 +147,14 @@ struct assign_client_command_data {
 struct register_event_data {
     auto operator<=>(register_event_data const&) const = default;
 
-    static constexpr uint32_t fixed_wire_size_{sizeof(service_t) + sizeof(instance_t) + sizeof(event_t) + sizeof(event_type_e)
-                                               + sizeof(bool) + sizeof(reliability_type_e) + sizeof(bool) + sizeof(uint16_t)};
+    static constexpr uint32_t fixed_wire_size_{service_key::wire_size_ + sizeof(event_t) + sizeof(event_type_e) + sizeof(bool)
+                                               + sizeof(reliability_type_e) + sizeof(bool) + sizeof(uint16_t)};
 
     uint32_t payload_size() const {
         return fixed_wire_size_ + static_cast<uint32_t>(eventgroups_.size()) * static_cast<uint32_t>(sizeof(eventgroup_t));
     }
 
-    service_t service_;
-    instance_t instance_;
+    service_key service_key_;
     event_t event_;
     event_type_e event_type_;
     bool is_provided_;
@@ -197,9 +195,8 @@ struct send_command_raw {
 struct unregister_event_data {
     auto operator<=>(unregister_event_data const&) const = default;
 
-    static constexpr uint32_t wire_size_{sizeof(service_t) + sizeof(instance_t) + sizeof(event_t) + sizeof(uint8_t)};
-    service_t service_;
-    instance_t instance_;
+    static constexpr uint32_t wire_size_{service_key::wire_size_ + sizeof(event_t) + sizeof(uint8_t)};
+    service_key service_key_;
     event_t event_;
     bool is_provided_;
 };
@@ -223,7 +220,9 @@ struct unregister_event_command_data {
     static unregister_event_command_data create(client_t _client, service_t _service, instance_t _instance, event_t _event,
                                                 bool _is_provided) {
         return {.header_ = command_header::create(id_e::UNREGISTER_EVENT_ID, unregister_event_data::wire_size_, _client),
-                .payload_ = {.service_ = _service, .instance_ = _instance, .event_ = _event, .is_provided_ = _is_provided}};
+                .payload_ = {.service_key_ = {.service_ = _service, .instance_ = _instance, .major_ = ANY_MAJOR},
+                             .event_ = _event,
+                             .is_provided_ = _is_provided}};
     }
 
     command_header header_;
@@ -233,13 +232,10 @@ struct unregister_event_command_data {
 struct subscribe_data {
     auto operator<=>(subscribe_data const&) const = default;
 
-    static constexpr uint32_t wire_size_{sizeof(service_t) + sizeof(instance_t) + sizeof(eventgroup_t) + sizeof(major_version_t)
-                                         + sizeof(event_t) + sizeof(pending_id_t)};
+    static constexpr uint32_t wire_size_{service_key::wire_size_ + sizeof(eventgroup_t) + sizeof(event_t) + sizeof(pending_id_t)};
 
-    service_t service_;
-    instance_t instance_;
+    service_key service_key_;
     eventgroup_t eventgroup_;
-    major_version_t major_;
     event_t event_;
     pending_id_t pending_id_;
 };
@@ -270,11 +266,10 @@ struct subscribe_command_data {
 struct subscribe_answer_data {
     auto operator<=>(subscribe_answer_data const&) const = default;
 
-    static constexpr uint32_t wire_size_{sizeof(service_t) + sizeof(instance_t) + sizeof(eventgroup_t) + sizeof(client_t) + sizeof(event_t)
+    static constexpr uint32_t wire_size_{service_key::wire_size_ + sizeof(eventgroup_t) + sizeof(client_t) + sizeof(event_t)
                                          + sizeof(pending_id_t)};
 
-    service_t service_;
-    instance_t instance_;
+    service_key service_key_;
     eventgroup_t eventgroup_;
     client_t subscriber_;
     event_t event_;
@@ -291,10 +286,9 @@ struct subscribe_answer_command_data {
 struct unsubscribe_ack_data {
     auto operator<=>(unsubscribe_ack_data const&) const = default;
 
-    static constexpr uint32_t wire_size_{sizeof(service_t) + sizeof(instance_t) + sizeof(eventgroup_t) + sizeof(pending_id_t)};
+    static constexpr uint32_t wire_size_{service_key::wire_size_ + sizeof(eventgroup_t) + sizeof(pending_id_t)};
 
-    service_t service_;
-    instance_t instance_;
+    service_key service_key_;
     eventgroup_t eventgroup_;
     pending_id_t pending_id_;
 };
@@ -305,7 +299,9 @@ struct unsubscribe_ack_command_data {
     static unsubscribe_ack_command_data create(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                pending_id_t _pending_id) {
         return {.header_ = command_header::create(id_e::UNSUBSCRIBE_ACK_ID, unsubscribe_ack_data::wire_size_, _client),
-                .payload_ = {.service_ = _service, .instance_ = _instance, .eventgroup_ = _eventgroup, .pending_id_ = _pending_id}};
+                .payload_ = {.service_key_ = {.service_ = _service, .instance_ = _instance, .major_ = ANY_MAJOR},
+                             .eventgroup_ = _eventgroup,
+                             .pending_id_ = _pending_id}};
     }
 
     command_header header_;
@@ -414,10 +410,6 @@ inline uint32_t wire_size(std::shared_ptr<message> const& _input) {
     return VSOMEIP_FULL_HEADER_SIZE + (p ? p->get_length() : 0);
 }
 
-constexpr uint32_t wire_size(release_service_data const&) {
-    return release_service_data::wire_size_;
-}
-
 constexpr uint32_t wire_size(unregister_event_data const&) {
     return unregister_event_data::wire_size_;
 }
@@ -489,8 +481,9 @@ inline service_command_data create_stop_offer_service_cmd(client_t _client, serv
     return service_command_data::create(id_e::STOP_OFFER_SERVICE_ID, _client, _service, _instance, _major, _minor);
 }
 
-inline auto create_release_service_cmd(client_t _client, service_t _service, instance_t _instance) {
-    return release_service_command_data::create(_client, _service, _instance);
+inline release_service_command_data create_release_service_cmd(client_t _client, service_t _service, instance_t _instance,
+                                                               major_version_t _major) {
+    return release_service_command_data::create(_client, _service, _instance, _major);
 }
 
 inline auto create_offered_services_request_cmd(client_t _client, offer_type_e _offer_type) {

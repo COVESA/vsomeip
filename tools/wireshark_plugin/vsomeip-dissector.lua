@@ -184,15 +184,18 @@ function try_seek(buffer, offset)
     return buffer(offset, new_buffer_size)
 end
 
-function read_service_instance_info(buffer, initial_position)
+function read_service_instance_major_info(buffer, initial_position)
     -- Service Instance Info fields
     local service_id_field_size = 2
     local instance_id_field_size = 2
+    local major_id_field_size = 1
     local service_id = buffer(initial_position, service_id_field_size)
     local next_position = initial_position + service_id_field_size
     local instance_id = buffer(next_position, instance_id_field_size)
     next_position = next_position + instance_id_field_size
-    return service_id, instance_id, next_position
+    local major_id = buffer(next_position, major_id_field_size)
+    next_position = next_position + major_id_field_size
+    return service_id, instance_id, major_id, next_position
 end
 
 function read_someip_major_version(buffer, initial_position)
@@ -204,8 +207,7 @@ function read_service_info(buffer, initial_position)
     local service_info = {}
     -- Service Info fields
     local next_position = initial_position
-    service_info.service_id, service_info.instance_id, next_position = read_service_instance_info(buffer, initial_position)
-    service_info.major_version, next_position = read_someip_major_version(buffer, next_position)
+    service_info.service_id, service_info.instance_id, service_info.major_version_id, next_position = read_service_instance_major_info(buffer, initial_position)
     local minor_version_field_size = 4
     service_info.minor_version = buffer(next_position, minor_version_field_size)
     next_position = next_position + minor_version_field_size
@@ -447,12 +449,10 @@ end
 --  -         Key (8 bytes)
 --  -         Value (1 byte)
 function subscribe_command(buffer, packet_info, vsomeip_tree)
-    local major_version
-    local service_id, instance_id, buffer_cursor = read_service_instance_info(buffer, 0)
+    local service_id, instance_id, major_version_id, buffer_cursor = read_service_instance_major_info(buffer, 0)
     local eventgroup_id_field_size = 2
     local eventgroupd_id = buffer(buffer_cursor, eventgroup_id_field_size)
     buffer_cursor = buffer_cursor + eventgroup_id_field_size
-    major_version, buffer_cursor = read_someip_major_version(buffer, buffer_cursor)
     local event_id_field_size = 2
     local event_id = buffer(buffer_cursor, event_id_field_size)
     buffer_cursor = buffer_cursor + event_id_field_size
@@ -462,8 +462,8 @@ function subscribe_command(buffer, packet_info, vsomeip_tree)
 
     vsomeip_tree:add_le(vsomeip_service, service_id)
     vsomeip_tree:add_le(vsomeip_instance, instance_id)
+    vsomeip_tree:add_le(vsomeip_major, major_version_id)
     vsomeip_tree:add_le(vsomeip_eventgroup, eventgroupd_id)
-    vsomeip_tree:add(vsomeip_major, major_version)
     vsomeip_tree:add_le(vsomeip_event, event_id)
     vsomeip_tree:add_le(vsomeip_id, pending_id)
 
@@ -474,7 +474,8 @@ function subscribe_command(buffer, packet_info, vsomeip_tree)
         buffer_cursor = buffer_cursor + filter_field_size
     end
 
-    packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1)
+    packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1) 
+                        .. "." .. major_version_id(1,1)..major_version_id(0,1)
                         .. "." .. eventgroupd_id(1,1)..eventgroupd_id(0,1) .. "." .. event_id(1,1)..event_id(0,1) .. "]")
 end
 
@@ -485,7 +486,7 @@ end
 --  - Event (2 bytes)
 --  - Pending ID (2 bytes)
 function unsubscribe_or_expire_commands(buffer, packet_info, vsomeip_tree)
-    local service_id, instance_id, buffer_cursor = read_service_instance_info(buffer, 0)
+    local service_id, instance_id, major_version_id, buffer_cursor = read_service_instance_major_info(buffer, 0)
     local eventgroup_id_field_size = 2
     local eventgroupd_id = buffer(buffer_cursor, eventgroup_id_field_size)
     buffer_cursor = buffer_cursor + eventgroup_id_field_size
@@ -499,11 +500,13 @@ function unsubscribe_or_expire_commands(buffer, packet_info, vsomeip_tree)
 
     vsomeip_tree:add_le(vsomeip_service, service_id)
     vsomeip_tree:add_le(vsomeip_instance, instance_id)
+    vsomeip_tree:add_le(vsomeip_major, major_version_id)
     vsomeip_tree:add_le(vsomeip_eventgroup, eventgroupd_id)
     vsomeip_tree:add_le(vsomeip_event, event_id)
     vsomeip_tree:add_le(vsomeip_id, id_field_size)
 
     packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1)
+                        .. "." .. major_version_id(1,1)..major_version_id(0,1)
                         .. "." .. eventgroupd_id(1,1)..eventgroupd_id(0,1) .. "." .. event_id(1,1)..event_id(0,1) .. "]")
 end
 
@@ -534,10 +537,14 @@ end
 --  - Service (2 bytes)
 --  - Instance (2 bytes)
 function release_service_command(buffer, packet_info, vsomeip_tree)
-    local service_id, instance_id, buffer_cursor = read_service_instance_info(buffer, 0)
+    local service_id, instance_id, major_version_id, buffer_cursor = read_service_instance_major_info(buffer, 0)
     vsomeip_tree:add_le(vsomeip_service, service_id)
     vsomeip_tree:add_le(vsomeip_instance, instance_id)
-    packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1) .. "]")
+    vsomeip_tree:add_le(vsomeip_major, major_version_id)
+    packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1)
+        .. "." .. major_version_id(1,1)..major_version_id(0,1)
+        .. "]")
+
 end
 
 -- Supports VSOMEIP_SUBSCRIBE_NACK and VSOMEIP_SUBSCRIBE_ACK structure with:
@@ -548,7 +555,7 @@ end
 --  - Event (2 bytes)
 --  - ID (2 bytes)
 function subscribe_nack_or_ack_commands(buffer, packet_info, vsomeip_tree)
-    local service_id, instance_id, buffer_cursor = read_service_instance_info(buffer, 0)
+    local service_id, instance_id, major_version_id, buffer_cursor = read_service_instance_major_info(buffer, 0)
     local eventgroup = buffer(buffer_cursor, 2)
     buffer_cursor = buffer_cursor + 2
     local subscriber = buffer(buffer_cursor, 2)
@@ -560,12 +567,14 @@ function subscribe_nack_or_ack_commands(buffer, packet_info, vsomeip_tree)
 
     vsomeip_tree:add_le(vsomeip_service, service_id)
     vsomeip_tree:add_le(vsomeip_instance, instance_id)
+    vsomeip_tree:add_le(vsomeip_major, major_version_id)
     vsomeip_tree:add_le(vsomeip_eventgroup, eventgroup)
     vsomeip_tree:add_le(vsomeip_subscriber, subscriber)
     vsomeip_tree:add_le(vsomeip_event, event)
     vsomeip_tree:add_le(vsomeip_id, id)
 
     packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1)
+                        .. "." .. major_version_id(1,1)..major_version_id(0,1)
                         .. "." .. eventgroup(1,1)..eventgroup(0,1) .. "." .. event(1,1)..event(0,1)
                         .. "] (" .. subscriber(1,1)..subscriber(0,1) .. ")")
 end

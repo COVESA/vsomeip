@@ -82,8 +82,10 @@ std::ostream& operator<<(std::ostream& _out, id_e _id) {
     return _out << to_string(_id);
 }
 
+std::ostream& operator<<(std::ostream& _out, service_key const& _data) {
+    return _out << hex4(_data.service_) << "." << hex4(_data.instance_) << "." << static_cast<int>(_data.major_);
+}
 std::ostream& operator<<(std::ostream& _out, service_data const& _data) {
-    return _out << "[" << hex4(_data.service_) << "." << hex4(_data.instance_) << "." << static_cast<int>(_data.major_version_) << "."
-                << _data.minor_version_ << "]";
+    return _out << "[" << _data.key_ << "." << _data.minor_version_ << "]";
 }
 }

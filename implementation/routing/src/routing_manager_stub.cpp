@@ -179,9 +179,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
         if (protocol::service_data its_service_data;
             protocol::deserialize(its_service_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
-            auto its_service = its_service_data.service_;
-            auto its_instance = its_service_data.instance_;
-            auto its_major = its_service_data.major_version_;
+            auto its_service = its_service_data.key_.service_;
+            auto its_instance = its_service_data.key_.instance_;
+            auto its_major = its_service_data.key_.major_;
             auto its_minor = its_service_data.minor_version_;
 
             if (its_id == protocol::id_e::OFFER_SERVICE_ID) {
@@ -205,10 +205,10 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
         if (protocol::subscribe_with_filter_data its_data;
             protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
-            auto its_service = its_data.data_.service_;
-            auto its_instance = its_data.data_.instance_;
+            auto its_service = its_data.data_.service_key_.service_;
+            auto its_instance = its_data.data_.service_key_.instance_;
             auto its_eventgroup = its_data.data_.eventgroup_;
-            auto its_major = its_data.data_.major_;
+            auto its_major = its_data.data_.service_key_.major_;
             auto its_notifier = its_data.data_.event_;
             auto its_filter = its_data.filter_;
 
@@ -244,7 +244,8 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
 
     case protocol::id_e::UNSUBSCRIBE_ID: {
         if (protocol::subscribe_data its_data; protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
-            host_->unsubscribe(its_client, its_data.service_, its_data.instance_, its_data.eventgroup_, its_data.event_);
+            host_->unsubscribe(its_client, its_data.service_key_.service_, its_data.service_key_.instance_, its_data.eventgroup_,
+                               its_data.event_);
         } else {
             VSOMEIP_ERROR_P << "Deserializing unsubscribe failed: " << utility::dump(_data, _size);
         }
@@ -254,11 +255,11 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     case protocol::id_e::SUBSCRIBE_ACK_ID: {
         if (protocol::subscribe_answer_data its_data; protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
-            host_->on_subscribe_ack(its_data.subscriber_, its_data.service_, its_data.instance_, its_data.eventgroup_, its_data.event_,
-                                    its_data.pending_id_);
+            host_->on_subscribe_ack(its_data.subscriber_, its_data.service_key_.service_, its_data.service_key_.instance_,
+                                    its_data.eventgroup_, its_data.event_, its_data.pending_id_);
 
-            VSOMEIP_INFO << "SUBSCRIBE ACK(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "." << hex4(its_data.instance_)
-                         << "." << hex4(its_data.eventgroup_) << "." << hex4(its_data.event_) << "] id=" << hex4(its_data.pending_id_);
+            VSOMEIP_INFO << "SUBSCRIBE ACK(" << hex4(its_client) << "): [" << its_data.service_key_ << "." << hex4(its_data.eventgroup_)
+                         << "." << hex4(its_data.event_) << "] id=" << hex4(its_data.pending_id_);
         } else {
             VSOMEIP_ERROR_P << "Deserializing subscribe ack failed: " << utility::dump(_data, _size);
         }
@@ -269,11 +270,11 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     case protocol::id_e::SUBSCRIBE_NACK_ID: {
         if (protocol::subscribe_answer_data its_data; protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
-            host_->on_subscribe_nack(its_data.subscriber_, its_data.service_, its_data.instance_, its_data.eventgroup_, false,
-                                     its_data.pending_id_);
+            host_->on_subscribe_nack(its_data.subscriber_, its_data.service_key_.service_, its_data.service_key_.instance_,
+                                     its_data.eventgroup_, false, its_data.pending_id_);
 
-            VSOMEIP_INFO << "SUBSCRIBE NACK(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "." << hex4(its_data.instance_)
-                         << "." << hex4(its_data.eventgroup_) << "." << hex4(its_data.event_) << "] id=" << hex4(its_data.pending_id_);
+            VSOMEIP_INFO << "SUBSCRIBE NACK(" << hex4(its_client) << "): [" << its_data.service_key_ << "." << hex4(its_data.eventgroup_)
+                         << "." << hex4(its_data.event_) << "] id=" << hex4(its_data.pending_id_);
         } else {
             VSOMEIP_ERROR_P << "Deserializing subscribe nack failed :" << utility::dump(_data, _size);
         }
@@ -284,15 +285,15 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     case protocol::id_e::UNSUBSCRIBE_ACK_ID: {
         if (protocol::unsubscribe_ack_data its_data; protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
-            auto its_service = its_data.service_;
-            auto its_instance = its_data.instance_;
+            auto its_service = its_data.service_key_.service_;
+            auto its_instance = its_data.service_key_.instance_;
             auto its_eventgroup = its_data.eventgroup_;
             auto its_subscription_id = its_data.pending_id_;
 
             host_->on_unsubscribe_ack(its_client, its_service, its_instance, its_eventgroup, its_subscription_id);
 
-            VSOMEIP_INFO << "UNSUBSCRIBE ACK(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
-                         << hex4(its_eventgroup) << "] id=" << hex4(its_subscription_id);
+            VSOMEIP_INFO << "UNSUBSCRIBE ACK(" << hex4(its_client) << "): [" << its_data.service_key_ << "." << hex4(its_eventgroup)
+                         << "] id=" << hex4(its_subscription_id);
         } else {
             VSOMEIP_ERROR_P << "Deserializing unsubscribe ack failed, memory: " << utility::dump(_data, _size);
         }
@@ -379,19 +380,20 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
 
             std::set<protocol::service> its_allowed_requests;
             for (const auto& r : its_services) {
-                if (VSOMEIP_SEC_OK == get_security()->is_client_allowed_to_request(&_peer_data.sec_client_, r.service_, r.instance_)) {
-                    if (host_->has_client_requested(its_client, r.service_, r.instance_)) {
-                        VSOMEIP_WARNING_P << " Client 0x" << hex4(its_client) << " has already requested service [" << hex4(r.service_)
-                                          << "." << hex4(r.instance_) << "]";
-                        if (!host_->handle_service_rerequest(its_client, r.service_, r.instance_, r.major_version_)) {
+                if (VSOMEIP_SEC_OK
+                    == get_security()->is_client_allowed_to_request(&_peer_data.sec_client_, r.key_.service_, r.key_.instance_)) {
+                    if (host_->has_client_requested(its_client, r.key_.service_, r.key_.instance_)) {
+                        VSOMEIP_WARNING_P << " Client 0x" << hex4(its_client) << " has already requested service [" << hex4(r.key_.service_)
+                                          << "." << hex4(r.key_.instance_) << "]";
+                        if (!host_->handle_service_rerequest(its_client, r.key_.service_, r.key_.instance_, r.key_.major_)) {
                             continue;
                         }
                     }
-                    host_->request_service(its_client, r.service_, r.instance_, r.major_version_, r.minor_version_);
-                    its_allowed_requests.insert(protocol::service(r.service_, r.instance_, r.major_version_, r.minor_version_));
+                    host_->request_service(its_client, r.key_.service_, r.key_.instance_, r.key_.major_, r.minor_version_);
+                    its_allowed_requests.insert(protocol::service(r.key_.service_, r.key_.instance_, r.key_.major_, r.minor_version_));
                 } else {
                     VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " received a request from client 0x"
-                                  << hex4(its_client) << " to service/instance " << hex4(r.service_) << "/" << hex4(r.instance_)
+                                  << hex4(its_client) << " to service/instance " << hex4(r.key_.service_) << "/" << hex4(r.key_.instance_)
                                   << " ~> skip message!";
                 }
             }
@@ -408,7 +410,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     }
 
     case protocol::id_e::RELEASE_SERVICE_ID: {
-        if (protocol::release_service_data its_release_data;
+        if (protocol::service_key its_release_data;
             protocol::deserialize(its_release_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
             host_->release_service(its_client, its_release_data.service_, its_release_data.instance_);
         } else {
@@ -422,8 +424,8 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
             protocol::deserialize(its_registrations, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
             for (auto const& reg : its_registrations) {
-                auto its_service = reg.service_;
-                auto its_instance = reg.instance_;
+                auto its_service = reg.service_key_.service_;
+                auto its_instance = reg.service_key_.instance_;
 
                 if (reg.is_provided_ && !configuration_->is_offered_remote(its_service, its_instance)) {
                     continue;
@@ -447,10 +449,11 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     case protocol::id_e::UNREGISTER_EVENT_ID: {
         if (protocol::unregister_event_data its_data; protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
-            host_->unregister_shadow_event(its_client, its_data.service_, its_data.instance_, its_data.event_, its_data.is_provided_);
+            host_->unregister_shadow_event(its_client, its_data.service_key_.service_, its_data.service_key_.instance_, its_data.event_,
+                                           its_data.is_provided_);
 
-            VSOMEIP_INFO << "UNREGISTER EVENT(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "." << hex4(its_data.instance_)
-                         << "." << hex4(its_data.event_) << ":is_provider=" << std::boolalpha << its_data.is_provided_ << "]";
+            VSOMEIP_INFO << "UNREGISTER EVENT(" << hex4(its_client) << "): [" << its_data.service_key_ << "." << hex4(its_data.event_)
+                         << ":is_provider=" << std::boolalpha << its_data.is_provided_ << "]";
         } else {
             VSOMEIP_ERROR_P << "Unregister event deserialization failed, memory: " << utility::dump(_data, _size);
         }
@@ -555,8 +558,8 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
 
                 if (_offer_type == offer_type_e::OT_ALL || (_offer_type == offer_type_e::OT_LOCAL && !has_port)
                     || (_offer_type == offer_type_e::OT_REMOTE && has_port)) {
-                    table.insert(protocol::service_data{
-                            .service_ = its_service, .instance_ = its_instance, .major_version_ = its_major, .minor_version_ = minor});
+                    table.insert(protocol::service_data{.key_ = {.service_ = its_service, .instance_ = its_instance, .major_ = its_major},
+                                                        .minor_version_ = minor});
                 }
             }
         }
@@ -762,7 +765,7 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
             its_entry.uid_ = its_sec_client->user;
             its_entry.gid_ = its_sec_client->group;
         }
-        its_entry.services_.push_back({_service, _instance, _major, _minor});
+        its_entry.services_.push_back({.key_ = {_service, _instance, _major}, .minor_version_ = _minor});
         send_client_routing_info(its_requester, std::move(its_entry));
     }
 }
@@ -771,13 +774,13 @@ void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _servi
                                               event_t _event) {
 
     if (auto its_target = find_local_routing_endpoint(_client); its_target) {
-        its_target->send(protocol::create_subscribe_ack_cmd(VSOMEIP_ROUTING_CLIENT,
-                                                            protocol::subscribe_answer_data{.service_ = _service,
-                                                                                            .instance_ = _instance,
-                                                                                            .eventgroup_ = _eventgroup,
-                                                                                            .subscriber_ = _client,
-                                                                                            .event_ = _event,
-                                                                                            .pending_id_ = 0x0}));
+        its_target->send(protocol::create_subscribe_ack_cmd(
+                VSOMEIP_ROUTING_CLIENT,
+                protocol::subscribe_answer_data{.service_key_ = {.service_ = _service, .instance_ = _instance, .major_ = ANY_MAJOR},
+                                                .eventgroup_ = _eventgroup,
+                                                .subscriber_ = _client,
+                                                .event_ = _event,
+                                                .pending_id_ = 0x0}));
     }
 }
 
@@ -1010,7 +1013,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                         if (si.service == request.service_ && (si.major == request.major_ || request.major_ == ANY_MAJOR)) {
                             protocol::routing_info_entry_data its_entry;
                             fill(its_entry);
-                            its_entry.services_.push_back({request.service_, si.instance, si.major, minor});
+                            its_entry.services_.push_back({.key_ = {request.service_, si.instance, si.major}, .minor_version_ = minor});
                             its_entries.emplace_back(std::move(its_entry));
                         }
                     }
@@ -1021,7 +1024,8 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                         if (si.service == request.service_ && si.instance == request.instance_) {
                             protocol::routing_info_entry_data its_entry;
                             fill(its_entry);
-                            its_entry.services_.push_back({request.service_, request.instance_, si.major, minor});
+                            its_entry.services_.push_back(
+                                    {.key_ = {request.service_, request.instance_, si.major}, .minor_version_ = minor});
                             its_entries.emplace_back(std::move(its_entry));
                         }
                     }
@@ -1030,7 +1034,8 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                         found_si != found_client->second.end()) {
                         protocol::routing_info_entry_data its_entry;
                         fill(its_entry);
-                        its_entry.services_.push_back({request.service_, request.instance_, request.major_, found_si->second});
+                        its_entry.services_.push_back(
+                                {.key_ = {request.service_, request.instance_, request.major_}, .minor_version_ = found_si->second});
                         its_entries.emplace_back(std::move(its_entry));
                     }
                 }

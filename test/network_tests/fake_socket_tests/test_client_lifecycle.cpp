@@ -1730,7 +1730,7 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
         entry.client_ = _client;
         entry.address_ = _address;
         entry.port_ = _port;
-        entry.services_.push_back({_si.service_, _si.instance_, major_version_t{0x1}, minor_version_t{0x0}});
+        entry.services_.push_back({.key_ = {_si.service_, _si.instance_, major_version_t{0x1}}, .minor_version_ = minor_version_t{0x0}});
         auto const cmd = protocol::create_routing_info_cmd(client_t{0x0} /* VSOMEIP_ROUTING_CLIENT */, {entry});
         std::vector<unsigned char> payload(protocol::wire_size(cmd));
         protocol::serialize(cmd, payload.data());

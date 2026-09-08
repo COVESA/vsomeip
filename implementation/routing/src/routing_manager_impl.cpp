@@ -3585,10 +3585,8 @@ void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _servi
 void routing_manager_impl::send_subscription(const client_t _offering_client, const service_t _service, const instance_t _instance,
                                              const eventgroup_t _eventgroup, const major_version_t _major,
                                              const std::set<client_t>& _clients, const remote_subscription_id_t _id) {
-    protocol::subscribe_data data{.service_ = _service,
-                                  .instance_ = _instance,
+    protocol::subscribe_data data{.service_key_ = {.service_ = _service, .instance_ = _instance, .major_ = _major},
                                   .eventgroup_ = _eventgroup,
-                                  .major_ = _major,
                                   .event_ = ANY_EVENT,
                                   .pending_id_ = _id};
     auto target = find_routing_endpoint(_offering_client);
@@ -3707,13 +3705,12 @@ void routing_manager_impl::send_unsubscription(client_t _offering_client, servic
         return;
     }
     for (const auto its_client : _removed) {
-        if (!target->send(protocol::create_unsubscribe_cmd(its_client,
-                                                           protocol::subscribe_data{.service_ = _service,
-                                                                                    .instance_ = _instance,
-                                                                                    .eventgroup_ = _eventgroup,
-                                                                                    .major_ = ANY_MAJOR,
-                                                                                    .event_ = ANY_EVENT,
-                                                                                    .pending_id_ = _id}))) {
+        if (!target->send(protocol::create_unsubscribe_cmd(
+                    its_client,
+                    protocol::subscribe_data{.service_key_ = {.service_ = _service, .instance_ = _instance, .major_ = ANY_MAJOR},
+                                             .eventgroup_ = _eventgroup,
+                                             .event_ = ANY_EVENT,
+                                             .pending_id_ = _id}))) {
             VSOMEIP_WARNING_P << "Couldn't send unsubscription to local client [" << hex4(_service) << "." << hex4(_instance) << "."
                               << hex4(_eventgroup) << "." << hex4(ANY_EVENT) << "] subscriber: " << hex4(its_client);
             try {
@@ -3735,13 +3732,12 @@ void routing_manager_impl::send_expired_subscription(client_t _offering_client, 
     {
         for (const auto its_client : _removed) {
             if (auto target = find_routing_endpoint(_offering_client); !target
-                || !target->send(protocol::create_expire_cmd(its_client,
-                                                             protocol::subscribe_data{.service_ = _service,
-                                                                                      .instance_ = _instance,
-                                                                                      .eventgroup_ = _eventgroup,
-                                                                                      .major_ = ANY_MAJOR,
-                                                                                      .event_ = ANY_EVENT,
-                                                                                      .pending_id_ = _id}))) {
+                || !target->send(protocol::create_expire_cmd(
+                        its_client,
+                        protocol::subscribe_data{.service_key_ = {.service_ = _service, .instance_ = _instance, .major_ = ANY_MAJOR},
+                                                 .eventgroup_ = _eventgroup,
+                                                 .event_ = ANY_EVENT,
+                                                 .pending_id_ = _id}))) {
                 VSOMEIP_WARNING_P << "Couldn't send expired subscription to local client [" << hex4(_service) << "." << hex4(_instance)
                                   << "." << hex4(_eventgroup) << "." << hex4(ANY_EVENT) << "] subscriber: " << hex4(its_client);
             }

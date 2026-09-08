@@ -82,7 +82,7 @@ struct service {
     }
 };
 
-static constexpr version_t IPC_VERSION = 4;
+static constexpr version_t IPC_VERSION = 5;
 
 static const size_t COMMAND_HEADER_SIZE = 9;
 static const size_t SEND_COMMAND_HEADER_SIZE = 15;
