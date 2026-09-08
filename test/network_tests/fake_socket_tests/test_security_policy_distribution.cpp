@@ -28,7 +28,7 @@ constexpr client_t client_id_{0x3490};
 /// Credentials the routing manager sees for an accepted local connection. The fake UDS socket does
 /// not implement SO_PEERCRED, so the sec_client stays zeroed
 /// (see fake_uds_socket::get_peer_credentials).
-constexpr security_credentials peer_credentials_{0, 0};
+const security_credentials peer_credentials_{0, 0};
 
 security_credentials own_credentials() {
     return {getuid(), getgid()};
