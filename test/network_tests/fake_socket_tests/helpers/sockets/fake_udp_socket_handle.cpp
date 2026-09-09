@@ -193,7 +193,6 @@ void fake_udp_socket_handle::async_send(boost::asio::const_buffer const& _buffer
     if (auto bsm = socket_manager_.lock(); bsm && local_ep_ && connected_ep_) {
         auto src = *local_ep_;
         auto dst = *connected_ep_;
-        auto pipe = sender_pipe_;
         lock.unlock();
 
         boost::asio::post(io_, [handler = std::move(_handler), size = _buffer.size()] {
@@ -204,11 +203,7 @@ void fake_udp_socket_handle::async_send(boost::asio::const_buffer const& _buffer
             return;
         });
 
-        auto data = prepare_control_data(_buffer, src, dst);
-        if (pipe) {
-            pipe->add_data(data);
-            update_sending();
-        }
+        send_datagram(prepare_control_data(_buffer, src, dst));
     } else {
         boost::asio::post(io_, [handler = std::move(_handler)] {
             if (!handler) {
@@ -269,12 +264,11 @@ void fake_udp_socket_handle::async_send_to(boost::asio::const_buffer const& _buf
         return;
     });
 
-    {
+    auto const data = [&] {
         auto const lock = std::scoped_lock(mtx_);
-        auto data = prepare_control_data(_buffer, *local_ep_, _dst);
-        sender_pipe_->add_data(data);
-    }
-    update_sending();
+        return prepare_control_data(_buffer, *local_ep_, _dst);
+    }();
+    send_datagram(data);
 }
 
 void fake_udp_socket_handle::consume(std::vector<unsigned char> _buffer, boost::asio::ip::udp::endpoint _src,
@@ -348,29 +342,25 @@ void fake_udp_socket_handle::update_reception_unlocked() {
     }
 }
 
-void fake_udp_socket_handle::update_sending() {
-    auto sm_pipe = [&]() -> std::pair<std::shared_ptr<socket_manager>, std::shared_ptr<data_pipe>> {
+void fake_udp_socket_handle::send_datagram(control_data_t const& _data) {
+    auto sm = [&]() -> std::shared_ptr<socket_manager> {
         auto const lock = std::scoped_lock(mtx_);
-        return std::make_pair(socket_manager_.lock(), sender_pipe_);
+        if (block_comm_) {
+            return nullptr;
+        }
+        return socket_manager_.lock();
     }();
 
-    {
-        auto const lock = std::scoped_lock(mtx_);
-        if (!sm_pipe.first || !sm_pipe.second || block_comm_) {
-            sm_pipe.second->clear();
-            return;
-        }
+    if (!sm || !_data.addresses_) {
+        return;
     }
 
-    control_data_t input;
-    while (sm_pipe.second->fetch_data(input)) {
-        if (!sm_pipe.first->send_someip(input.buffer_, input.addresses_->src_, input.addresses_->dst_)) {
-            if (std::unique_lock lock{mtx_}; connected_ep_) {
-                LOCAL_LOG << __func__ << ": queueing connection_refused error as a reaction to an unsuccessful send on: " << socket_id_;
-                lock.unlock();
-                // this error is in accordance to the linux kernel on a send problem for a connected udp socket
-                stash_recv_ec(boost::asio::error::connection_refused);
-            }
+    if (!sm->send_someip(_data.buffer_, _data.addresses_->src_, _data.addresses_->dst_)) {
+        if (std::unique_lock lock{mtx_}; connected_ep_) {
+            LOCAL_LOG << __func__ << ": queueing connection_refused error as a reaction to an unsuccessful send on: " << socket_id_;
+            lock.unlock();
+            // this error is in accordance to the linux kernel on a send problem for a connected udp socket
+            stash_recv_ec(boost::asio::error::connection_refused);
         }
     }
 }
@@ -399,20 +389,9 @@ void fake_udp_socket_handle::process_delayed_messages() {
     }
 
     if (!messages_to_send.empty()) {
-        std::shared_ptr<socket_manager> bsm;
-        std::shared_ptr<data_pipe> sender;
-        {
-            std::scoped_lock its_lock(mtx_);
-            LOCAL_LOG << "processing " << messages_to_send.size() << " delayed messages on fd: " << socket_id_.fd_;
-            bsm = socket_manager_.lock();
-            sender = sender_pipe_;
-        }
-
-        if (bsm && sender) {
-            for (auto& data : messages_to_send) {
-                sender->add_data(data);
-                update_sending();
-            }
+        LOCAL_LOG << "processing " << messages_to_send.size() << " delayed messages on fd: " << socket_id_.fd_;
+        for (auto const& data : messages_to_send) {
+            send_datagram(data);
         }
     }
 }
@@ -426,38 +405,6 @@ void fake_udp_socket_handle::stash_recv_ec(boost::system::error_code _ec) {
 void fake_udp_socket_handle::stash_send_ec(boost::system::error_code _ec) {
     std::scoped_lock lock{mtx_};
     stashed_send_ec_ = {_ec};
-}
-
-void fake_udp_socket_handle::replace_pipe(std::shared_ptr<data_pipe> _pipe, socket_role _applied_on) {
-    auto lock = std::unique_lock(mtx_);
-    if (_applied_on == socket_role::client) {
-        // receiving pipe
-        _pipe->init([weak_self = weak_from_this(), this] {
-            if (auto self = weak_self.lock(); self) {
-                auto const lock = std::scoped_lock(mtx_);
-                update_reception_unlocked();
-            }
-        });
-        receiver_pipe_->exchange_queues(*_pipe);
-        receiver_pipe_ = _pipe;
-        if (local_ep_) {
-            update_reception_unlocked();
-        }
-    } else {
-        // sending pipe
-        _pipe->init([weak_self = weak_from_this(), this] {
-            if (auto self = weak_self.lock(); self) {
-                update_sending();
-            }
-        });
-        sender_pipe_->exchange_queues(*_pipe);
-        sender_pipe_ = _pipe;
-        bool binded = local_ep_.has_value();
-        lock.unlock();
-        if (binded) {
-            update_sending();
-        }
-    }
 }
 
 control_data_t fake_udp_socket_handle::prepare_control_data(boost::asio::const_buffer const& _buffer,
@@ -478,9 +425,8 @@ void fake_udp_socket_handle::set_block_communication(bool _block_comm) {
     auto const lock = std::scoped_lock(mtx_);
     block_comm_ = _block_comm;
     if (block_comm_) {
-        // Clear any data not yet received/sent
+        // Clear any data not yet received; sends are forwarded synchronously, never queued.
         receiver_pipe_->clear();
-        sender_pipe_->clear();
     }
 }
 }

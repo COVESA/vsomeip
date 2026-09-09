@@ -28,6 +28,22 @@ class app_connection;
 using fd_t = unsigned short;
 
 /**
+ * One side of a udp_pipe_rule. @p endpoint_ alone identifies the party when it is a concrete,
+ * process-unique address (e.g. an ECU's own unicast address, or a literal multicast group
+ * address used as a match-by-address-only destination). @p app_name_ is only needed to
+ * disambiguate a party sharing that endpoint with other applications (e.g. several simulated
+ * routers all binding the same multicast port). A nullopt @p endpoint_ (see any()) matches any
+ * address on this side -- e.g. a sender that doesn't care which peer a datagram is addressed to.
+ */
+struct udp_party {
+    std::optional<boost::asio::ip::udp::endpoint> endpoint_{};
+    std::optional<std::string> app_name_{};
+
+    /// Matches any address on this side, optionally still disambiguated by @p _app_name.
+    static udp_party any(std::optional<std::string> _app_name = std::nullopt) { return {std::nullopt, std::move(_app_name)}; }
+};
+
+/**
  * Helper that
  * 1. connects fake socket and acceptors with app names,
  * 2. keeps track of connections,
@@ -273,13 +289,17 @@ public:
                                        std::shared_ptr<data_pipe> const& _pipe);
 
     /**
-     * Replaces a data pipe for udp endpoints.
-     * Application name needs to be parameterized to identify multicast endpoints.
-     * If socket role is set as client, the receiving pipe is replaced, otherwise the change is applied to the endpoint sending pipe.
-     * @note See @ref sd_gate class documentation for multicast gate lifecycle details.
-     **/
-    bool setup_data_pipe(boost::asio::ip::udp::endpoint const& _ep, std::string const& _app_name, socket_role _applied_on,
-                         std::shared_ptr<data_pipe> const& _pipe);
+     * Registers (or replaces) a data pipe gating the udp datagram flow from @p _sender to
+     * @p _receiver, matched against the concrete addresses of every udp datagram passed to
+     * send_someip() -- independent of bind/multicast-join order, since matching is address-data
+     * only and re-evaluated on every send instead of being cached on a socket handle.
+     *
+     * Real multicast has no point-to-point channel to filter by original sender, so a @p _receiver
+     * that targets one specific group member (app_name_ set, endpoint_ a literal multicast address)
+     * requires an unconstrained @p _sender (udp_party::any()); any other sender is rejected outright
+     * (@return false).
+     */
+    [[nodiscard]] bool set_udp_data_pipe(udp_party _sender, udp_party _receiver, std::shared_ptr<data_pipe> const& _pipe);
 
     /**
      * Waits for _id to be received in the _client -> _server connection for _timeout amount of time.
@@ -465,8 +485,20 @@ public:
      * this function returns false in case no unicast endpoint could be found
      * else,
      * always returns true
+     *
+     * Gated by any matching udp_pipe_rule (see set_udp_data_pipe()) -- this is what a real
+     * socket's own outgoing send ends up calling.
      **/
     bool send_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
+
+    /**
+     * The actual, uninstrumented udp delivery -- unicast lookup or multicast fan-out to every
+     * joined fd, bypassing every udp_pipe_rule. Use this (not send_someip()) to inject synthetic
+     * traffic that must land regardless of any gate a test has set up on the spoofed sender
+     * endpoint, e.g. base_fake_socket_fixture::send_someip_sd_message().
+     */
+    bool deliver_udp_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src,
+                            boost::asio::ip::udp::endpoint _dst);
 
     /*
      * Inserts an error into the next receive operation performed by the given endpoint.
@@ -508,10 +540,27 @@ private:
     void try_add(boost::asio::io_context* _io, fd_t _fd, char const* _type);
     std::shared_ptr<app_connection> get_or_create_connection(std::string const& _client, std::string const& _server);
 
-    struct pending_someip_pipe {
+    struct udp_pipe_rule {
+        udp_party sender_;
+        udp_party receiver_;
         std::shared_ptr<data_pipe> pipe_;
-        socket_role applied_on_;
     };
+
+    /// Drains every now-forwardable datagram held in _pipe and delivers it via deliver_udp_someip()
+    /// -- except a datagram addressed to a multicast group while _receiver.app_name_ is set, which
+    /// targets only that one recipient (see find_multicast_member()), not the whole group.
+    void flush_udp_pipe(std::shared_ptr<data_pipe> const& _pipe, udp_party const& _receiver);
+
+    /// Must be called with mtx_ held. Returns the app name owning the socket bound to _ep, if any.
+    std::optional<std::string> resolve_udp_app_unlocked(boost::asio::ip::udp::endpoint const& _ep) const;
+
+    /// Returns every currently-joined member of the multicast group @p _dst.address(), or an empty
+    /// vector (with @p _blocked set) if @p _src/@p _dst is currently address-blocked.
+    std::vector<std::shared_ptr<fake_udp_socket_handle>>
+    resolve_multicast_group(boost::asio::ip::udp::endpoint const& _src, boost::asio::ip::udp::endpoint const& _dst, bool& _blocked);
+
+    /// Returns the currently-joined multicast member owned by @p _app_name, if any.
+    std::shared_ptr<fake_udp_socket_handle> find_multicast_member(boost::asio::ip::address const& _address, std::string const& _app_name);
 
     mutable std::mutex mtx_;
     bool react_on_unassigned_udp_port_{false};
@@ -547,7 +596,7 @@ private:
     // persisted delay state per sending endpoint; applied immediately if already bound, or on bind otherwise
     std::map<boost::asio::ip::udp::endpoint, bool> udp_sending_delay_;
     std::map<boost::asio::ip::address, bool> block_udp_messages_;
-    std::map<std::string, std::map<boost::asio::ip::udp::endpoint, std::vector<pending_someip_pipe>>> pending_someip_pipes_;
+    std::vector<udp_pipe_rule> udp_pipe_rules_;
     std::set<std::string> connections_to_ignore_;
     std::set<boost::asio::ip::address> ignored_networks_;
     std::set<std::string> fail_on_bind_;
