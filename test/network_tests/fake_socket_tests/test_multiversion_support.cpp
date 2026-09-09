@@ -477,6 +477,12 @@ struct test_multiversion_support_aggregate_consumption : public base_fake_socket
         client_v1_ = consumer_ecu_.apps_[client_v1_name_];
         client_v2_ = consumer_ecu_.apps_[client_v2_name_];
         client_any_ = consumer_ecu_.apps_["client_any"];
+
+        ASSERT_TRUE(provider_v1_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(provider_v2_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(client_v1_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(client_v2_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(client_any_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
     }
 
     std::string const provider_v1_name_{"provider_v1"};
@@ -494,6 +500,13 @@ struct test_multiversion_support_aggregate_consumption : public base_fake_socket
     vsomeip::method_t const method_{0x1111};
     request request_v1_{interface_v1_.instance_, method_, vsomeip::message_type_e::MT_REQUEST, false, {}};
     request request_v2_{interface_v2_.instance_, method_, vsomeip::message_type_e::MT_REQUEST, false, {}};
+
+    // The SD multicast group address (VSOMEIP_SD_DEFAULT_MULTICAST); none of the ecu_configs used
+    // here override it. FindService/OfferService sent to this address still go out as an ordinary
+    // sendto() on the sender's own unicast SD socket -- joining the group is only needed to
+    // *receive* multicast traffic, so gating on this as the receiver party does not depend on
+    // whether the multicast join has completed.
+    boost::asio::ip::udp::endpoint const sd_multicast_ep_{boost::asio::ip::make_address("224.224.224.0"), 30490};
 
     // provider_v1_ecu_/provider_v2_ecu_ each offer only their own major -- reusing the
     // client-only boardnet::ecu_one_config/ecu_two_config bases (stripped of the unrelated
@@ -757,8 +770,7 @@ TEST_F(test_multiversion_support_aggregate_consumption, bringing_v2_provider_ecu
 TEST_F(test_multiversion_support_aggregate_consumption,
        bringing_v1_provider_ecu_routing_down_does_not_corrupt_v2_client_endpoint_bookkeeping) {
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {sd_multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
 
     provider_v2_ecu_.config().service_discovery_.ttl_ = 60;
 
@@ -805,8 +817,7 @@ TEST_F(test_multiversion_support_aggregate_consumption,
 TEST_F(test_multiversion_support_aggregate_consumption,
        bringing_v2_provider_ecu_routing_down_does_not_corrupt_v1_client_endpoint_bookkeeping) {
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {sd_multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
 
     provider_v1_ecu_.config().service_discovery_.ttl_ = 60;
 
@@ -884,8 +895,7 @@ TEST_F(test_multiversion_support_aggregate_consumption, when_neither_major_is_of
     // existing phase, not something a wider debounce window can fix. Requiring "same message"
     // would test a stronger guarantee than this implementation actually provides.
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {sd_multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
     start_apps();
 
     // Predicate carries state across calls (safe: someip_gate invokes it under its own mutex),
@@ -913,13 +923,10 @@ TEST_F(test_multiversion_support_aggregate_consumption, when_neither_major_is_of
 
 TEST_F(test_multiversion_support_aggregate_consumption, when_v1_and_v2_are_requested_both_are_found_before_and_after_suspend_resume) {
 
-    GTEST_SKIP() << "TODO at the moment the pipe assignment is racy, because a unicast send can be done before the multicast join. As soon "
-                    "as this has been resolved this test should be enabled.";
     consumer_ecu_.config().service_discovery_.repetitions_max_ =
             0; // this guarantess that FIND_OFFERS are not leaking across suspend/resume
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe({consumer_ecu_.sd_endpoint(), consumer_ecu_.router_name_}, {sd_multicast_ep_}, gate->get_data_pipe()));
     start_apps();
 
     struct seen_state {
@@ -995,8 +1002,7 @@ TEST_F(test_multiversion_support_aggregate_consumption, bringing_v2_provider_ecu
     consumer_ecu_.config().service_discovery_.repetitions_max_ = 0;
 
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {sd_multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
     start_apps();
 
     struct seen_state {
@@ -1047,8 +1053,7 @@ TEST_F(test_multiversion_support_aggregate_consumption, bringing_v1_provider_ecu
     consumer_ecu_.config().service_discovery_.repetitions_max_ = 0;
 
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {sd_multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
     start_apps();
 
     struct seen_state {
@@ -1098,8 +1103,7 @@ TEST_F(test_multiversion_support_aggregate_consumption, any_major_request_still_
     consumer_ecu_.config().service_discovery_.repetitions_max_ = 0; // ensure exactly one find_offer is send after request without offer
 
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {sd_multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
     start_apps();
 
     service_instance const any_major_v1{
@@ -1134,8 +1138,7 @@ TEST_F(test_multiversion_support_aggregate_consumption, any_major_request_stops_
     consumer_ecu_.config().service_discovery_.repetitions_base_delay_ = static_cast<uint32_t>(cycle_time.count());
 
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {sd_multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
     start_apps();
 
     // Arm from the very start, before requesting at all -- not after availability is confirmed.
@@ -1225,11 +1228,8 @@ TEST_F(test_multiversion_support_aggregate_consumption, releasing_v2_does_not_di
 }
 
 TEST_F(test_multiversion_support_aggregate_consumption, releasing_v1_drops_it_from_the_post_resume_find_but_not_v2) {
-    GTEST_SKIP() << "TODO at the moment the pipe assignment is racy, because a unicast send can be done before the multicast join. As soon "
-                    "as this has been resolved this test should be enabled.";
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe({consumer_ecu_.sd_endpoint(), consumer_ecu_.router_name_}, {sd_multicast_ep_}, gate->get_data_pipe()));
 
     start_apps();
 
@@ -1286,11 +1286,8 @@ TEST_F(test_multiversion_support_aggregate_consumption, releasing_v1_drops_it_fr
 // Mirror of releasing_v1_drops_it_from_the_post_resume_find_but_not_v2 with the roles of v1 and v2
 // swapped, to guard against a fix that happens to only work for whichever major sorts first.
 TEST_F(test_multiversion_support_aggregate_consumption, releasing_v2_drops_it_from_the_post_resume_find_but_not_v1) {
-    GTEST_SKIP() << "TODO at the moment the pipe assignment is racy, because a unicast send can be done before the multicast join. As soon "
-                    "as this has been resolved this test should be enabled.";
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe({consumer_ecu_.sd_endpoint(), consumer_ecu_.router_name_}, {sd_multicast_ep_}, gate->get_data_pipe()));
 
     start_apps();
 
@@ -1486,16 +1483,15 @@ TEST_F(test_multiversion_support_aggregate_consumption, releasing_the_only_reque
 }
 
 TEST_F(test_multiversion_support_aggregate_consumption, releasing_an_undiscovered_any_major_request_stops_find_service_after_resume) {
-    GTEST_SKIP() << "TODO at the moment the pipe assignment is racy, because a unicast send can be done before the multicast join. As soon "
-                    "as this has been resolved this test should be enabled.";
+    GTEST_SKIP() << "Requires another sensor mechanism, as it is not guaranteed that the release is processed by the router, before the "
+                    "suspend,resume cycle finishes";
     // With repetitions_max_ == 0, request_service() sends exactly ONE FindService per SD start
     // cycle -- this isolates the resume-triggered (second) burst from any natural repetition-phase
     // traffic belonging to the original, immediately-released request.
     consumer_ecu_.config().service_discovery_.repetitions_max_ = 0;
 
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe({consumer_ecu_.sd_endpoint(), consumer_ecu_.router_name_}, {sd_multicast_ep_}, gate->get_data_pipe()));
     start_apps(); // nobody offers anything for this (service, instance) in this test
 
     service_instance const any_major{
@@ -1545,13 +1541,10 @@ TEST_F(test_multiversion_support_aggregate_consumption, releasing_an_undiscovere
 // FIND_OFFER for ANY_MAJOR should be dispatched later.
 TEST_F(test_multiversion_support_aggregate_consumption, any_major_request_does_not_keep_explicit_major_request) {
 
-    GTEST_SKIP() << "TODO at the moment the pipe assignment is racy, because a unicast send can be done before the multicast join. As soon "
-                    "as this has been resolved this test should be enabled.";
     consumer_ecu_.config().service_discovery_.repetitions_max_ =
             0; // this guarantess that FIND_OFFERS are not leaking across suspend/resume
     auto gate = someip_gate::create();
-    boost::asio::ip::udp::endpoint const consumer_sd_comm_{boost::asio::ip::make_address("0.0.0.0"), 30490};
-    ASSERT_TRUE(setup_data_pipe(consumer_sd_comm_, consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe({consumer_ecu_.sd_endpoint(), consumer_ecu_.router_name_}, {sd_multicast_ep_}, gate->get_data_pipe()));
     start_apps();
 
     struct seen_state {

@@ -196,9 +196,8 @@ bool base_fake_socket_fixture::setup_data_pipe(std::string const& _client, std::
     return socket_manager_->setup_data_pipe(_client, _server, _applied_on, _pipe);
 }
 
-bool base_fake_socket_fixture::setup_data_pipe(boost::asio::ip::udp::endpoint const& _ep, std::string const& _app_name,
-                                               socket_role _applied_on, std::shared_ptr<data_pipe> const& _pipe) {
-    return socket_manager_->setup_data_pipe(_ep, _app_name, _applied_on, _pipe);
+bool base_fake_socket_fixture::set_udp_data_pipe(udp_party _sender, udp_party _receiver, std::shared_ptr<data_pipe> const& _pipe) {
+    return socket_manager_->set_udp_data_pipe(std::move(_sender), std::move(_receiver), _pipe);
 }
 
 [[nodiscard]] bool base_fake_socket_fixture::wait_for_command(std::string const& _client, std::string const& _server, protocol::id_e _id,
@@ -286,6 +285,9 @@ void base_fake_socket_fixture::ignore_router_all_multicast_joins(std::string _ro
 
 void base_fake_socket_fixture::send_someip_sd_message(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint const& _src,
                                                       boost::asio::ip::udp::endpoint const& _dst) {
-    socket_manager_->send_someip(_buffer, _src, _dst);
+    // Bypasses udp_pipe_rules_ deliberately -- this injects synthetic traffic on a (possibly
+    // spoofed) sender endpoint, which must land regardless of any gate a test registered on that
+    // endpoint for the real application's own sends.
+    socket_manager_->deliver_udp_someip(_buffer, _src, _dst);
 }
 }

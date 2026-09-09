@@ -128,11 +128,6 @@ struct fake_udp_socket_handle : public fake_socket_handle {
     void stash_send_ec(boost::system::error_code _ec);
 
     /**
-     * Replaces either the sending or receiving data pipe, used to control flow of messages.
-     */
-    void replace_pipe(std::shared_ptr<data_pipe> _pipe, socket_role _applied_on);
-
-    /**
      * Set if communication should be blocked.
      */
     void set_block_communication(bool _block_comm);
@@ -140,7 +135,9 @@ struct fake_udp_socket_handle : public fake_socket_handle {
 private:
     void update_reception_unlocked();
 
-    void update_sending();
+    /// Resolves the socket_manager and forwards _data via send_someip(), unless block_comm_ is set.
+    /// Sends are never queued -- each call forwards synchronously, so there is nothing to buffer.
+    void send_datagram(control_data_t const& _data);
 
     control_data_t prepare_control_data(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint const& _src,
                                         boost::asio::ip::udp::endpoint const& _dst);
@@ -175,6 +172,5 @@ private:
     std::optional<boost::system::error_code> stashed_send_ec_;
 
     std::shared_ptr<data_pipe> receiver_pipe_ = std::make_shared<data_pipe>();
-    std::shared_ptr<data_pipe> sender_pipe_ = std::make_shared<data_pipe>();
 };
 }

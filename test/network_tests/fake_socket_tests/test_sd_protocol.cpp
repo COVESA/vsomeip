@@ -64,8 +64,10 @@ struct test_field_resubscribe : public base_fake_socket_fixture {
         ecu_one_.prepare();
         ecu_two_.prepare();
 
-        ASSERT_TRUE(setup_data_pipe(ecu_one_.sd_endpoint(), router_one_name_, socket_role::server, ecu_one_sd_send_gate_->get_data_pipe()));
-        ASSERT_TRUE(setup_data_pipe(ecu_two_.sd_endpoint(), router_two_name_, socket_role::server, ecu_two_sd_send_gate_->get_data_pipe()));
+        ASSERT_TRUE(
+                set_udp_data_pipe({ecu_one_.sd_endpoint(), router_one_name_}, udp_party::any(), ecu_one_sd_send_gate_->get_data_pipe()));
+        ASSERT_TRUE(
+                set_udp_data_pipe({ecu_two_.sd_endpoint(), router_two_name_}, udp_party::any(), ecu_two_sd_send_gate_->get_data_pipe()));
 
         ecu_one_.start_apps();
         ecu_two_.start_apps();
@@ -80,7 +82,7 @@ TEST_F(test_field_resubscribe, field_resubscribe_recovers_after_lost_initial_not
     auto* router_one = ecu_one_.router_;
     auto* server = ecu_two_.apps_[ecu_two_server_name_];
 
-    ASSERT_TRUE(setup_data_pipe(client_endpoint(), router_one_name_, socket_role::client, notify_gate_->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {client_endpoint(), router_one_name_}, notify_gate_->get_data_pipe()));
 
     server->offer(iface_);
     server->send_event(udp_field_, payload_);
@@ -146,7 +148,7 @@ TEST_F(test_field_resubscribe, field_resubscribe_recovers_after_lost_initial_not
     auto* router_one = ecu_one_.router_;
     auto* server = ecu_two_.apps_[ecu_two_server_name_];
 
-    ASSERT_TRUE(setup_data_pipe(client_endpoint(), router_one_name_, socket_role::client, notify_gate_->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {client_endpoint(), router_one_name_}, notify_gate_->get_data_pipe()));
 
     server->offer(iface_);
     server->send_event(mix_event_group_, payload_);
@@ -180,7 +182,7 @@ TEST_F(test_field_resubscribe, field_resubscribe_recovers_after_lost_initial_not
     auto* client_two = ecu_one_.apps_[ecu_one_server_name_];
     auto* server = ecu_two_.apps_[ecu_two_server_name_];
 
-    ASSERT_TRUE(setup_data_pipe(client_endpoint(), router_one_name_, socket_role::client, notify_gate_->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {client_endpoint(), router_one_name_}, notify_gate_->get_data_pipe()));
 
     server->offer(iface_);
     server->send_event(shared_event_group_field_, payload_);
@@ -229,7 +231,7 @@ TEST_F(test_field_resubscribe, field_resubscribe_repeats_while_value_still_missi
     auto* router_one = ecu_one_.router_;
     auto* server = ecu_two_.apps_[ecu_two_server_name_];
 
-    ASSERT_TRUE(setup_data_pipe(client_endpoint(), router_one_name_, socket_role::client, notify_gate_->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {client_endpoint(), router_one_name_}, notify_gate_->get_data_pipe()));
 
     server->offer(iface_);
     server->send_event(udp_field_, payload_);
@@ -258,7 +260,7 @@ TEST_F(test_field_resubscribe, no_forced_resubscribe_for_plain_event) {
     auto* router_one = ecu_one_.router_;
     auto* server = ecu_two_.apps_[ecu_two_server_name_];
 
-    ASSERT_TRUE(setup_data_pipe(client_endpoint(), router_one_name_, socket_role::client, notify_gate_->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {client_endpoint(), router_one_name_}, notify_gate_->get_data_pipe()));
 
     server->offer(iface_);
     server->send_event(udp_field_, payload_);
@@ -304,7 +306,7 @@ TEST_F(test_field_resubscribe, field_resubscribe_late_field_registration) {
     auto* client_two = ecu_one_.apps_[ecu_one_server_name_];
     auto* server = ecu_two_.apps_[ecu_two_server_name_];
 
-    ASSERT_TRUE(setup_data_pipe(client_endpoint(), router_one_name_, socket_role::client, notify_gate_->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {client_endpoint(), router_one_name_}, notify_gate_->get_data_pipe()));
 
     server->offer(iface_);
     server->send_event(shared_event_group_field_, payload_);
@@ -343,6 +345,9 @@ struct increased_initial_delay_with_multiple_instances : public base_fake_socket
             "ecu_two",
             ecu_config{boardnet::ecu_two_config}.with_initial_delay(10000, 10000).add_interface({service_3344_instance_2}, 30502),
             *socket_manager_};
+
+    // Default SD multicast group address (VSOMEIP_SD_DEFAULT_MULTICAST); not overridden here.
+    boost::asio::ip::udp::endpoint const multicast_ep_{boost::asio::ip::make_address("224.224.224.0"), 30490};
 };
 
 // This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait or not.
@@ -369,8 +374,7 @@ TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_after_f
 
     // Prepare Service Discovery Gate
     std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
-                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {multicast_ep_, router_one_name_}, router_one_sd_gate->get_data_pipe()));
     router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
 
     // Stop offering the service
@@ -406,8 +410,7 @@ TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_for_eac
     ASSERT_TRUE(client->availability_record_.wait_for_any(service_availability::available(second_instance)));
 
     std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
-                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {multicast_ep_, router_one_name_}, router_one_sd_gate->get_data_pipe()));
 
     router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
     server->stop_offer(first_instance);
@@ -521,8 +524,10 @@ struct test_sd_acceptance : public base_fake_socket_fixture {
         ecu_one_.prepare();
         ecu_two_.prepare();
 
-        ASSERT_TRUE(setup_data_pipe(ecu_one_.sd_endpoint(), router_one_name_, socket_role::server, ecu_one_sd_send_gate_->get_data_pipe()));
-        ASSERT_TRUE(setup_data_pipe(ecu_two_.sd_endpoint(), router_two_name_, socket_role::server, ecu_two_sd_send_gate_->get_data_pipe()));
+        ASSERT_TRUE(
+                set_udp_data_pipe({ecu_one_.sd_endpoint(), router_one_name_}, udp_party::any(), ecu_one_sd_send_gate_->get_data_pipe()));
+        ASSERT_TRUE(
+                set_udp_data_pipe({ecu_two_.sd_endpoint(), router_two_name_}, udp_party::any(), ecu_two_sd_send_gate_->get_data_pipe()));
 
         ecu_one_.start_apps();
         ecu_two_.start_apps();

@@ -213,10 +213,9 @@ struct base_fake_socket_fixture : ::testing::Test {
                                        std::shared_ptr<data_pipe> const& _pipe);
 
     /**
-     * @see socket_manager::setup_data_pipe
+     * @see socket_manager::set_udp_data_pipe
      */
-    [[nodiscard]] bool setup_data_pipe(boost::asio::ip::udp::endpoint const& _ep, std::string const& _app_name, socket_role _applied_on,
-                                       std::shared_ptr<data_pipe> const& _pipe);
+    [[nodiscard]] bool set_udp_data_pipe(udp_party _sender, udp_party _receiver, std::shared_ptr<data_pipe> const& _pipe);
 
     /**
      * @see socket_manager::wait_for_command

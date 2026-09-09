@@ -296,7 +296,6 @@ void socket_manager::remove_acceptor(fd_t _fd, uds_endpoint _ep) {
 [[nodiscard]] bool socket_manager::bind_socket(std::shared_ptr<fake_udp_socket_handle> _handle, boost::asio::ip::udp::endpoint const& _ep,
                                                fd_t _fd) {
     bool pending_delay{false};
-    std::vector<pending_someip_pipe> pending_pipes;
 
     {
         auto const lock = std::scoped_lock(mtx_);
@@ -323,28 +322,11 @@ void socket_manager::remove_acceptor(fd_t _fd, uds_endpoint _ep) {
                 pending_delay = it->second;
             }
         }
-
-        if (auto app_it = pending_someip_pipes_.find(_handle->get_app_name()); app_it != pending_someip_pipes_.end()) {
-            if (auto ep_it = app_it->second.find(_ep); ep_it != app_it->second.end()) {
-                pending_pipes = ep_it->second;
-                if (_ep.address() != boost::asio::ip::address_v4::any()) {
-                    app_it->second.erase(ep_it);
-                    if (app_it->second.empty()) {
-                        pending_someip_pipes_.erase(app_it);
-                    }
-                }
-            }
-        }
     }
 
     if (pending_delay) {
         LOCAL_LOG << "applying pending sending delay (" << pending_delay << ") on bind for sender endpoint: " << _ep;
         _handle->delay_message_processing(pending_delay);
-    }
-
-    for (auto const& pipe : pending_pipes) {
-        LOCAL_LOG << "Applying pending pipe to endpoint: " << _ep << " from application " << _handle->get_app_name();
-        _handle->replace_pipe(pipe.pipe_, pipe.applied_on_);
     }
 
     return true;
@@ -701,62 +683,6 @@ void socket_manager::clear_command_record(std::string const& _client, std::strin
     connection->clear_command_record();
 }
 
-bool socket_manager::setup_data_pipe(boost::asio::ip::udp::endpoint const& _ep, std::string const& _app_name, socket_role _applied_on,
-                                     std::shared_ptr<data_pipe> const& _pipe) {
-    std::shared_ptr<fake_udp_socket_handle> udp_handle;
-    {
-        std::scoped_lock lock(mtx_);
-        fd_t fd{0};
-
-        if (_ep.address() == boost::asio::ip::address_v4::any()) {
-            if (auto const ep_it = binded_multicast_endpoints_.find(_app_name); ep_it != binded_multicast_endpoints_.end()) {
-                for (const auto& multicast_ep : ep_it->second) {
-                    if (multicast_ep.first == _ep) {
-                        fd = multicast_ep.second;
-                        break;
-                    }
-                }
-            }
-        } else if (auto const ep_it = endpoint_udp_to_fd_.find(_ep); ep_it != endpoint_udp_to_fd_.end()) {
-            fd = ep_it->second;
-        }
-
-        if (fd == 0 || _ep.address() == boost::asio::ip::address_v4::any()) {
-            // Endpoint not yet bound.
-            // Multicast endpoints will always remain in the pending pipes, as the endpoint can be restarted while processing multicast
-            // options.
-            // Keep one pending pipe per role so that both a server and a client can coexist on the same endpoint;
-            // a repeated setup for the same role replaces the previous pipe.
-            auto& pipes = pending_someip_pipes_[_app_name][_ep];
-            auto const existing =
-                    std::find_if(pipes.begin(), pipes.end(), [_applied_on](auto const& _p) { return _p.applied_on_ == _applied_on; });
-            if (existing != pipes.end()) {
-                existing->pipe_ = _pipe;
-            } else {
-                pipes.push_back({_pipe, _applied_on});
-            }
-        }
-
-        if (fd == 0) {
-            return true;
-        }
-
-        auto const h_it = fd_to_handle_.find(fd);
-        if (h_it == fd_to_handle_.end()) {
-            LOCAL_LOG << "No handle associated with the fd: " << fd;
-            return false;
-        }
-        udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(h_it->second.lock());
-    }
-
-    if (!udp_handle) {
-        return false;
-    }
-    udp_handle->replace_pipe(_pipe, _applied_on);
-
-    return true;
-}
-
 bool socket_manager::setup_data_pipe(std::string const& _client, std::string const& _server, socket_role _applied_on,
                                      std::shared_ptr<data_pipe> const& _pipe) {
     auto connection = get_or_create_connection(_client, _server);
@@ -925,32 +851,215 @@ void socket_manager::leave_multicast_group(boost::asio::ip::address _multicast, 
     }
 }
 
-bool socket_manager::send_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src,
-                                 boost::asio::ip::udp::endpoint _dst) {
-    if (_dst.address().is_multicast()) {
-        LOCAL_LOG << " trying to send multicast message from " << _src << " to " << _dst;
-        std::vector<std::shared_ptr<fake_socket_handle>> multicast_group;
-        {
-            auto lock = std::unique_lock(mtx_);
-            if (block_udp_messages_[_src.address()] || block_udp_messages_[_dst.address()]) {
-                LOCAL_LOG << " message from " << _src << " to " << _dst << " blocked";
-                return true;
+namespace {
+bool matches(udp_party const& _party, boost::asio::ip::udp::endpoint const& _ep, std::optional<std::string> const& _app_name) {
+    return (!_party.endpoint_ || *_party.endpoint_ == _ep) && (!_party.app_name_ || _party.app_name_ == _app_name);
+}
+}
+
+std::optional<std::string> socket_manager::resolve_udp_app_unlocked(boost::asio::ip::udp::endpoint const& _ep) const {
+    fd_t fd{0};
+    if (auto const it = endpoint_udp_to_fd_.find(_ep); it != endpoint_udp_to_fd_.end()) {
+        fd = it->second;
+    }
+    if (fd == 0) {
+        return std::nullopt;
+    }
+    if (auto const h_it = fd_to_handle_.find(fd); h_it != fd_to_handle_.end()) {
+        if (auto handle = h_it->second.lock(); handle) {
+            return handle->get_app_name();
+        }
+    }
+    return std::nullopt;
+}
+
+void socket_manager::flush_udp_pipe(std::shared_ptr<data_pipe> const& _pipe, udp_party const& _receiver) {
+    control_data_t data;
+    while (_pipe->fetch_data(data)) {
+        if (!data.addresses_) {
+            continue;
+        }
+        auto const& [src, dst] = *data.addresses_;
+        if (_receiver.app_name_ && dst.address().is_multicast()) {
+            // per-recipient multicast rule: target only the one member this rule was set up for,
+            // not deliver_udp_someip()'s full group fan-out.
+            if (auto member = find_multicast_member(dst.address(), *_receiver.app_name_); member) {
+                member->consume(data.buffer_, src, dst);
             }
-            if (auto it_multicast = multicast_to_fds_.find(_dst.address()); it_multicast != multicast_to_fds_.end()) {
-                for (auto const& fd : it_multicast->second) {
-                    if (auto handle_it = fd_to_handle_.find(fd); handle_it != fd_to_handle_.end()) {
-                        if (auto shared_handle = handle_it->second.lock(); shared_handle) {
-                            multicast_group.push_back(shared_handle);
-                        }
-                    }
+            continue;
+        }
+        deliver_udp_someip(data.buffer_, src, dst);
+    }
+}
+
+std::vector<std::shared_ptr<fake_udp_socket_handle>> socket_manager::resolve_multicast_group(boost::asio::ip::udp::endpoint const& _src,
+                                                                                             boost::asio::ip::udp::endpoint const& _dst,
+                                                                                             bool& _blocked) {
+    std::vector<std::shared_ptr<fake_udp_socket_handle>> group;
+    std::scoped_lock lock(mtx_);
+    _blocked = block_udp_messages_[_src.address()] || block_udp_messages_[_dst.address()];
+    if (_blocked) {
+        return group;
+    }
+    if (auto it_multicast = multicast_to_fds_.find(_dst.address()); it_multicast != multicast_to_fds_.end()) {
+        for (auto const& fd : it_multicast->second) {
+            if (auto handle_it = fd_to_handle_.find(fd); handle_it != fd_to_handle_.end()) {
+                if (auto udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(handle_it->second.lock()); udp_handle) {
+                    group.push_back(udp_handle);
                 }
             }
         }
+    }
+    return group;
+}
+
+std::shared_ptr<fake_udp_socket_handle> socket_manager::find_multicast_member(boost::asio::ip::address const& _address,
+                                                                              std::string const& _app_name) {
+    std::scoped_lock lock(mtx_);
+    if (auto it = multicast_to_fds_.find(_address); it != multicast_to_fds_.end()) {
+        for (auto const& fd : it->second) {
+            if (auto h_it = fd_to_handle_.find(fd); h_it != fd_to_handle_.end()) {
+                if (auto handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(h_it->second.lock());
+                    handle && handle->get_app_name() == _app_name) {
+                    return handle;
+                }
+            }
+        }
+    }
+    return nullptr;
+}
+
+[[nodiscard]] bool socket_manager::set_udp_data_pipe(udp_party _sender, udp_party _receiver, std::shared_ptr<data_pipe> const& _pipe) {
+    // Real multicast has no point-to-point channel to narrow: a receiver that unambiguously targets one
+    // group member (a literal multicast address + app_name_) can only ever be reached via the per-recipient
+    // path, which itself requires an unconstrained sender (see send_someip()) -- so a constrained sender here
+    // could never match anything. Reject it now rather than silently registering a dead rule.
+    if (_receiver.app_name_ && _receiver.endpoint_ && _receiver.endpoint_->address().is_multicast()
+        && (_sender.endpoint_ || _sender.app_name_)) {
+        LOCAL_LOG << "rejecting udp_pipe_rule: a per-recipient multicast receiver cannot be narrowed by sender -- "
+                     "use udp_party::any() as sender";
+        return false;
+    }
+
+    {
+        std::scoped_lock lock(mtx_);
+        auto const it = std::find_if(udp_pipe_rules_.begin(), udp_pipe_rules_.end(), [&](udp_pipe_rule const& _rule) {
+            return _rule.sender_.endpoint_ == _sender.endpoint_ && _rule.sender_.app_name_ == _sender.app_name_
+                    && _rule.receiver_.endpoint_ == _receiver.endpoint_ && _rule.receiver_.app_name_ == _receiver.app_name_;
+        });
+        if (it != udp_pipe_rules_.end()) {
+            it->pipe_ = _pipe;
+        } else {
+            udp_pipe_rules_.push_back({_sender, _receiver, _pipe});
+        }
+    }
+
+    _pipe->init([weak_self = weak_from_this(), weak_pipe = std::weak_ptr<data_pipe>(_pipe), _receiver] {
+        auto self = weak_self.lock();
+        auto pipe = weak_pipe.lock();
+        if (self && pipe) {
+            self->flush_udp_pipe(pipe, _receiver);
+        }
+    });
+
+    return true;
+}
+
+bool socket_manager::send_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src,
+                                 boost::asio::ip::udp::endpoint _dst) {
+    std::shared_ptr<data_pipe> matched_pipe;
+    std::optional<std::string> src_app;
+    {
+        std::scoped_lock lock(mtx_);
+        src_app = resolve_udp_app_unlocked(_src);
+        auto const dst_app = _dst.address().is_multicast() ? std::nullopt : resolve_udp_app_unlocked(_dst);
+
+        if (auto const it = std::find_if(udp_pipe_rules_.begin(), udp_pipe_rules_.end(),
+                                         [&](udp_pipe_rule const& _rule) {
+                                             return matches(_rule.sender_, _src, src_app) && matches(_rule.receiver_, _dst, dst_app);
+                                         });
+            it != udp_pipe_rules_.end()) {
+            matched_pipe = it->pipe_;
+        }
+    }
+
+    if (matched_pipe) {
+        LOCAL_LOG << "gating udp datagram from " << _src << " to " << _dst << " through a registered udp_pipe_rule";
+        control_data_t data{.buffer_ = _buffer, .addresses_ = std::optional<addresses>{{.src_ = _src, .dst_ = _dst}}};
+        matched_pipe->add_data(data);
+        // add_data() only queues into data_to_forward_ if OPEN; it never delivers on its own --
+        // drain now for the (common) case the gate let it straight through. udp_party::any() is
+        // safe here (not the matched rule's actual receiver): a whole-flow match for a multicast
+        // _dst is only ever reached with an app_name_-less receiver (see matches()'s dst_app
+        // resolution above), so the flush behaves identically either way.
+        flush_udp_pipe(matched_pipe, udp_party::any());
+        return true;
+    }
+
+    if (!_dst.address().is_multicast()) {
+        return deliver_udp_someip(_buffer, _src, _dst);
+    }
+
+    // No whole-flow rule matched -- still check for a rule gating just one member of the group
+    // (see set_udp_data_pipe()'s note on a multicast receiver with app_name_ set).
+    bool blocked{false};
+    auto const group = resolve_multicast_group(_src, _dst, blocked);
+    if (blocked) {
+        LOCAL_LOG << " message from " << _src << " to " << _dst << " blocked";
+        return true;
+    }
+
+    for (auto const& handle : group) {
+        std::shared_ptr<data_pipe> member_pipe;
+        {
+            std::scoped_lock lock(mtx_);
+            auto const recipient_app = handle->get_app_name();
+            if (auto const it = std::find_if(udp_pipe_rules_.begin(), udp_pipe_rules_.end(),
+                                             [&](udp_pipe_rule const& _rule) {
+                                                 // Per-recipient targeting has no real socket-level equivalent of
+                                                 // "only from this sender" -- a real multicast socket can't filter
+                                                 // group membership/delivery by peer, so require an unconstrained
+                                                 // sender rather than letting one be smuggled in via matches().
+                                                 return !_rule.sender_.endpoint_ && !_rule.sender_.app_name_
+                                                         && matches(_rule.receiver_, _dst, recipient_app);
+                                             });
+                it != udp_pipe_rules_.end()) {
+                member_pipe = it->pipe_;
+            }
+        }
+
+        if (!member_pipe) {
+            handle->consume(_buffer, _src, _dst);
+            continue;
+        }
+
+        LOCAL_LOG << "gating udp datagram from " << _src << " to " << _dst << " (member " << handle->get_app_name()
+                  << ") through a registered udp_pipe_rule";
+        control_data_t data{.buffer_ = _buffer, .addresses_ = std::optional<addresses>{{.src_ = _src, .dst_ = _dst}}};
+        member_pipe->add_data(data);
+        // add_data() only queues into data_to_forward_ if OPEN; drain now for the (common) case
+        // the gate let it straight through -- deliver only to this one member, not the whole group.
+        control_data_t forwarded;
+        while (member_pipe->fetch_data(forwarded)) {
+            handle->consume(forwarded.buffer_, _src, _dst);
+        }
+    }
+    return true;
+}
+
+bool socket_manager::deliver_udp_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src,
+                                        boost::asio::ip::udp::endpoint _dst) {
+    if (_dst.address().is_multicast()) {
+        LOCAL_LOG << " trying to send multicast message from " << _src << " to " << _dst;
+        bool blocked{false};
+        auto const multicast_group = resolve_multicast_group(_src, _dst, blocked);
+        if (blocked) {
+            LOCAL_LOG << " message from " << _src << " to " << _dst << " blocked";
+            return true;
+        }
 
         for (auto const& handle : multicast_group) {
-            if (auto udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(handle); udp_handle) {
-                udp_handle->consume(_buffer, _src, _dst);
-            }
+            handle->consume(_buffer, _src, _dst);
         }
         return true;
     } else {

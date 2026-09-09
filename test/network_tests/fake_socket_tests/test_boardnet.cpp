@@ -345,7 +345,7 @@ TEST_F(test_boardnet_helper, subscription_without_own_offer) {
 
     // Observe SD traffic received on ecu_one's unicast SD endpoint.
     auto sd_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(ecu_one_sd_comm_, router_one_name_, socket_role::client, sd_gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {ecu_one_sd_comm_, router_one_name_}, sd_gate->get_data_pipe()));
 
     // Create router and clients.
     start_all_apps();
@@ -366,7 +366,7 @@ TEST_F(test_boardnet_helper, offer_service_before_event) {
 
     // Observe SD traffic received on ecu_one's unicast SD endpoint.
     auto sd_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(ecu_one_sd_comm_, router_one_name_, socket_role::client, sd_gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {ecu_one_sd_comm_, router_one_name_}, sd_gate->get_data_pipe()));
 
     start_all_apps();
 
@@ -416,7 +416,7 @@ TEST_F(test_boardnet_helper, offer_event_before_service) {
 
     // Observe SD traffic received on ecu_one's unicast SD endpoint.
     auto sd_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(ecu_one_sd_comm_, router_one_name_, socket_role::client, sd_gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {ecu_one_sd_comm_, router_one_name_}, sd_gate->get_data_pipe()));
 
     start_all_apps();
 
@@ -990,12 +990,12 @@ TEST_F(guest_offering, replicate_vhal_behavior) {
     // Observe SD traffic received on ecu_one's unicast SD endpoint (e.g. the SubscribeAck).
     std::shared_ptr<someip_gate> router_one_unicast_sd_receive_gate = someip_gate::create();
 
-    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
-                                router_one_name_, socket_role::client, router_one_multicast_sd_gate->get_data_pipe()));
+    boost::asio::ip::udp::endpoint const multicast_ep{boost::asio::ip::make_address("224.224.224.0"), ecu_one_.sd_endpoint().port()};
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {multicast_ep, router_one_name_}, router_one_multicast_sd_gate->get_data_pipe()));
     ASSERT_TRUE(
-            setup_data_pipe(ecu_one_.sd_endpoint(), router_one_name_, socket_role::server, router_one_sending_sd_gate->get_data_pipe()));
-    ASSERT_TRUE(setup_data_pipe(ecu_one_.sd_endpoint(), router_one_name_, socket_role::client,
-                                router_one_unicast_sd_receive_gate->get_data_pipe()));
+            set_udp_data_pipe({ecu_one_.sd_endpoint(), router_one_name_}, udp_party::any(), router_one_sending_sd_gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {ecu_one_.sd_endpoint(), router_one_name_},
+                                  router_one_unicast_sd_receive_gate->get_data_pipe()));
 
     // Block the offer to ensure the no client request is sent before the service is offered, as this would be the trigger a unicast offer,
     // so offer and when the datagram reaches the "network stack", allow the client to request the service.
@@ -2175,7 +2175,7 @@ TEST_F(test_someip_record, record_notification_on_udp_endpoint) {
     // Install a non-blocking someip_gate on the client's receiving UDP endpoint so it
     // records the forwarded SOME/IP notification. Must be set before the endpoint binds.
     auto record_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(client_endpoint(), ecu_one_.router_name_, socket_role::client, record_gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {client_endpoint(), ecu_one_.router_name_}, record_gate->get_data_pipe()));
 
     ecu_one_.start_apps();
     ecu_two_.start_apps();
@@ -2624,6 +2624,9 @@ struct test_boardnet : public base_fake_socket_fixture {
 
     app* consumer_;
     app* provider_;
+
+    // Default SD multicast group address (VSOMEIP_SD_DEFAULT_MULTICAST); not overridden here.
+    boost::asio::ip::udp::endpoint const multicast_ep_{boost::asio::ip::make_address("224.224.224.0"), 30490};
 };
 
 TEST_F(test_boardnet, regression_test_to_avoid_udp_client_restart_loops) {
@@ -2642,7 +2645,7 @@ TEST_F(test_boardnet, regression_test_to_avoid_udp_client_restart_loops) {
 
     // helper to ensure a single OFFER is received
     auto gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(ecu_setup::sd_listen_endpoint(), consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
     gate->block_at(someip_gate::sd_trigger{sd::entry_type_e::OFFER_SERVICE, 600}, 2);
 
     start_apps();
@@ -2677,7 +2680,7 @@ TEST_F(test_boardnet, udp_connection_refused_recv) {
 
     // helper to ensure a single OFFER is received
     auto gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(ecu_setup::sd_listen_endpoint(), consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
     gate->block_at(someip_gate::sd_trigger{sd::entry_type_e::OFFER_SERVICE, 600}, 2);
 
     start_apps();
@@ -2714,7 +2717,7 @@ TEST_F(test_boardnet, udp_connection_refused_send) {
 
     // helper to ensure a single OFFER is received
     auto gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(ecu_setup::sd_listen_endpoint(), consumer_ecu_.router_name_, socket_role::client, gate->get_data_pipe()));
+    ASSERT_TRUE(set_udp_data_pipe(udp_party::any(), {multicast_ep_, consumer_ecu_.router_name_}, gate->get_data_pipe()));
     gate->block_at(someip_gate::sd_trigger{sd::entry_type_e::OFFER_SERVICE, 600}, 2);
 
     start_apps();

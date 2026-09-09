@@ -161,8 +161,8 @@ struct remote_offer_endpoint_change : public base_fake_socket_fixture {
     // block the provider sd from sending any sd message
     void block_provider_sd() {
         provider_sd_gate_ = someip_gate::create();
-        ASSERT_TRUE(setup_data_pipe(provider_->sd_endpoint(), provider_->router_name_, socket_role::server,
-                                    provider_sd_gate_->get_data_pipe()));
+        ASSERT_TRUE(set_udp_data_pipe({provider_->sd_endpoint(), provider_->router_name_}, udp_party::any(),
+                                      provider_sd_gate_->get_data_pipe()));
         provider_sd_gate_->block(true);
     }
 
@@ -173,8 +173,8 @@ struct remote_offer_endpoint_change : public base_fake_socket_fixture {
         auto* client = client_ecu_.router_;
         // Watch the client's outgoing SD BEFORE requesting, so its FIND_SERVICE is captured (see wait_for_client_request).
         client_request_gate_ = someip_gate::create();
-        EXPECT_TRUE(setup_data_pipe(client_ecu_.sd_endpoint(), client_ecu_.router_name_, socket_role::server,
-                                    client_request_gate_->get_data_pipe()));
+        EXPECT_TRUE(set_udp_data_pipe({client_ecu_.sd_endpoint(), client_ecu_.router_name_}, udp_party::any(),
+                                      client_request_gate_->get_data_pipe()));
         client->request_service(service_);
         return client;
     }
