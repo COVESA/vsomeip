@@ -1955,7 +1955,7 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
 }
 
 void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapsed) {
-    std::map<service_t, std::vector<std::pair<instance_t, major_version_t>>> its_expired_offers;
+    std::vector<versioned_service_instance_t> its_expired_offers;
 
     {
         std::scoped_lock its_lock{services_remote_mutex_};
@@ -1967,7 +1967,7 @@ void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapse
                         std::chrono::milliseconds precise_ttl = info->get_precise_ttl();
                         if (precise_ttl.count() < _elapsed.count() || precise_ttl.count() == 0) {
                             info->set_ttl(0);
-                            its_expired_offers[service].emplace_back(instance, major);
+                            its_expired_offers.push_back({service, instance, major});
                         } else {
                             std::chrono::milliseconds its_new_ttl(precise_ttl - _elapsed);
                             info->set_precise_ttl(its_new_ttl);
@@ -1978,17 +1978,15 @@ void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapse
         }
     }
 
-    for (const auto& [service, instances] : its_expired_offers) {
-        for (const auto& [instance, major] : instances) {
-            if (discovery_) {
-                discovery_->unsubscribe_all(service, instance);
-                // go to Initial Wait Phase
-                discovery_->reset_request_sent_counter(service, instance, major);
-            }
-            del_routing_info(service, instance, major, true, true, true);
-            VSOMEIP_INFO_P << "Update_routing_info: elapsed=" << _elapsed.count() << " : delete service/instance " << hex4(service) << "."
-                           << hex4(instance);
+    for (const auto& [service, instance, major] : its_expired_offers) {
+        if (discovery_) {
+            discovery_->unsubscribe_all(service, instance);
+            // go to Initial Wait Phase
+            discovery_->reset_request_sent_counter(service, instance, major);
         }
+        del_routing_info(service, instance, major, true, true, true);
+        VSOMEIP_INFO_P << "Update_routing_info: elapsed=" << _elapsed.count() << " : delete service/instance " << hex4(service) << "."
+                       << hex4(instance);
     }
 }
 
@@ -1997,7 +1995,7 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address& _addr
 }
 
 void routing_manager_impl::expire_services(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable) {
-    std::map<service_t, std::vector<std::pair<instance_t, major_version_t>>> its_expired_offers;
+    std::vector<versioned_service_instance_t> its_expired_offers;
 
     const bool expire_all = _range.is_any();
 
@@ -2019,7 +2017,7 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address& _addr
                                 discovery_->remove_remote_offer_type_by_ip(_address, its_client_endpoint->get_remote_port(), _reliable);
                             }
                         }
-                        its_expired_offers[service].emplace_back(instance, major);
+                        its_expired_offers.push_back({service, instance, major});
                     }
                 }
             }
@@ -2031,12 +2029,10 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address& _addr
         discovery_->remove_remote_offer_type_by_ip(_address, ANY_PORT, _reliable);
     }
 
-    for (auto& [service, instances] : its_expired_offers) {
-        for (auto& [instance, major] : instances) {
-            VSOMEIP_INFO_P << "for address: " << _address << " : delete service/instance " << hex4(service) << "." << hex4(instance)
-                           << " port [" << _range.start_ << "," << _range.end_ << "] reliability=" << std::boolalpha << _reliable;
-            del_routing_info(service, instance, major, true, true, true);
-        }
+    for (const auto& [service, instance, major] : its_expired_offers) {
+        VSOMEIP_INFO_P << "for address: " << _address << " : delete service/instance " << hex4(service) << "." << hex4(instance)
+                       << " port [" << _range.start_ << "," << _range.end_ << "] reliability=" << std::boolalpha << _reliable;
+        del_routing_info(service, instance, major, true, true, true);
     }
 }
 

@@ -467,10 +467,7 @@ void service_discovery_impl::unsubscribe(service_t _service, instance_t _instanc
         }
     }
 
-    std::vector<std::shared_ptr<message_impl>> its_messages;
-    its_messages.push_back(its_current_message);
-
-    serialize_and_send(its_messages, its_address);
+    serialize_and_send(its_current_message, its_address);
 }
 
 void service_discovery_impl::unsubscribe_all(service_t _service, instance_t _instance) {
@@ -504,10 +501,7 @@ void service_discovery_impl::unsubscribe_all(service_t _service, instance_t _ins
         }
     }
 
-    std::vector<std::shared_ptr<message_impl>> its_messages;
-    its_messages.push_back(its_current_message);
-
-    serialize_and_send(its_messages, its_address);
+    serialize_and_send(its_current_message, its_address);
 }
 
 void service_discovery_impl::unsubscribe_all_on_suspend() {
@@ -2328,6 +2322,28 @@ bool service_discovery_impl::serialize_and_send(const std::vector<std::shared_pt
     return its_result;
 }
 
+bool service_discovery_impl::serialize_and_send(const std::shared_ptr<message_impl>& _message, const boost::asio::ip::address& _address) {
+    if (_address.is_unspecified() || !_message->has_entry()) {
+        return false;
+    }
+    std::scoped_lock its_lock(serialize_mutex_);
+    std::pair<session_t, bool> its_session = get_session(_address);
+    _message->set_session(its_session.first);
+    _message->set_reboot_flag(its_session.second);
+    if (serializer_->serialize(_message.get())) {
+        if (host_->send_via_sd(endpoint_definition::get(_address, port_, reliable_, _message->get_service(), _message->get_instance()),
+                               serializer_->get_data(), serializer_->get_size(), port_)) {
+            increment_session(_address);
+        }
+    } else {
+        VSOMEIP_ERROR_P << "Serialization failed!";
+        serializer_->reset();
+        return false;
+    }
+    serializer_->reset();
+    return true;
+}
+
 void service_discovery_impl::start_ttl_timer(int _shift) {
 
     std::scoped_lock its_lock(ttl_timer_mutex_);
@@ -3472,7 +3488,7 @@ reliability_type_e service_discovery_impl::get_eventgroup_reliability(service_t 
 void service_discovery_impl::deserialize_data(const byte_t* _data, const length_t& _size, std::shared_ptr<message_impl>& _message) {
     std::scoped_lock its_lock(deserialize_mutex_);
     deserializer_->set_data(_data, _size);
-    _message = std::shared_ptr<message_impl>(deserializer_->deserialize_sd_message());
+    _message = deserializer_->deserialize_sd_message();
     deserializer_->reset();
 }
 

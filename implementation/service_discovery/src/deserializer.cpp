@@ -18,13 +18,10 @@ deserializer::deserializer(const deserializer& _other) : vsomeip_v3::deserialize
 
 deserializer::~deserializer() { }
 
-message_impl* deserializer::deserialize_sd_message() {
-    message_impl* deserialized_message = new message_impl;
-    if (0 != deserialized_message) {
-        if (false == deserialized_message->deserialize(this)) {
-            delete deserialized_message;
-            deserialized_message = 0;
-        }
+std::shared_ptr<message_impl> deserializer::deserialize_sd_message() {
+    auto deserialized_message = std::make_shared<message_impl>();
+    if (!deserialized_message->deserialize(this)) {
+        deserialized_message.reset();
     }
 
     return deserialized_message;

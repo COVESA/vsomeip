@@ -169,6 +169,7 @@ private:
 
     bool send(const std::vector<std::shared_ptr<message_impl>>& _messages);
     bool serialize_and_send(const std::vector<std::shared_ptr<message_impl>>& _messages, const boost::asio::ip::address& _address);
+    bool serialize_and_send(const std::shared_ptr<message_impl>& _message, const boost::asio::ip::address& _address);
 
     void update_acknowledgement(const std::shared_ptr<remote_subscription_ack>& _acknowledgement);
 
