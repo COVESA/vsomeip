@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "../../message/include/deserializer.hpp"
 
 namespace vsomeip_v3 {
@@ -19,7 +21,7 @@ public:
     deserializer(const deserializer& _other);
     virtual ~deserializer();
 
-    message_impl* deserialize_sd_message();
+    std::shared_ptr<message_impl> deserialize_sd_message();
 };
 
 } // namespace sd

@@ -275,7 +275,7 @@ bool message_impl::deserialize(vsomeip_v3::deserializer* _from) {
 
     // deserialize the entries
     while (is_successful && _from->get_remaining()) {
-        std::shared_ptr<entry_impl> its_entry(deserialize_entry(_from));
+        auto its_entry = deserialize_entry(_from);
         if (its_entry) {
             entries_.push_back(its_entry);
         } else {
@@ -300,7 +300,7 @@ bool message_impl::deserialize(vsomeip_v3::deserializer* _from) {
     }
 
     while (option_is_successful && _from->get_remaining()) {
-        std::shared_ptr<option_impl> its_option(deserialize_option(_from));
+        auto its_option = deserialize_option(_from);
         if (its_option) {
             options_.push_back(its_option);
         } else {
@@ -311,8 +311,8 @@ bool message_impl::deserialize(vsomeip_v3::deserializer* _from) {
     return is_successful;
 }
 
-entry_impl* message_impl::deserialize_entry(vsomeip_v3::deserializer* _from) {
-    entry_impl* deserialized_entry = 0;
+std::shared_ptr<entry_impl> message_impl::deserialize_entry(vsomeip_v3::deserializer* _from) {
+    std::shared_ptr<entry_impl> deserialized_entry;
     uint8_t tmp_entry_type;
 
     if (_from->look_ahead(0, tmp_entry_type)) {
@@ -323,7 +323,7 @@ entry_impl* message_impl::deserialize_entry(vsomeip_v3::deserializer* _from) {
         case entry_type_e::OFFER_SERVICE:
             // case entry_type_e::STOP_OFFER_SERVICE:
         case entry_type_e::REQUEST_SERVICE:
-            deserialized_entry = new serviceentry_impl;
+            deserialized_entry = std::make_shared<serviceentry_impl>();
             break;
 
         case entry_type_e::FIND_EVENT_GROUP:
@@ -333,7 +333,7 @@ entry_impl* message_impl::deserialize_entry(vsomeip_v3::deserializer* _from) {
             // case entry_type_e::STOP_SUBSCRIBE_EVENTGROUP:
         case entry_type_e::SUBSCRIBE_EVENTGROUP_ACK:
             // case entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK:
-            deserialized_entry = new eventgroupentry_impl;
+            deserialized_entry = std::make_shared<eventgroupentry_impl>();
             break;
 
         default:
@@ -341,11 +341,10 @@ entry_impl* message_impl::deserialize_entry(vsomeip_v3::deserializer* _from) {
         };
 
         // deserialize object
-        if (0 != deserialized_entry) {
+        if (deserialized_entry) {
             deserialized_entry->set_owning_message(this);
             if (!deserialized_entry->deserialize(_from)) {
-                delete deserialized_entry;
-                deserialized_entry = 0;
+                deserialized_entry.reset();
             };
         }
     }
@@ -353,8 +352,8 @@ entry_impl* message_impl::deserialize_entry(vsomeip_v3::deserializer* _from) {
     return deserialized_entry;
 }
 
-option_impl* message_impl::deserialize_option(vsomeip_v3::deserializer* _from) {
-    option_impl* deserialized_option = 0;
+std::shared_ptr<option_impl> message_impl::deserialize_option(vsomeip_v3::deserializer* _from) {
+    std::shared_ptr<option_impl> deserialized_option;
     uint8_t tmp_option_type;
 
     if (_from->look_ahead(2, tmp_option_type)) {
@@ -364,35 +363,34 @@ option_impl* message_impl::deserialize_option(vsomeip_v3::deserializer* _from) {
         switch (deserialized_option_type) {
 
         case option_type_e::CONFIGURATION:
-            deserialized_option = new configuration_option_impl;
+            deserialized_option = std::make_shared<configuration_option_impl>();
             break;
         case option_type_e::LOAD_BALANCING:
-            deserialized_option = new load_balancing_option_impl;
+            deserialized_option = std::make_shared<load_balancing_option_impl>();
             break;
         case option_type_e::PROTECTION:
-            deserialized_option = new protection_option_impl;
+            deserialized_option = std::make_shared<protection_option_impl>();
             break;
         case option_type_e::IP4_ENDPOINT:
         case option_type_e::IP4_MULTICAST:
-            deserialized_option = new ipv4_option_impl;
+            deserialized_option = std::make_shared<ipv4_option_impl>();
             break;
         case option_type_e::IP6_ENDPOINT:
         case option_type_e::IP6_MULTICAST:
-            deserialized_option = new ipv6_option_impl;
+            deserialized_option = std::make_shared<ipv6_option_impl>();
             break;
         case option_type_e::SELECTIVE:
-            deserialized_option = new selective_option_impl;
+            deserialized_option = std::make_shared<selective_option_impl>();
             break;
 
         default:
-            deserialized_option = new unknown_option_impl();
+            deserialized_option = std::make_shared<unknown_option_impl>();
             break;
         };
 
         // deserialize object
-        if (0 != deserialized_option && !deserialized_option->deserialize(_from)) {
-            delete deserialized_option;
-            deserialized_option = 0;
+        if (deserialized_option && !deserialized_option->deserialize(_from)) {
+            deserialized_option.reset();
         };
     }
 

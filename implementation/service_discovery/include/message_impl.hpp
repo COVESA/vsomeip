@@ -102,8 +102,8 @@ public:
     std::string get_env() const;
 
 private:
-    entry_impl* deserialize_entry(vsomeip_v3::deserializer* _from);
-    option_impl* deserialize_option(vsomeip_v3::deserializer* _from);
+    std::shared_ptr<entry_impl> deserialize_entry(vsomeip_v3::deserializer* _from);
+    std::shared_ptr<option_impl> deserialize_option(vsomeip_v3::deserializer* _from);
 
 private:
     flags_t flags_;
