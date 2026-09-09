@@ -93,8 +93,6 @@ public:
 
     virtual std::string get_client_host() const = 0;
 
-    virtual routing_state_e get_routing_state() = 0;
-
     virtual std::vector<protocol::service> get_requested_services(client_t _client) const = 0;
 
     /// @brief Has _client requested the concrete instance [_service._instance]?

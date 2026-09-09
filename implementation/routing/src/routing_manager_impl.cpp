@@ -80,7 +80,7 @@ routing_manager_impl::routing_manager_impl(routing_manager_host* _host, std::sha
     pending_remote_offer_id_(0), last_resume_(std::chrono::steady_clock::time_point::min()), statistics_log_timer_(_host->get_io()),
     ignored_statistics_counter_(0), stop_offer_graceful_timer_{_host->get_io()} {
 
-    VSOMEIP_INFO << "Starting Routing Manager [Host] with state " << routing_state_tostring(routing_state_);
+    VSOMEIP_INFO << "Starting Routing Manager [Host] with state '" << to_string(routing_state_) << "'";
     const size_t its_max = configuration_->get_io_thread_count(host_->get_name());
     const uint32_t its_buffer_shrink_threshold = configuration_->get_buffer_shrink_threshold();
 
@@ -517,11 +517,6 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
 void routing_manager_impl::subscribe(client_t _client, [[maybe_unused]] const vsomeip_sec_client_t* _sec_client, service_t _service,
                                      instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, event_t _event,
                                      const std::shared_ptr<debounce_filter_impl_t>& _filter) {
-
-    if (routing_state_ == routing_state_e::RS_SUSPENDED) {
-        VSOMEIP_INFO_P << "We are suspended --> do nothing.";
-        return;
-    }
 
     VSOMEIP_INFO << "SUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << ":"
                  << hex4(_event) << ":" << static_cast<int>(_major) << "]";
@@ -2819,29 +2814,38 @@ void routing_manager_impl::send_subscribe([[maybe_unused]] client_t _client, [[m
 }
 
 bool routing_manager_impl::is_suspended() const {
-    return routing_state_ == routing_state_e::RS_SUSPENDED || routing_state_ == routing_state_e::RS_DELAYED_RESUME;
+    // we are still "suspended" in DELAYED as well, since SD is not yet active
+    auto state = routing_state_.load();
+    return state == routing_state_internal_e::DELAYED || state == routing_state_internal_e::SUSPENDED;
 }
 
-routing_state_e routing_manager_impl::get_routing_state() {
-    return routing_state_;
+void routing_manager_impl::set_routing_state(routing_state_internal_e _routing_state) {
+    std::unique_lock its_lock(mutex_);
+    set_routing_state_internal(its_lock, _routing_state);
 }
 
-void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
-    std::scoped_lock its_lock(mutex_);
-    set_routing_state_unlocked(_routing_state);
-}
-
-void routing_manager_impl::set_routing_state_unlocked(routing_state_e _routing_state) {
-    if (routing_state_ == _routing_state) {
-        VSOMEIP_INFO_P << "No routing state change --> do nothing.";
+void routing_manager_impl::set_routing_state_internal(std::unique_lock<std::mutex>& _lock, routing_state_internal_e _routing_state) {
+    if (routing_state_.load() == _routing_state) {
+        VSOMEIP_WARNING_P << "Already in routing state '" << to_string(_routing_state) << "'";
         return;
     }
 
-    routing_state_ = _routing_state;
+    if (discovery_ == nullptr) {
+        VSOMEIP_WARNING_P << "Cannot set routing state '" << to_string(_routing_state) << "' without SD";
+        return;
+    }
 
-    if (discovery_) {
+    if (_routing_state == routing_state_internal_e::DELAYED) {
+        // it is an internal transition state, cannot be set directly
+        VSOMEIP_ERROR_P << "Cannot set routing state '" << to_string(_routing_state) << "'";
+        return;
+    }
+
+    routing_state_.store(_routing_state);
+
+    if (true) {
         switch (_routing_state) {
-        case routing_state_e::RS_SUSPENDED: {
+        case routing_state_internal_e::SUSPENDED: {
             VSOMEIP_INFO_P << "Set routing to RS_SUSPENDED";
 
             stop_offer_graceful_timer_.cancel();
@@ -2920,17 +2924,19 @@ void routing_manager_impl::set_routing_state_unlocked(routing_state_e _routing_s
             ep_mgr_impl_->suspend();
 
             if (routing_state_handler_) {
-                invoke_watched(routing_state_handler_, "routing_state_handler(RS_SUSPENDED)", _routing_state);
+                _lock.unlock();
+                invoke_watched(routing_state_handler_, "routing_state_handler(RS_SUSPENDED)", routing_state_e::RS_SUSPENDED);
+                _lock.lock();
             }
 
             VSOMEIP_INFO_P << "Set routing to RS_SUSPENDED done";
             break;
         }
-        case routing_state_e::RS_RESUMED: {
+        case routing_state_internal_e::RESUMED: {
             if (!is_external_routing_ready()) {
                 VSOMEIP_INFO_P << "Network not running, delaying the resume of routing manager (if_state_running_: " << if_state_running_
                                << ", sd_route_set_: " << sd_route_set_ << ")";
-                routing_state_ = routing_state_e::RS_DELAYED_RESUME;
+                routing_state_ = routing_state_internal_e::DELAYED;
                 return;
             }
 
@@ -2950,10 +2956,6 @@ void routing_manager_impl::set_routing_state_unlocked(routing_state_e _routing_s
 
             // Switch SD back to normal operation
             VSOMEIP_INFO_P << "Go to normal operation.";
-
-            if (routing_state_handler_) {
-                invoke_watched(routing_state_handler_, "routing_state_handler(RS_RESUMED)", _routing_state);
-            }
 
             // start processing of SD messages (incoming remote offers should lead to new subscribe
             // messages)
@@ -3004,24 +3006,16 @@ void routing_manager_impl::set_routing_state_unlocked(routing_state_e _routing_s
             }
 
             if (routing_state_handler_) {
-                invoke_watched(routing_state_handler_, "routing_state_handler(RS_RESUMED)", _routing_state);
+                _lock.unlock();
+                invoke_watched(routing_state_handler_, "routing_state_handler(RS_RESUMED)", routing_state_e::RS_RESUMED);
+                _lock.lock();
             }
 
             VSOMEIP_INFO_P << "Set routing to RS_RESUMED done";
             break;
         }
-        case routing_state_e::RS_DIAGNOSIS:
-            VSOMEIP_INFO_P << "Set routing to RS_DIAGNOSIS, not supported since 3.7.2 --> do nothing.";
-            break;
-        case routing_state_e::RS_RUNNING:
-            VSOMEIP_INFO_P << "Set routing to RS_RUNNING, not supported since 3.7.3 --> do nothing.";
-            break;
-        case routing_state_e::RS_DELAYED_RESUME:
-            if (routing_state_handler_) {
-                invoke_watched(routing_state_handler_, "routing_state_handler(RS_DELAYED_RESUME)", _routing_state);
-            }
-            break;
         default:
+            VSOMEIP_ERROR_P << "Unexpected routing state '" << to_string(_routing_state) << "'";
             break;
         }
     }
@@ -3049,7 +3043,7 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(bool _is_inte
         }
     };
 
-    std::scoped_lock its_lock(mutex_);
+    std::unique_lock its_lock(mutex_);
     if (_is_interface) {
         if (_available != if_state_running_) {
             log_change_message(_available);
@@ -3071,10 +3065,11 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(bool _is_inte
             start_ip_routing();
         }
 
-        auto its_routing_state{get_routing_state()};
-        if (its_routing_state == routing_state_e::RS_DELAYED_RESUME) {
-            set_routing_state_unlocked(routing_state_e::RS_RESUMED);
-        } else if (its_routing_state != routing_state_e::RS_SUSPENDED) {
+        auto its_routing_state = routing_state_.load();
+        if (its_routing_state == routing_state_internal_e::DELAYED) {
+            set_routing_state_internal(its_lock, routing_state_internal_e::RESUMED);
+        } else if (its_routing_state == routing_state_internal_e::RESUMED) {
+            // TODO: implies that network went down, then back up.. error scenario?
             init_pending_services();
             VSOMEIP_INFO << VSOMEIP_EXTERNAL_ROUTING_READY_MESSAGE;
         }
@@ -3892,23 +3887,6 @@ void routing_manager_impl::remove_subscriptions(port_t _local_port, const boost:
 
 std::shared_ptr<local_endpoint> routing_manager_impl::find_routing_endpoint(client_t _client) const {
     return ep_mgr_impl_->find_routing_endpoint(_client);
-}
-
-const char* routing_manager_impl::routing_state_tostring(routing_state_e _state) {
-    switch (_state) {
-    case routing_state_e::RS_SUSPENDED:
-        return "RS_SUSPENDED";
-    case routing_state_e::RS_RESUMED:
-        return "RS_RESUMED";
-    case routing_state_e::RS_SHUTDOWN:
-        return "RS_SHUTDOWN";
-    case routing_state_e::RS_DELAYED_RESUME:
-        return "RS_DELAYED_RESUME";
-    case routing_state_e::RS_UNKNOWN:
-        return "RS_UNKNOWN";
-    default:
-        return "Unknown State";
-    }
 }
 
 void routing_manager_impl::remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service,

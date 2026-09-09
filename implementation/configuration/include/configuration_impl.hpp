@@ -123,7 +123,7 @@ public:
     bool is_local_routing() const;
     bool is_uds_preferred() const;
 
-    routing_state_e get_initial_routing_state() const;
+    routing_state_internal_e get_initial_routing_state() const;
 
     const std::string& get_routing_host_name() const;
     const boost::asio::ip::address& get_routing_host_address() const;
@@ -621,7 +621,7 @@ protected:
     bool is_security_audit_;
     bool is_remote_access_allowed_;
 
-    routing_state_e initial_routing_state_;
+    routing_state_internal_e initial_routing_state_;
 
     size_t request_debounce_time_;
 

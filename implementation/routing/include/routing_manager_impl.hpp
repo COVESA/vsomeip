@@ -181,9 +181,7 @@ public:
     void cleanup_client(client_t _client);
     std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const;
 
-    routing_state_e get_routing_state();
-    const char* routing_state_tostring(routing_state_e _state);
-    void set_routing_state(routing_state_e _routing_state);
+    void set_routing_state(routing_state_internal_e _routing_state);
     bool is_suspended() const;
 
     connection_control_response_e change_connection_control(connection_control_request_e _control,
@@ -277,8 +275,8 @@ public:
 private:
     client_t find_local_provider(service_t _service, instance_t _instance, major_version_t _major,
                                  std::scoped_lock<std::mutex> const& _service_state_lock);
-    // Assumes mutex_ is already held by the caller.
-    void set_routing_state_unlocked(routing_state_e _routing_state);
+    // Assumes mutex_ is already held by the caller, passed via `_lock`
+    void set_routing_state_internal(std::unique_lock<std::mutex>& _lock, routing_state_internal_e _routing_state);
 
     bool is_locally_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
@@ -443,7 +441,8 @@ private:
     std::shared_ptr<abstract_netlink_connector> netlink_connector_;
 #endif
 
-    std::atomic<routing_state_e> routing_state_;
+    // TODO: use _mutex instead
+    std::atomic<routing_state_internal_e> routing_state_;
 
     mutable std::mutex services_state_mutex_;
     local_offering_table local_services_table_;

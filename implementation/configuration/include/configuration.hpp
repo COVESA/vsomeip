@@ -29,6 +29,7 @@
 
 #include "internal.hpp"
 
+#include "../../runtime/include/routing_application.hpp"
 #include "../../security/include/policy.hpp"
 
 namespace vsomeip_v3 {
@@ -104,7 +105,7 @@ public:
 
     virtual bool is_local_routing() const = 0;
     virtual bool is_uds_preferred() const = 0;
-    virtual routing_state_e get_initial_routing_state() const = 0;
+    virtual routing_state_internal_e get_initial_routing_state() const = 0;
 
     virtual std::string get_unicast_address(service_t _service, instance_t _instance) const = 0;
     virtual uint16_t get_reliable_port(service_t _service, instance_t _instance) const = 0;

@@ -77,7 +77,7 @@ configuration_impl::configuration_impl(const std::string& _path) :
     statistics_interval_{VSOMEIP_DEFAULT_STATISTICS_INTERVAL}, statistics_min_freq_{VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ},
     statistics_max_messages_{VSOMEIP_DEFAULT_STATISTICS_MAX_MSG}, max_remote_subscribers_{VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS},
     path_{_path}, is_security_enabled_{false}, is_security_external_{false}, is_security_audit_{false}, is_remote_access_allowed_{true},
-    initial_routing_state_{routing_state_e::RS_UNKNOWN}, request_debounce_time_{VSOMEIP_REQUEST_DEBOUNCE_TIME},
+    initial_routing_state_{routing_state_internal_e::RESUMED}, request_debounce_time_{VSOMEIP_REQUEST_DEBOUNCE_TIME},
     default_max_dispatch_time_{VSOMEIP_DEFAULT_MAX_DISPATCH_TIME}, default_max_dispatchers_{VSOMEIP_DEFAULT_MAX_DISPATCHERS} {
 
     unicast_ = boost::asio::ip::make_address(VSOMEIP_UNICAST_ADDRESS);
@@ -1881,9 +1881,9 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                                     << _element.name_;
                 } else {
                     if (its_value == "suspended") {
-                        initial_routing_state_ = routing_state_e::RS_SUSPENDED;
+                        initial_routing_state_ = routing_state_internal_e::SUSPENDED;
                     } else if (its_value == "resumed") {
-                        initial_routing_state_ = routing_state_e::RS_RESUMED;
+                        initial_routing_state_ = routing_state_internal_e::RESUMED;
                     }
                 }
             } else if (its_key == "wait_route_netlink_notification") {
@@ -4762,7 +4762,7 @@ bool configuration_impl::is_remote_access_allowed() const {
     return is_remote_access_allowed_;
 }
 
-routing_state_e configuration_impl::get_initial_routing_state() const {
+routing_state_internal_e configuration_impl::get_initial_routing_state() const {
     return initial_routing_state_;
 }
 
