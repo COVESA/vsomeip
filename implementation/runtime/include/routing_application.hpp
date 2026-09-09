@@ -20,6 +20,22 @@
 
 namespace vsomeip_v3 {
 
+// trimmed, internal-only version of `routing_state_e`
+enum class routing_state_internal_e { DELAYED, RESUMED, SUSPENDED };
+
+inline const char* to_string(routing_state_internal_e _routing_state) {
+    switch (_routing_state) {
+    case routing_state_internal_e::DELAYED:
+        return "DELAYED";
+    case routing_state_internal_e::RESUMED:
+        return "RESUMED";
+    case routing_state_internal_e::SUSPENDED:
+        return "SUSPENDED";
+    }
+
+    return "UNKNOWN";
+}
+
 class routing_manager_impl;
 
 namespace trace {
@@ -36,7 +52,7 @@ public:
     void start() const;
     void stop() const;
 
-    void set_routing_state(routing_state_e _routing_state) const;
+    void set_routing_state(routing_state_internal_e _routing_state) const;
     bool update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable, bool _magic_cookies_enabled,
                                       bool _offer) const;
 

@@ -58,7 +58,7 @@ void routing_application::stop() const {
     routing_->stop();
 }
 
-void routing_application::set_routing_state(routing_state_e _routing_state) const {
+void routing_application::set_routing_state(routing_state_internal_e _routing_state) const {
     routing_->set_routing_state(_routing_state);
 }
 

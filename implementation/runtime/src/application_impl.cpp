@@ -1714,16 +1714,23 @@ bool application_impl::is_routing() const {
 
 void application_impl::set_routing_state(routing_state_e _routing_state) {
     if (!routing_app_) {
-        VSOMEIP_WARNING_P << "Set " << static_cast<int>(_routing_state) << ", not supported (nullptr)";
+        VSOMEIP_ERROR_P << "only intended to be called by application acting as routing manager host";
+        return;
+    }
+
+    if (_routing_state == routing_state_e::RS_RESUMED) {
+        routing_app_->set_routing_state(routing_state_internal_e::RESUMED);
+    } else if (_routing_state == routing_state_e::RS_SUSPENDED) {
+        routing_app_->set_routing_state(routing_state_internal_e::SUSPENDED);
     } else {
-        routing_app_->set_routing_state(_routing_state);
+        VSOMEIP_ERROR_P << "only supports RS_RESUMED/RS_SUSPENDED, not state " << static_cast<int>(_routing_state);
     }
 }
 
 connection_control_response_e application_impl::change_connection_control(connection_control_request_e _control,
                                                                           const std::string& _guest_address) {
     if (!routing_app_) {
-        VSOMEIP_ERROR_P << "not routing manager host";
+        VSOMEIP_ERROR_P << "only intended to be called by application acting as routing manager host";
         return connection_control_response_e::CCR_ERROR_INVALID_PARAMETER;
     }
     return routing_app_->change_connection_control(_control, _guest_address);
@@ -1964,7 +1971,7 @@ bool application_impl::update_service_configuration(service_t _service, instance
                                                     bool _magic_cookies_enabled, bool _offer) {
     bool ret = false;
     if (!routing_app_) {
-        VSOMEIP_ERROR_P << " is only intended to be called by application acting as routing manager host";
+        VSOMEIP_ERROR_P << "only intended to be called by application acting as routing manager host";
     } else {
         ret = routing_app_->update_service_configuration(_service, _instance, _port, _reliable, _magic_cookies_enabled, _offer);
     }
@@ -1981,7 +1988,7 @@ void application_impl::update_security_policy_configuration(uint32_t _uid, uint3
     (void)_handler;
 #else
     if (!routing_app_) {
-        VSOMEIP_ERROR_P << " is only intended to be called by application acting as routing manager host";
+        VSOMEIP_ERROR_P << "only intended to be called by application acting as routing manager host";
     } else {
         routing_app_->update_security_policy_configuration(_uid, _gid, _policy, _payload, _handler);
     }
@@ -1995,7 +2002,7 @@ void application_impl::remove_security_policy_configuration(uint32_t _uid, uint3
     (void)_handler;
 #else
     if (!routing_app_) {
-        VSOMEIP_ERROR_P << " is only intended to be called by application acting as routing manager host";
+        VSOMEIP_ERROR_P << "only intended to be called by application acting as routing manager host";
     } else {
         routing_app_->remove_security_policy_configuration(_uid, _gid, _handler);
     }

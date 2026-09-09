@@ -653,12 +653,29 @@ public:
     /**
      * \brief Set the current routing state.
      *
-     *  The routing state impacts the behavior of the SOME/IP Service Discovery component. It
-     *  can be set to RUNNING, SUSPENDED, RESUMED, SHUTDOWN or UNKNOWN. Applications only need
-     *  to set the routing state if they are responsible for controlling the routing manager.
-     *  In most environments the vsomeip daemon is controlling the routing manager.
+     * The routing state impacts the behavior of SOME/IP Service Discovery. It
+     * can be set to either RS_RESUMED, or RS_SUSPENDED. Other states are
+     * unsupported.
      *
-     * \param _routing_state the current routing state
+     * When setting RS_RESUMED, Service Discovery will:
+     * - wait for network readiness (depending on OS)
+     * - listen to SOME/IP-SD communication
+     * - accept remote external services (which then become available)
+     * - accept remote subscriptions
+     * - offer own external services
+     * - send own subscriptions
+     *
+     * When setting RS_SUSPENDED, Service Discovery will:
+     * - cease to listen to SOME/IP-SD communication
+     * - expire remote external services (which then become unavailable)
+     * - expire remote subscriptions
+     * - stop offering own external services
+     * - stop own subscriptions
+     *
+     * Setting the routing state requires that the application is the routing
+     * manager, and is a no-op otherwise. Furthermore, it is idempotent.
+     *
+     * \param _routing_state desired routing state
      */
     virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
@@ -840,7 +857,7 @@ public:
      * changes.
      *
      * This method has only an effect when called on the application acting as
-     * routing manager
+     * routing manager. Only RS_RESUMED and RS_SUSPENDED are reported.
      *
      * \param _handler The handler to be called
      */

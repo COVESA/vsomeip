@@ -71,6 +71,7 @@ set (TEST_SUITES
     test_vlan_toggle_registration
     test_api
     test_api_footguns
+    test_api_routing_manager
 )
 
 foreach(TEST_SUITE ${TEST_SUITES})

@@ -43,13 +43,13 @@ enum class return_code_e : uint8_t {
 };
 
 enum class routing_state_e : uint8_t {
-    RS_RUNNING = 0x00, // (not supported since 3.7.3)
+    RS_RUNNING = 0x00, // not supported since 3.7.3
     RS_SUSPENDED = 0x01,
     RS_RESUMED = 0x02,
-    RS_SHUTDOWN = 0x03,
-    RS_DIAGNOSIS = 0x04, // (not supported since 3.7.2)
-    RS_DELAYED_RESUME = 0x05,
-    RS_UNKNOWN = 0xFF
+    RS_SHUTDOWN = 0x03, // not supported since 3.8.0
+    RS_DIAGNOSIS = 0x04, // not supported since 3.7.2
+    RS_DELAYED_RESUME = 0x05, // not supported since 3.8.0
+    RS_UNKNOWN = 0xFF // not supported since 3.8.0
 };
 
 enum class offer_type_e : uint8_t {
