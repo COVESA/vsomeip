@@ -1106,11 +1106,17 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
 void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver,
                                       const boost::asio::ip::address& _remote_address, port_t _remote_port, bool _is_multicast) {
 
-    uint8_t its_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
-    instance_t its_instance(0x0);
+    auto remote_str = [&_length, &_remote_address, &_remote_port, &_is_multicast]() {
+        // e.g., "160.48.199.99:30490 [multicast], len 128"
+        // only for errors
+        std::stringstream s;
+        s << _remote_address.to_string() << ":" << _remote_port << (_is_multicast ? " [multicast]" : "") << ", len " << _length;
+        return s.str();
+    };
+
     // message is at least 16-bytes, see also PRS_SOMEIP_00910
     if (_length < VSOMEIP_FULL_HEADER_SIZE) {
-        VSOMEIP_ERROR_P << "Dropped message with invalid length " << _length;
+        VSOMEIP_ERROR_P << "Dropped message with invalid length from " << remote_str();
         return;
     }
 
@@ -1119,30 +1125,40 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
     const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
     const client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
     const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-    const auto its_return_code = static_cast<return_code_e>(_data[VSOMEIP_RETURN_CODE_POS]);
+
+    auto message_str = [&remote_str, &its_service, &its_method, &its_client, &its_session]() {
+        // e.g., "160.48.199.99:30490 [multicast], len 128, [1020.8001:6101.0001]"
+        // also only for errors
+        std::stringstream s;
+        s << remote_str() << ", [" << hex4(its_service) << "." << hex4(its_method) << ":" << hex4(its_client) << "." << hex4(its_session)
+          << "]";
+        return s.str();
+    };
 
     // refer to error workflow in PRS_SOMEIP_00195
     // (although note that it is *NOT* strictly followed!)
 
     // ignore messages with invalid message type
     if (!utility::is_valid_message_type(its_message_type)) {
-        VSOMEIP_ERROR_P << "Dropped message with invalid message type 0x" << hex2(static_cast<uint8_t>(its_message_type));
+        VSOMEIP_ERROR_P << "Dropped message with invalid message type 0x" << hex2(static_cast<uint8_t>(its_message_type)) << " from "
+                        << message_str();
         return;
     }
     // ignore messages with.. unknown remote address? how is this even possible?!
     if (_remote_address.is_unspecified()) {
-        VSOMEIP_ERROR_P << "Dropped message with invalid remote address from: " << _remote_address.to_string() << ":" << _remote_port;
+        VSOMEIP_ERROR_P << "Dropped message with invalid remote address from " << message_str();
         return;
     }
 
     // Log messages which could cause routing issues.
     if (!utility::is_valid_client_id(its_client, configuration_->get_diagnosis_address(), configuration_->get_diagnosis_mask(),
                                      its_message_type)) {
-        VSOMEIP_ERROR_P << "Invalid Client ID. message=" << hex4(its_service) << "." << hex4(its_method) << "."
-                        << hex2(static_cast<uint8_t>(its_message_type)) << "." << hex2(static_cast<uint8_t>(its_return_code))
-                        << " client=0x" << hex4(its_client) << " source=" << _remote_address << ":" << _remote_port;
+        // TODO: drop message, this can cause data loss, cannot have other network participants using client-ids that belong to our range
+        VSOMEIP_ERROR_P << "Invalid Client ID 0x" << hex4(its_client) << " from " << message_str();
     }
 
+    uint8_t its_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
+    instance_t its_instance(0x0);
     bool its_was_forwarded(false);
 
     if (its_service == VSOMEIP_SD_SERVICE) {
@@ -1150,18 +1166,18 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
             if (configuration_->get_sd_port() == _remote_port) {
                 // ACL check SD message
                 if (!is_acl_message_allowed(_receiver, its_service, ANY_INSTANCE, _remote_address)) {
-                    // Note: acl check already logs failure
+                    VSOMEIP_WARNING_P << "Dropped SD message due to ACL from " << message_str();
                     return;
                 }
                 discovery_->on_message(_data, _length, _remote_address, _is_multicast);
                 its_was_forwarded = true;
             } else {
-                VSOMEIP_ERROR << "Ignored SD message from unknown port (" << _remote_port << ")";
+                VSOMEIP_ERROR << "Dropped SD message with unknown port " << _remote_port << " from " << message_str();
+                return;
             }
         } else {
-            VSOMEIP_ERROR_P << "Dropped message for the SD service [" << hex4(its_service) << "." << hex4(its_method)
-                            << "] from: " << _remote_address.to_string() << ":" << _remote_port
-                            << (discovery_ ? ". Unexpected method id." : ". Service discovery is not available.");
+            VSOMEIP_ERROR_P << "Dropped SD message with unexpected method id 0x" << hex4(its_method) << " from " << message_str();
+            return;
         }
     } else {
         if (_is_multicast) {
@@ -1183,35 +1199,31 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
         }
 
         if (its_instance == ANY_INSTANCE) {
-            VSOMEIP_WARNING_P << "Dropped message with no matching instanceId, [" << hex4(its_service) << '.' << hex4(its_instance) << "."
-                              << hex4(its_method) << "." << hex4(its_client) << "." << hex4(its_session)
-                              << "] from: " << _remote_address.to_string() << ":" << _remote_port << ", multicast: " << std::boolalpha
-                              << _is_multicast;
+            VSOMEIP_WARNING_P << "Dropped message with no matching instanceId from " << message_str();
             return;
         }
 
         // Security checks if enabled!
+        // TODO: these checks always make sense!
         if (configuration_->is_security_enabled()) {
             if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
                 if (!configuration_->is_offered_remote(its_service, its_instance)) {
-                    VSOMEIP_WARNING << "Security: Received a remote request for service/instance " << hex4(its_service) << "/"
-                                    << hex4(its_instance) << " which isn't offered remote ~> Skip message!";
+                    VSOMEIP_ERROR_P << "Dropped request for service " << hex4(its_service) << "." << hex4(its_instance)
+                                    << " that we do not offer from " << message_str();
                     return;
                 }
                 if (find_routing_endpoint(its_client)) {
-                    VSOMEIP_WARNING << "Security: Received a remote request from client identifier 0x" << hex4(its_client)
-                                    << " which is already used locally ~> Skip message!";
+                    // quite sure this scenario would already be caught by the client-id check earlier, but no harm
+                    VSOMEIP_ERROR_P << "Dropped request with local Client ID 0x" << hex4(its_client) << " from " << message_str();
                     return;
                 }
                 if (!configuration_->is_remote_access_allowed()) {
-                    // check if policy allows remote requests.
-                    VSOMEIP_WARNING_P << "Security: Remote client with client ID 0x" << hex4(its_client)
-                                      << " is not allowed to communicate with service/instance/method " << hex4(its_service) << "/"
-                                      << hex4(its_instance) << "/" << hex4(its_method);
+                    VSOMEIP_ERROR_P << "Dropped request due to no-remote-access from " << message_str();
                     return;
                 }
             }
         }
+
         if (e2e_provider_) {
 #ifndef ANDROID
             if (e2e_provider_->is_checked({its_service, its_method})) {
@@ -1229,7 +1241,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boa
 
         // ACL check message
         if (!is_acl_message_allowed(_receiver, its_service, its_instance, _remote_address)) {
-            // Note: acl check already logs failure
+            VSOMEIP_WARNING_P << "Dropped message due to ACL from " << message_str();
             return;
         }
 
@@ -1621,8 +1633,6 @@ bool routing_manager_impl::is_acl_message_allowed(boardnet_endpoint* _receiver, 
                                      << hex4(_instance) << "])";
                             }},
                             message_acceptance)) {
-            VSOMEIP_WARNING << "Message from " << _remote_address.to_string() << " with service/instance " << hex4(_service) << "/"
-                            << hex4(_instance) << " was rejected by the ACL check.";
             return false;
         }
     }
