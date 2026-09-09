@@ -295,8 +295,12 @@ bool routing_manager_client::offer_service(client_t _client, service_t _service,
     protocol::service_data offer_data{.key_ = {.service_ = _service, .instance_ = _instance, .major_ = _major}, .minor_version_ = _minor};
     offered_services_.insert(offer_data);
     if (state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
-        if (!sender_ || !sender_->send(protocol::create_offer_service_cmd(get_client(), _service, _instance, _major, _minor))) {
-            VSOMEIP_ERROR_P << "Failure offering service " << offer_data;
+        if (sender_) {
+            if (!sender_->send(protocol::create_offer_service_cmd(get_client(), _service, _instance, _major, _minor))) {
+                VSOMEIP_ERROR_P << "Failed to send OFFER_SERVICE for service " << offer_data;
+            }
+        } else {
+            VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
     }
     return true;
@@ -315,12 +319,14 @@ void routing_manager_client::stop_offer_service(client_t _client, service_t _ser
     // 2. Send the removal if we are registered
     // otherwise it might happen that we don't send the stop offer,
     // but have not removed the offer when REGISTERED is entered
-    offered_services_.remove(
-            protocol::service_data{.key_ = {.service_ = _service, .instance_ = _instance, .major_ = _major}, .minor_version_ = _minor});
+    protocol::service_data offer_data{.key_ = {.service_ = _service, .instance_ = _instance, .major_ = _major}, .minor_version_ = _minor};
+    offered_services_.remove(offer_data);
     std::scoped_lock inner_lock(mutex_);
     if (state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
         if (sender_) {
-            sender_->send(protocol::create_stop_offer_service_cmd(get_client(), _service, _instance, _major, _minor));
+            if (!sender_->send(protocol::create_stop_offer_service_cmd(get_client(), _service, _instance, _major, _minor))) {
+                VSOMEIP_ERROR_P << "Failed to send STOP_OFFER_SERVICE for service " << offer_data;
+            }
         } else {
             VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
@@ -406,7 +412,10 @@ void routing_manager_client::release_service(client_t _client, service_t _servic
     std::scoped_lock inner_lock(mutex_);
     if (already_requested && state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
         if (sender_) {
-            sender_->send(protocol::create_release_service_cmd(_client, _service, _instance, ANY_MAJOR));
+            if (!sender_->send(protocol::create_release_service_cmd(_client, _service, _instance, ANY_MAJOR))) {
+                VSOMEIP_ERROR_P << "Failed to send RELEASE_SERVICE for client 0x" << hex4(_client) << " and service [" << hex4(_service)
+                                << "." << hex4(_instance) << "]";
+            }
         } else {
             VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
@@ -472,10 +481,14 @@ void routing_manager_client::register_event(client_t _client, service_t _service
     }
     std::scoped_lock lock{mutex_};
     if (state_machine_->state() == routing_client_state_e::ST_REGISTERED && new_registration) {
-        send_event_registrations(get_client(), std::span{&reg_event_data, 1}, lock);
-        if (_is_provided) {
-            VSOMEIP_INFO << "REGISTER EVENT(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                         << hex4(_notifier) << ":is_provider=" << std::boolalpha << _is_provided << "]";
+        if (send_event_registrations(get_client(), std::span{&reg_event_data, 1}, lock)) {
+            if (_is_provided) {
+                VSOMEIP_INFO << "REGISTER EVENT(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
+                             << hex4(_notifier) << ":is_provider=" << std::boolalpha << _is_provided << "]";
+            }
+        } else {
+            VSOMEIP_ERROR_P << "Failed to send the event registration [" << hex4(_service) << "." << hex4(_instance) << "."
+                            << hex4(_notifier) << ":is_provider=" << std::boolalpha << _is_provided << "]";
         }
     }
 }
@@ -508,7 +521,10 @@ void routing_manager_client::unregister_event(client_t _client, service_t _servi
     }
     if (std::scoped_lock lock{mutex_}; state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
         if (sender_) {
-            sender_->send(protocol::create_unregister_event_cmd(get_client(), _service, _instance, _notifier, _is_provided));
+            if (!sender_->send(protocol::create_unregister_event_cmd(get_client(), _service, _instance, _notifier, _is_provided))) {
+                VSOMEIP_ERROR_P << "Failed to send UNREGISTER_EVENT for event [" << hex4(_service) << "." << hex4(_instance) << "."
+                                << hex4(_notifier) << ":is_provider=" << std::boolalpha << _is_provided << "]";
+            }
         } else {
             VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
@@ -605,7 +621,10 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
     if (its_target_client != VSOMEIP_ROUTING_CLIENT) {
         auto its_target = find_or_create_consumer_ep(its_target_client);
         if (its_target) {
-            its_target->send(cmd);
+            if (!its_target->send(cmd)) {
+                VSOMEIP_ERROR_P << "Failed to send SUBSCRIBE to client 0x" << hex4(its_target_client) << " for [" << hex4(_service) << "."
+                                << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << ":" << hex2(_major) << "]";
+            }
         } else {
             VSOMEIP_WARNING_P << "No target available to send subscription. Client=0x" << hex4(_client) << " service=" << hex4(_service)
                               << "." << hex4(_instance) << "." << hex2(_major) << " event=" << hex4(_event);
@@ -613,7 +632,10 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
     } else {
         std::scoped_lock lock{mutex_};
         if (sender_) {
-            sender_->send(cmd);
+            if (!sender_->send(cmd)) {
+                VSOMEIP_ERROR_P << "Failed to send SUBSCRIBE to the router for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                << hex4(_eventgroup) << "." << hex4(_event) << ":" << hex2(_major) << "]";
+            }
         } else {
             VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
@@ -634,7 +656,10 @@ void routing_manager_client::send_subscribe_nack(client_t _subscriber, service_t
     if (_subscriber != VSOMEIP_ROUTING_CLIENT && _id == PENDING_SUBSCRIPTION_ID) {
         auto its_target = find_provider_endpoint(_subscriber, _provider_lock);
         if (its_target) {
-            its_target->send(cmd);
+            if (!its_target->send(cmd)) {
+                VSOMEIP_ERROR_P << "Failed to send SUBSCRIBE_NACK to subscriber 0x" << hex4(_subscriber) << " for [" << hex4(_service)
+                                << "." << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
+            }
             return;
         } else {
             VSOMEIP_WARNING_P << "No target available to send subscription nack. Client=0x" << hex4(_subscriber)
@@ -644,7 +669,10 @@ void routing_manager_client::send_subscribe_nack(client_t _subscriber, service_t
     {
         std::scoped_lock lock{mutex_};
         if (sender_) {
-            sender_->send(cmd);
+            if (!sender_->send(cmd)) {
+                VSOMEIP_ERROR_P << "Failed to send SUBSCRIBE_NACK to the router for subscriber 0x" << hex4(_subscriber) << " and ["
+                                << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
+            }
         } else {
             VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
@@ -665,7 +693,10 @@ void routing_manager_client::send_subscribe_ack(client_t _subscriber, service_t 
     if (_subscriber != VSOMEIP_ROUTING_CLIENT && _id == PENDING_SUBSCRIPTION_ID) {
         auto its_target = find_provider_endpoint(_subscriber, _provider_lock);
         if (its_target) {
-            its_target->send(cmd);
+            if (!its_target->send(cmd)) {
+                VSOMEIP_ERROR_P << "Failed to send SUBSCRIBE_ACK to subscriber 0x" << hex4(_subscriber) << " for [" << hex4(_service) << "."
+                                << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
+            }
             return;
         } else {
             VSOMEIP_WARNING_P << "No target available to send subscription ack. Client=0x" << hex4(_subscriber)
@@ -675,7 +706,10 @@ void routing_manager_client::send_subscribe_ack(client_t _subscriber, service_t 
     {
         std::scoped_lock lock{mutex_};
         if (sender_) {
-            sender_->send(cmd);
+            if (!sender_->send(cmd)) {
+                VSOMEIP_ERROR_P << "Failed to send SUBSCRIBE_ACK to the router for subscriber 0x" << hex4(_subscriber) << " and ["
+                                << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
+            }
         } else {
             VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
@@ -713,7 +747,8 @@ void routing_manager_client::unsubscribe(client_t _client, service_t _service, i
             }
         }
         // Resolve the target endpoint before acquiring mutex_
-        auto its_target = find_consumer_ep(find_local_client(_service, _instance));
+        auto its_target_client = find_local_client(_service, _instance);
+        auto its_target = find_consumer_ep(its_target_client);
         std::scoped_lock lock{mutex_};
         if (state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
 
@@ -724,13 +759,19 @@ void routing_manager_client::unsubscribe(client_t _client, service_t _service, i
                                              .event_ = _event,
                                              .pending_id_ = PENDING_SUBSCRIPTION_ID});
             if (its_target) {
-                its_target->send(cmd);
+                if (!its_target->send(cmd)) {
+                    VSOMEIP_ERROR_P << "Failed to send UNSUBSCRIBE to client 0x" << hex4(its_target_client) << " for [" << hex4(_service)
+                                    << "." << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
+                }
             } else {
-                if (_client != VSOMEIP_ROUTING_CLIENT) {
-                    VSOMEIP_WARNING_P << "Could not find endpoint for client 0x" << hex4(_client) << ", sending to the router";
+                if (its_target_client != VSOMEIP_ROUTING_CLIENT) {
+                    VSOMEIP_WARNING_P << "Could not find endpoint for client 0x" << hex4(its_target_client) << ", sending to the router";
                 }
                 if (sender_) {
-                    sender_->send(cmd);
+                    if (!sender_->send(cmd)) {
+                        VSOMEIP_ERROR_P << "Failed to send UNSUBSCRIBE to the router for [" << hex4(_service) << "." << hex4(_instance)
+                                        << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
+                    }
                 } else {
                     VSOMEIP_ERROR_P << "Failed due to a missing sender";
                 }
@@ -1103,8 +1144,11 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                                 }
                                 std::scoped_lock lock{mutex_};
                                 if (sender_) {
-                                    sender_->send(protocol::create_unsubscribe_ack_cmd(get_client(), its_service, its_instance,
-                                                                                       its_eventgroup, its_pending_id));
+                                    if (!sender_->send(protocol::create_unsubscribe_ack_cmd(get_client(), its_service, its_instance,
+                                                                                            its_eventgroup, its_pending_id))) {
+                                        VSOMEIP_ERROR_P << "Failed to send UNSUBSCRIBE_ACK for [" << hex4(its_service) << "."
+                                                        << hex4(its_instance) << "." << hex4(its_eventgroup) << "]";
+                                    }
                                 } else {
                                     VSOMEIP_ERROR_P << "Failed due to a missing sender";
                                 }
@@ -1221,8 +1265,11 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
 
                 std::scoped_lock lock{mutex_};
                 if (sender_) {
-                    sender_->send(protocol::create_resend_provided_events_cmd(get_client(), its_remote_offer_id));
-                    VSOMEIP_INFO << "RESEND_PROVIDED_EVENTS(" << hex4(its_client) << ")";
+                    if (sender_->send(protocol::create_resend_provided_events_cmd(get_client(), its_remote_offer_id))) {
+                        VSOMEIP_INFO << "RESEND_PROVIDED_EVENTS(" << hex4(its_client) << ")";
+                    } else {
+                        VSOMEIP_ERROR_P << "Failed to send RESEND_PROVIDED_EVENTS for client 0x" << hex4(its_client);
+                    }
                 } else {
                     VSOMEIP_WARNING_P << "Failed due to a missing sender";
                 }
@@ -1254,7 +1301,11 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                             get_policy_manager()->update_security_policy(its_uid, its_gid, its_policy);
                             std::scoped_lock lock{mutex_};
                             if (sender_) {
-                                sender_->send(protocol::create_update_security_policy_response_cmd(get_client(), its_data.update_id_));
+                                if (!sender_->send(
+                                            protocol::create_update_security_policy_response_cmd(get_client(), its_data.update_id_))) {
+                                    VSOMEIP_ERROR_P << "Failed to send UPDATE_SECURITY_POLICY_RESPONSE for uid/gid " << its_uid << "/"
+                                                    << its_gid;
+                                }
                             } else {
                                 VSOMEIP_ERROR_P << "Failed due to a missing sender";
                             }
@@ -1284,7 +1335,10 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                         get_policy_manager()->remove_security_policy(its_uid, its_gid);
                         std::scoped_lock lock{mutex_};
                         if (sender_) {
-                            sender_->send(protocol::create_remove_security_policy_response_cmd(get_client(), its_data.update_id_));
+                            if (!sender_->send(protocol::create_remove_security_policy_response_cmd(get_client(), its_data.update_id_))) {
+                                VSOMEIP_ERROR_P << "Failed to send REMOVE_SECURITY_POLICY_RESPONSE for uid/gid " << its_uid << "/"
+                                                << its_gid;
+                            }
                         } else {
                             VSOMEIP_ERROR_P << "Failed due to a missing sender";
                         }
@@ -1447,8 +1501,8 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                         return requests_.contains(sd);
                     };
                     if (!requested(its_instance) && !requested(ANY_INSTANCE)) {
-                        VSOMEIP_WARNING << "Ignoring routing_info RIE_ADD in client 0x" << hex4(get_client()) << " for released service ["
-                                        << hex4(its_service) << "." << hex4(its_instance) << "]";
+                        VSOMEIP_WARNING_P << "Ignoring routing_info RIE_ADD in client 0x" << hex4(get_client()) << " for released service ["
+                                          << hex4(its_service) << "." << hex4(its_instance) << "]";
                         continue;
                     }
 
@@ -1459,9 +1513,9 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                                      << ":" << int(its_major) << "." << its_minor << "]";
                         collect_pending_subscriptions(its_service, its_instance, its_major, collected_subscriptions, its_lock);
                     } else {
-                        VSOMEIP_WARNING << "Received routing_info in client 0x" << hex4(get_client())
-                                        << " for an already available service [" << hex4(its_service) << "." << hex4(its_instance) << ":"
-                                        << int(its_major) << "." << its_minor << "] ~> ignoring duplicate.";
+                        VSOMEIP_WARNING_P << "Received routing_info in client 0x" << hex4(get_client())
+                                          << " for an already available service [" << hex4(its_service) << "." << hex4(its_instance) << ":"
+                                          << int(its_major) << "." << its_minor << "] ~> ignoring duplicate.";
                     }
                 }
             }
@@ -1563,7 +1617,9 @@ void routing_manager_client::send_pong() const {
     if (auto state = state_machine_->state();
         is_value(state).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_REGISTERING)) {
         if (sender_) {
-            sender_->send(protocol::create_pong_cmd(get_client()));
+            if (!sender_->send(protocol::create_pong_cmd(get_client()))) {
+                VSOMEIP_ERROR_P << "Failed to send PONG for client 0x" << hex4(get_client());
+            }
         } else {
             VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
@@ -1580,12 +1636,18 @@ bool routing_manager_client::send_request_services(std::span<protocol::service_d
     }
 
     // Caller holds mutex_
-    if (sender_ && sender_->send(protocol::create_request_service_cmd(get_client(), _requests))) {
+    if (sender_) {
+        if (!sender_->send(protocol::create_request_service_cmd(get_client(), _requests))) {
+            for (protocol::service_data const& request : _requests) {
+                VSOMEIP_ERROR_P << "Failed to send REQUEST_SERVICE for service " << request;
+            }
+            return false;
+        }
         return true;
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
+        return false;
     }
-    VSOMEIP_ERROR_P << "Failed to send requested services";
-
-    return false;
 }
 
 bool routing_manager_client::send_event_registrations(client_t _client, std::span<protocol::register_event_data const> _registrations,
@@ -1595,12 +1657,16 @@ bool routing_manager_client::send_event_registrations(client_t _client, std::spa
         return true;
     }
 
-    if (sender_ && sender_->send(protocol::create_register_events_cmd(_client, _registrations))) {
+    if (sender_) {
+        if (!sender_->send(protocol::create_register_events_cmd(_client, _registrations))) {
+            VSOMEIP_ERROR_P << "Failed to send REGISTER_EVENT with " << _registrations.size() << " event(s) for client 0x" << hex4(_client);
+            return false;
+        }
         return true;
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
+        return false;
     }
-
-    VSOMEIP_ERROR_P << "Failed to send event registrations to host";
-    return false;
 }
 
 void routing_manager_client::update_subscription_state_and_notify(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
@@ -1786,7 +1852,14 @@ bool routing_manager_client::send_pending_commands(
         VSOMEIP_ERROR_P << "Failed to send pending commands due to a missing sender";
         return false;
     }
-    return sender_->send(batch);
+    if (!sender_->send(batch)) {
+        VSOMEIP_ERROR_P << "Failed to send the pending commands of client 0x" << hex4(get_client()) << ": "
+                        << pending_provided_event_registrations_.size() << " provided event(s), " << offered_services_.size()
+                        << " offer(s), " << requests_.size() << " request(s), " << pending_consumed_event_registrations_.size()
+                        << " consumed event(s)";
+        return false;
+    }
+    return true;
 }
 
 bool routing_manager_client::create_and_start_receiver([[maybe_unused]] std::scoped_lock<std::mutex> const& _lock, client_t _client) {
@@ -1840,7 +1913,10 @@ void routing_manager_client::notify_remote_initially(service_t _service, instanc
     if (std::scoped_lock its_sender_lock{mutex_}; sender_) {
         for (auto const& event : find_provided_events_by_group(_service, _instance, _eventgroup, _lock)) {
             if (auto msg = event->get_current(); msg) {
-                sender_->send(protocol::create_send_cmd(protocol::id_e::NOTIFY_ID, get_client(), msg, VSOMEIP_ROUTING_CLIENT));
+                if (!sender_->send(protocol::create_send_cmd(protocol::id_e::NOTIFY_ID, get_client(), msg, VSOMEIP_ROUTING_CLIENT))) {
+                    VSOMEIP_ERROR_P << "Failed to send the initial notification for [" << hex4(_service) << "." << hex4(_instance) << ":"
+                                    << hex4(_eventgroup) << "." << hex4(event->get_event()) << "]";
+                }
             }
         }
     } else {
@@ -1987,7 +2063,9 @@ void routing_manager_client::cleanup_client(client_t _client, bool _due_to_error
 void routing_manager_client::send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {
     std::scoped_lock lock{mutex_};
     if (sender_) {
-        sender_->send(protocol::create_offered_services_request_cmd(_client, _offer_type));
+        if (!sender_->send(protocol::create_offered_services_request_cmd(_client, _offer_type))) {
+            VSOMEIP_ERROR_P << "Failed to send OFFERED_SERVICES_REQUEST for client 0x" << hex4(_client);
+        }
     } else {
         VSOMEIP_ERROR_P << "Failed due to a missing sender";
     }
@@ -1998,10 +2076,15 @@ void routing_manager_client::resend_provided_event_registrations() {
     std::scoped_lock inner_lock(mutex_);
     for (protocol::register_event_data const& reg : pending_provided_event_registrations_) {
         // The provider lock is held, so the stored entry can be sent directly via a one-element subspan.
-        send_event_registrations(get_client(), std::span{&reg, 1}, inner_lock);
-        VSOMEIP_INFO << "REGISTER EVENT(" << hex4(get_client()) << "): [" << hex4(reg.service_key_.service_) << "."
-                     << hex4(reg.service_key_.instance_) << "." << hex4(reg.event_) << ":is_provider=" << std::boolalpha << reg.is_provided_
-                     << "]";
+        if (send_event_registrations(get_client(), std::span{&reg, 1}, inner_lock)) {
+            VSOMEIP_INFO << "REGISTER EVENT(" << hex4(get_client()) << "): [" << hex4(reg.service_key_.service_) << "."
+                         << hex4(reg.service_key_.instance_) << "." << hex4(reg.event_) << ":is_provider=" << std::boolalpha
+                         << reg.is_provided_ << "]";
+        } else {
+            VSOMEIP_ERROR_P << "Failed to resend the event registration [" << hex4(reg.service_key_.service_) << "."
+                            << hex4(reg.service_key_.instance_) << "." << hex4(reg.event_) << ":is_provider=" << std::boolalpha
+                            << reg.is_provided_ << "]";
+        }
     }
 }
 
@@ -2350,15 +2433,28 @@ bool routing_manager_client::send_event(client_t _client, std::shared_ptr<messag
     if (_client != VSOMEIP_ROUTING_CLIENT) {
         if (auto its_target = find_provider_endpoint(_client, _provider_lock); its_target) {
             client_t const its_client = _message->get_client();
-            return its_target->send(protocol::create_send_cmd(protocol::id_e::SEND_ID, get_client(), _message, its_client), tc_);
+            if (!its_target->send(protocol::create_send_cmd(protocol::id_e::SEND_ID, get_client(), _message, its_client), tc_)) {
+                VSOMEIP_ERROR_P << "Failed to send the event to client 0x" << hex4(_client) << " for [" << hex4(_message->get_service())
+                                << "." << hex4(_message->get_instance()) << "." << hex4(_message->get_method()) << "]";
+                return false;
+            }
+            return true;
         }
         its_command = protocol::id_e::NOTIFY_ONE_ID;
     }
     client_t const its_ipc_target = (its_command == protocol::id_e::NOTIFY_ONE_ID) ? _client : get_client();
     if (std::scoped_lock sender_lock{mutex_}; sender_) {
-        return sender_->send(protocol::create_send_cmd(its_command, get_client(), _message, its_ipc_target), nullptr);
+        if (!sender_->send(protocol::create_send_cmd(its_command, get_client(), _message, its_ipc_target), nullptr)) {
+            VSOMEIP_ERROR_P << "Failed to send " << its_command << " to the router for target 0x" << hex4(its_ipc_target) << " and ["
+                            << hex4(_message->get_service()) << "." << hex4(_message->get_instance()) << "." << hex4(_message->get_method())
+                            << "]";
+            return false;
+        }
+        return true;
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
+        return false;
     }
-    return false;
 }
 
 bool routing_manager_client::send(client_t _client, std::shared_ptr<message> _message, bool _force) {
@@ -2415,7 +2511,8 @@ bool routing_manager_client::send(client_t _client, std::shared_ptr<message> _me
         if (sender_) {
             return sender_->send(protocol::create_send_cmd(protocol::id_e::SEND_ID, get_client(), _message, get_client()), nullptr);
         } else {
-            VSOMEIP_WARNING_P << "No connection to router. Message will be dropped";
+            VSOMEIP_WARNING_P << "No connection to router. Message will be dropped: [" << hex4(its_service) << "." << hex4(its_instance)
+                              << "." << hex4(_message->get_method()) << "]";
         }
     } else {
         return its_target->send(protocol::create_send_cmd(protocol::id_e::SEND_ID, get_client(), _message, get_client()), tc_);
@@ -2771,7 +2868,7 @@ void routing_manager_client::insert_subscription(service_t _service, instance_t 
                 its_event->add_subscriber(_eventgroup, _client, _filter);
                 VSOMEIP_WARNING_P << ":(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
                                   << "." << hex4(_event)
-                                  << "] received subscription for unknown eventgroup. Adding the client ot the placeholder";
+                                  << "] received subscription for unknown eventgroup. Adding the client of the placeholder";
             } else {
                 VSOMEIP_WARNING_P << ":(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
                                   << "." << hex4(_event)
@@ -2832,7 +2929,10 @@ void routing_manager_client::notify_one_current_value(client_t _client, service_
         auto send = [&](auto const& event) {
             if (auto msg = event->get_current(); msg) {
                 msg->set_session(get_event_session());
-                its_target->send(protocol::create_send_cmd(protocol::id_e::SEND_ID, get_client(), msg, _client), tc_);
+                if (!its_target->send(protocol::create_send_cmd(protocol::id_e::SEND_ID, get_client(), msg, _client), tc_)) {
+                    VSOMEIP_ERROR_P << "Failed to send the current value to client 0x" << hex4(_client) << " for [" << hex4(_service) << "."
+                                    << hex4(_instance) << "." << hex4(event->get_event()) << "]";
+                }
             }
         };
         if (_event != ANY_EVENT) {
@@ -2844,6 +2944,9 @@ void routing_manager_client::notify_one_current_value(client_t _client, service_
                 send(event);
             }
         }
+    } else {
+        VSOMEIP_WARNING_P << "No target available to send the current value. Client=0x" << hex4(_client) << " service=" << hex4(_service)
+                          << "." << hex4(_instance) << " eventgroup=" << hex4(_eventgroup) << " event=" << hex4(_event);
     }
 }
 
@@ -2864,8 +2967,8 @@ void routing_manager_client::notify(service_t _service, instance_t _instance, ev
             }
         }
     } else {
-        VSOMEIP_WARNING_P << "Attempt to update the undefined event/field [" << hex4(_service) << "." << hex4(_instance) << "."
-                          << hex4(_event) << "]";
+        VSOMEIP_ERROR_P << "Attempt to update the undefined event/field [" << hex4(_service) << "." << hex4(_instance) << "."
+                        << hex4(_event) << "]";
     }
 }
 
