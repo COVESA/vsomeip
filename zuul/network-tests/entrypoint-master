@@ -8,6 +8,15 @@ export PS4='+ [$(date "+%Y-%m-%d %H:%M:%S")] '
 source "${BASH_SOURCE[0]%/*}"/shlib/common.shlib
 source "${BASH_SOURCE[0]%/*}"/shlib/results.shlib
 
+if [[ "$ENABLE_SANITIZERS" == ON ]]
+then
+	export ASAN_OPTIONS="disable_coredump=0:use_madv_dontdump=1${ASAN_OPTIONS:+:$ASAN_OPTIONS}"
+fi
+if [[ "$ENABLE_THREAD_SANITIZER" == ON ]]
+then
+	export TSAN_OPTIONS="disable_coredump=0:use_madv_dontdump=1${TSAN_OPTIONS:+:$TSAN_OPTIONS}"
+fi
+
 # Ensure /run/netns is a shared mount so `ip netns add` inside test processes
 # doesn't need to call `mount --make-shared` (which may be denied by LSM).
 mkdir -p /run/netns
