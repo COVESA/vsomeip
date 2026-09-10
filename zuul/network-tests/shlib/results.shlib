@@ -88,9 +88,9 @@ function gen-core-backtraces
 		prefix="$label."
 	fi
 	shopt -s nullglob
-	for core in /tmp/core.*
+	for core in "$outputs_folder"/core.!*
 	do
-		prog=${core#/tmp/core.}
+		prog=${core#"$outputs_folder"/core.}
 		prog=${prog//!/\/}
 		# shellcheck disable=SC2016
 		gdb \
@@ -116,7 +116,11 @@ function gen-core-backtraces
 			-ex 'info file' \
 			-ex 'echo \n[Cached Traces]\n' \
 			-batch "${prog%.*}" "$core" | tee "$outputs_folder/backtrace.${prefix}${prog##*/}"
-		cp -v "$core" "$outputs_folder/core.${prefix}${prog##*/}"
+		destination="$outputs_folder/core.${prefix}${prog##*/}"
+		if [[ "$core" != "$destination" ]]
+		then
+			cp -v "$core" "$destination"
+		fi
 	done
 	shopt -u nullglob
 }
