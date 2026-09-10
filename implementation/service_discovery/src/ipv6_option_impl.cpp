@@ -41,13 +41,6 @@ const ipv6_address_t& ipv6_option_impl::get_address() const {
     return address_;
 }
 
-void ipv6_option_impl::set_address(const ipv6_address_t& _address) {
-    address_ = _address;
-
-    boost::asio::ip::address_v6 its_address(_address);
-    type_ = (its_address.is_multicast() ? option_type_e::IP6_MULTICAST : option_type_e::IP6_ENDPOINT);
-}
-
 bool ipv6_option_impl::is_multicast() const {
     return (type_ == option_type_e::IP6_MULTICAST);
 }

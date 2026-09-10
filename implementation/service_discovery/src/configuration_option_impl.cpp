@@ -30,19 +30,6 @@ bool configuration_option_impl::equals(const option_impl& _other) const {
     return is_equal;
 }
 
-void configuration_option_impl::add_item(const std::string& _key, const std::string& _value) {
-    configuration_[_key] = _value;
-    length_ = uint16_t(length_ + _key.length() + _value.length() + 2u); // +2 for the '=' and length
-}
-
-void configuration_option_impl::remove_item(const std::string& _key) {
-    auto it = configuration_.find(_key);
-    if (it != configuration_.end()) {
-        length_ = uint16_t(length_ - (it->first.length() + it->second.length() + 2u));
-        configuration_.erase(it);
-    }
-}
-
 std::vector<std::string> configuration_option_impl::get_keys() const {
     std::vector<std::string> l_keys;
     for (const auto& elem : configuration_) {

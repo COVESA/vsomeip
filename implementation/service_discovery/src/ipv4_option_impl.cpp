@@ -39,13 +39,6 @@ const ipv4_address_t& ipv4_option_impl::get_address() const {
     return address_;
 }
 
-void ipv4_option_impl::set_address(const ipv4_address_t& _address) {
-    address_ = _address;
-
-    boost::asio::ip::address_v4 its_address(_address);
-    type_ = (its_address.is_multicast() ? option_type_e::IP4_MULTICAST : option_type_e::IP4_ENDPOINT);
-}
-
 bool ipv4_option_impl::is_multicast() const {
     return (type_ == option_type_e::IP4_MULTICAST);
 }

@@ -20,10 +20,7 @@ public:
     bool equals(const option_impl& _other) const;
 
     uint16_t get_port() const;
-    void set_port(uint16_t _port);
-
     layer_four_protocol_e get_layer_four_protocol() const;
-    void set_layer_four_protocol(layer_four_protocol_e _protocol);
 
     virtual bool is_multicast() const = 0;
 
