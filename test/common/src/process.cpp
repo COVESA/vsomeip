@@ -61,7 +61,7 @@ void process_manager_t::wait_finish() {
 void process_manager_t::terminate() {
     std::scoped_lock lock{process_mutex_};
     if (process_) {
-#ifdef __linux__
+#if defined(__linux__)
         process_->signal(SIGTERM);
 #else
         process_->kill();

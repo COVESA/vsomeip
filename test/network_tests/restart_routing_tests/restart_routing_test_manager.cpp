@@ -177,7 +177,7 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host_w
     ASSERT_TRUE(service.wait_for_messages());
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     return test_main(argc, argv);
 }

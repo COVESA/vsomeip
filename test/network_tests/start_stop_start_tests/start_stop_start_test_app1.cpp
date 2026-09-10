@@ -11,10 +11,8 @@
 #include <common/vsomeip_app.hpp>
 #include "common/test_main.hpp"
 
-namespace start_stop_start {
-namespace app1 {
-
 using namespace common;
+using namespace start_stop_start;
 
 TEST(start_stop_start_test_app1, start_stop_start_application) {
     // ------------------------------------------------------------------------------------------
@@ -78,11 +76,9 @@ TEST(start_stop_start_test_app1, start_stop_start_application) {
             .run(shm, "APPLICATION_1");
 
     std::cout << "APPLICATION 1 TEST IS FINISHING" << std::endl;
-} // TEST
-} // namespace app1
-} // namespace start_stop_start
+}
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     return test_main(argc, argv);
 }

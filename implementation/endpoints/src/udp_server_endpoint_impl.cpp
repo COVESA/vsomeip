@@ -169,7 +169,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     boost::asio::socket_base::receive_buffer_size its_option;
     unicast_socket_->get_option(its_option, _error);
 
-#ifdef __linux__
+#if defined(__linux__)
     // If regular setting of the buffer size did not work, try to force
     // (requires CAP_NET_ADMIN to be successful)
     if (its_option.value() < 0 || its_option.value() < its_udp_recv_buffer_size) {
@@ -953,7 +953,7 @@ void udp_server_endpoint_impl::set_multicast_option_unlocked(const boost::asio::
                 multicast_socket_.reset();
                 return;
             }
-#ifdef __linux__
+#if defined(__linux__)
             // If regular setting of the buffer size did not work, try to force
             // (requires CAP_NET_ADMIN to be successful)
             if (its_option.value() < 0 || its_option.value() < its_udp_recv_buffer_size) {

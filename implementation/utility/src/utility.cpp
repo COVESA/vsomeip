@@ -463,7 +463,7 @@ uint16_t utility::get_max_client_number(const std::shared_ptr<configuration>& _c
 }
 
 void utility::log_network_state(const std::shared_ptr<configuration>& _configuration, bool _tcp, bool _only_external) {
-#ifndef __linux__
+#if !defined(__linux__)
     (void)_tcp;
     (void)_only_external;
 #else

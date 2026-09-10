@@ -48,7 +48,7 @@ public:
 
     virtual bool can_read_fd_flags() = 0;
 #endif
-#ifdef __linux__
+#if defined(__linux__)
     virtual void set_option(udp_receive_buffer_force _opt, boost::system::error_code& _ec) = 0;
 #endif
     virtual void set_option(boost::asio::ip::udp::socket::reuse_address, boost::system::error_code&) = 0;

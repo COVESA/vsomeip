@@ -14,8 +14,7 @@
 #include "common/test_main.hpp"
 #include "start_stop_start_test_globals.hpp"
 
-namespace start_stop_start {
-namespace manager {
+using namespace common;
 
 class start_stop_start_test_manager : public testing::Test {
 protected:
@@ -125,11 +124,9 @@ TEST_F(start_stop_start_test_manager, start_stop_start_with_two_application) {
     } catch (boost::interprocess::interprocess_exception& ex) {
         std::cout << ex.what() << std::endl;
     }
-} // start_stop_start_with_two_application
-} // namespace manager
-} // namespace start_stop_start
+}
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     return test_main(argc, argv);
 }
