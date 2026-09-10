@@ -1,4 +1,4 @@
-#ifdef __linux__
+#if defined(__linux__)
 #include <common/external/process.hpp>
 #include <algorithm>
 #include <bitset>

@@ -39,7 +39,7 @@ void local_acceptor_tcp_impl::init(boost::asio::ip::tcp::endpoint _local_ep, boo
     }
 #endif
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     if (!acceptor_->set_native_option_free_bind()) {
         VSOMEIP_ERROR_P << "Could not setsockopt(IP_FREEBIND), errno " << errno << ", mem: " << this;
     }

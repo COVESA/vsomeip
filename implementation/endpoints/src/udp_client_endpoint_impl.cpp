@@ -66,7 +66,7 @@ void udp_client_endpoint_impl::connect() {
 
         boost::asio::socket_base::receive_buffer_size its_option;
         socket_->get_option(its_option, its_error);
-#ifdef __linux__
+#if defined(__linux__)
         // If regular setting of the buffer size did not work, try to force
         // (requires CAP_NET_ADMIN to be successful)
         if (its_option.value() < 0 || its_option.value() < udp_receive_buffer_size_) {

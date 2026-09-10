@@ -229,7 +229,7 @@ void local_socket_tcp_impl::set_socket_options(configuration const& _configurati
             VSOMEIP_WARNING_P << "Could not setsockopt(SO_KEEPALIVE) to true, " << ec.message() << ", " << name_;
         }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
         // set a user timeout
         // along the keep alives, this ensures connection closes if endpoint is unreachable
         if (!socket_->set_user_timeout(_configuration.get_local_tcp_user_timeout())) {

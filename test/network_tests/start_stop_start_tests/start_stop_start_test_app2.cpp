@@ -8,10 +8,8 @@
 #include <string>
 #include <string_view>
 
-namespace start_stop_start {
-namespace app2 {
-
 using namespace common;
+using namespace start_stop_start;
 
 TEST(start_stop_start_test_app2, start_stop_application) {
     // ------------------------------------------------------------------------------------------
@@ -54,11 +52,9 @@ TEST(start_stop_start_test_app2, start_stop_application) {
             .run(shm, "APPLICATION_2");
 
     std::cout << "APPLICATION 2 TEST IS FINISHING" << std::endl;
-} // TEST
-} // namespace app2
-} // namespace start_stop_start
+}
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     return test_main(argc, argv);
 }

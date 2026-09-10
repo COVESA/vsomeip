@@ -166,7 +166,7 @@ TEST(someip_lazy_load_test, service) {
     }
 }
 
-#ifdef __linux__
+#if defined(__linux__)
 int main(int argc, char** argv) {
     return test_main(argc, argv);
 }

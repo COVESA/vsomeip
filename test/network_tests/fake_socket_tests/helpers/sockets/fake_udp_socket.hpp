@@ -69,7 +69,7 @@ public:
 
     virtual bool can_read_fd_flags() override { return false; }
 #endif
-#ifdef __linux__
+#if defined(__linux__)
     virtual void set_option([[maybe_unused]] udp_receive_buffer_force _opt, boost::system::error_code& _ec) override {
         _ec = boost::system::error_code();
     }
