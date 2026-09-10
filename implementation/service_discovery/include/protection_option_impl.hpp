@@ -19,10 +19,7 @@ public:
     bool equals(const option_impl& _other) const;
 
     alive_counter_t get_alive_counter() const;
-    void set_alive_counter(alive_counter_t _counter);
-
     crc_t get_crc() const;
-    void set_crc(crc_t _crc);
 
     bool serialize(vsomeip_v3::serializer* _to) const;
     bool deserialize(vsomeip_v3::deserializer* _from);

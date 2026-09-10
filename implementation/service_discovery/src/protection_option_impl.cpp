@@ -34,16 +34,8 @@ alive_counter_t protection_option_impl::get_alive_counter() const {
     return counter_;
 }
 
-void protection_option_impl::set_alive_counter(alive_counter_t _counter) {
-    counter_ = _counter;
-}
-
 crc_t protection_option_impl::get_crc() const {
     return crc_;
-}
-
-void protection_option_impl::set_crc(crc_t _crc) {
-    crc_ = _crc;
 }
 
 bool protection_option_impl::serialize(vsomeip_v3::serializer* _to) const {

@@ -23,7 +23,6 @@ public:
     bool equals(const option_impl& _other) const;
 
     const ipv6_address_t& get_address() const;
-    void set_address(const ipv6_address_t& _address);
 
     bool is_multicast() const;
     bool serialize(vsomeip_v3::serializer* _to) const;

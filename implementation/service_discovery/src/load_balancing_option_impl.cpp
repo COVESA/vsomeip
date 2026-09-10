@@ -34,16 +34,8 @@ priority_t load_balancing_option_impl::get_priority() const {
     return priority_;
 }
 
-void load_balancing_option_impl::set_priority(priority_t _priority) {
-    priority_ = _priority;
-}
-
 weight_t load_balancing_option_impl::get_weight() const {
     return weight_;
-}
-
-void load_balancing_option_impl::set_weight(weight_t _weight) {
-    weight_ = _weight;
 }
 
 bool load_balancing_option_impl::serialize(vsomeip_v3::serializer* _to) const {

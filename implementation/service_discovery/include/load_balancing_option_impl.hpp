@@ -19,10 +19,7 @@ public:
     bool equals(const option_impl& _other) const;
 
     priority_t get_priority() const;
-    void set_priority(priority_t _priority);
-
     weight_t get_weight() const;
-    void set_weight(weight_t _weight);
 
     bool serialize(vsomeip_v3::serializer* _to) const;
     bool deserialize(vsomeip_v3::deserializer* _from);

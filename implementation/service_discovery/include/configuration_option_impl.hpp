@@ -25,9 +25,6 @@ public:
 
     bool equals(const option_impl& _other) const;
 
-    void add_item(const std::string& _key, const std::string& _value);
-    void remove_item(const std::string& _key);
-
     std::vector<std::string> get_keys() const;
     std::vector<std::string> get_values() const;
     std::string get_value(const std::string& _key) const;
