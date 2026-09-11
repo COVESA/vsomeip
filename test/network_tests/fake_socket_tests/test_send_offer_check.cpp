@@ -94,8 +94,8 @@ struct send_offer_check_fixture : public base_fake_socket_fixture {
         server_ = ecu_.start_one(server_name_);
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-        server_->offer(service_instance_);
         server_->answer_request(request_, [] { return std::vector<unsigned char>{0x02, 0x03}; });
+        server_->offer(service_instance_);
 
         client_ = ecu_.start_one(client_name_);
         ASSERT_NE(client_, nullptr);

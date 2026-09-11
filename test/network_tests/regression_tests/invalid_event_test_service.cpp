@@ -23,9 +23,9 @@ TEST(invalid_event_test, service_is_offered) {
     auto worker = std::thread([app] { app->start(); });
 
     // Offer the test service.
-    app->offer_service(TEST_SERVICE_ID, TEST_INSTANCE_ID);
     app->offer_event(TEST_SERVICE_ID, TEST_INSTANCE_ID, TEST_VALID_EVENT_ID, {TEST_EVENTGROUP_ID}, vsomeip_v3::event_type_e::ET_EVENT,
                      std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip_v3::reliability_type_e::RT_RELIABLE);
+    app->offer_service(TEST_SERVICE_ID, TEST_INSTANCE_ID);
 
     // Wait for the termination signal.
     wait_for_signal();

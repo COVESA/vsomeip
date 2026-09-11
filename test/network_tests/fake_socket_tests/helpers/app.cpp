@@ -9,6 +9,8 @@
 
 #include "app.hpp"
 
+#include <set>
+
 namespace vsomeip_v3::testing {
 app::app(std::string const& _name) : app_(vsomeip::runtime::get()->create_application(_name)) { }
 app::~app() {
@@ -32,6 +34,10 @@ app::~app() {
     app_->register_availability_handler(
             vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE,
             std::bind(&app::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    app_->register_subscription_status_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, vsomeip::ANY_EVENTGROUP, vsomeip::ANY_EVENT,
+                                               std::bind(&app::on_subscription_status_changed, this, std::placeholders::_1,
+                                                         std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
+                                                         std::placeholders::_5));
 
     runner_ = std::thread([this] { app_->start(); });
     return true;
@@ -42,6 +48,7 @@ void app::stop() {
         return;
     }
     is_running_ = false;
+    app_->unregister_subscription_status_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, vsomeip::ANY_EVENTGROUP, vsomeip::ANY_EVENT);
     app_->clear_all_handler();
     app_->stop();
     if (runner_.joinable()) {
@@ -164,14 +171,12 @@ void app::unregister_group_subscription_handler(event_ids const& _ei) {
 void app::unsubscribe(event_ids const& _ei) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is unsubscribing from: " << _ei;
     app_->unsubscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_);
-    app_->unregister_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_);
     app_->release_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_);
 }
 
 void app::unsubscribe_eventgroup(event_ids const& _ei) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is unsubscribing from: " << _ei;
     app_->unsubscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, ANY_EVENT);
-    app_->unregister_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_);
     app_->release_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_);
 }
 
@@ -309,10 +314,6 @@ void app::on_subscription_status_changed(vsomeip::service_t _service, vsomeip::i
 void app::subscribe(event_ids const& _ei, vsomeip::event_type_e _et) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _ei;
     std::set<vsomeip::eventgroup_t> its_eventgroups;
-    app_->register_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_,
-                                               std::bind(&app::on_subscription_status_changed, this, std::placeholders::_1,
-                                                         std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
-                                                         std::placeholders::_5));
 
     its_eventgroups.insert(_ei.eventgroup_id_);
 
@@ -324,10 +325,6 @@ void app::subscribe(event_ids const& _ei, vsomeip::event_type_e _et) {
 void app::subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _ei;
     std::set<vsomeip::eventgroup_t> its_eventgroups;
-    app_->register_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_,
-                                               std::bind(&app::on_subscription_status_changed, this, std::placeholders::_1,
-                                                         std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
-                                                         std::placeholders::_5));
 
     its_eventgroups.insert(_ei.eventgroup_id_);
     app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, _ei.reliability_);
@@ -339,10 +336,6 @@ void app::subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et) 
 void app::subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _et, debounce_filter_t const& filter) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _ei;
     std::set<vsomeip::eventgroup_t> its_eventgroups;
-    app_->register_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_,
-                                               std::bind(&app::on_subscription_status_changed, this, std::placeholders::_1,
-                                                         std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
-                                                         std::placeholders::_5));
 
     its_eventgroups.insert(_ei.eventgroup_id_);
     app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, _ei.reliability_);

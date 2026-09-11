@@ -33,10 +33,6 @@ TEST(OfferTestExternal, OfferTestExternalLocalClient) {
     ASSERT_TRUE(application) << "Should create a vsomeip application.";
     ASSERT_TRUE(application->init()) << "Should initialize application.";
 
-    // Request the test service
-    application->request_service(service.service_id, service.instance_id);
-    application->request_event(service.service_id, service.instance_id, service.event_id, {service.eventgroup_id});
-
     // Use a cv to know when the service becomes unavailable after subscribe
     bool service_available = false;
     std::mutex service_available_mutex;
@@ -60,6 +56,10 @@ TEST(OfferTestExternal, OfferTestExternalLocalClient) {
                                                    }
                                                    service_available_cv.notify_one();
                                                });
+
+    // Request the test service
+    application->request_service(service.service_id, service.instance_id);
+    application->request_event(service.service_id, service.instance_id, service.event_id, {service.eventgroup_id});
 
     // Start the vsomeip application
     std::thread start_thread([&application] { application->start(); });

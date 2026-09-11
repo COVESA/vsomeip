@@ -20,6 +20,8 @@
 #include <gtest/gtest.h>
 
 #include <cstdlib>
+#include <mutex>
+#include <vector>
 
 namespace vsomeip_v3::testing {
 static std::string const routingmanager_name_{"routingmanagerd"};
@@ -43,6 +45,10 @@ struct stress_server_reconnects : public base_fake_socket_fixture {
         server_ = start_client(server_name_);
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        server_->answer_request(request_, [this] {
+            std::scoped_lock lock{reply_mutex_};
+            return reply_payload_;
+        });
         server_->offer(service_instance_);
     }
 
@@ -63,7 +69,8 @@ struct stress_server_reconnects : public base_fake_socket_fixture {
         return client_->availability_record_.wait_for_last(service_availability::available(service_instance_));
     }
     void answer_requests_with(std::vector<unsigned char> _payload) {
-        server_->answer_request(request_, [payload = _payload] { return payload; });
+        std::scoped_lock lock{reply_mutex_};
+        reply_payload_ = std::move(_payload);
     }
 
     interface interface_{0x3344};
@@ -73,6 +80,9 @@ struct stress_server_reconnects : public base_fake_socket_fixture {
     request request_{service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
     message_checker request_checker_{std::nullopt, service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
     message_checker response_checker_{std::nullopt, service_instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
+
+    std::mutex reply_mutex_;
+    std::vector<unsigned char> reply_payload_;
 
     app* routingmanagerd_{};
     app* client_{};

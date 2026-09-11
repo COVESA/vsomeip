@@ -1348,6 +1348,9 @@ TEST_F(test_multiversion_support_aggregate_consumption, local_consumer_of_v2_can
     start_apps();
     auto* local_client = provider_v2_ecu_.apps_[local_v2_client_name];
 
+    std::vector<unsigned char> const payload_v2{0x33, 0x44};
+    provider_v2_->answer_request(request_v2_, [payload_v2] { return payload_v2; });
+
     provider_v1_->offer(interface_v1_.instance_);
     provider_v2_->offer(interface_v2_.instance_);
     client_v1_->request_service(interface_v1_.instance_);
@@ -1359,9 +1362,6 @@ TEST_F(test_multiversion_support_aggregate_consumption, local_consumer_of_v2_can
     local_client->request_service(interface_v2_.instance_);
     ASSERT_TRUE(local_client->availability_record_.wait_for_last(service_availability::available(interface_v2_.instance_)));
 
-    std::vector<unsigned char> const payload_v2{0x33, 0x44};
-    provider_v2_->answer_request(request_v2_, [payload_v2] { return payload_v2; });
-
     local_client->send_request(request_v2_);
     EXPECT_TRUE(local_client->wait_for_messages({payload_v2}));
 }
@@ -1371,6 +1371,9 @@ TEST_F(test_multiversion_support_aggregate_consumption, local_consumer_of_v1_can
     provider_v1_ecu_.add_app(local_v1_client_name);
     start_apps();
     auto* local_client = provider_v1_ecu_.apps_[local_v1_client_name];
+
+    std::vector<unsigned char> const payload_v1{0x33, 0x44};
+    provider_v1_->answer_request(request_v1_, [payload_v1] { return payload_v1; });
 
     provider_v1_->offer(interface_v1_.instance_);
     provider_v2_->offer(interface_v2_.instance_);
@@ -1382,9 +1385,6 @@ TEST_F(test_multiversion_support_aggregate_consumption, local_consumer_of_v1_can
     // now the service should be known to the router of ecu_provider_v2
     local_client->request_service(interface_v1_.instance_);
     ASSERT_TRUE(local_client->availability_record_.wait_for_last(service_availability::available(interface_v1_.instance_)));
-
-    std::vector<unsigned char> const payload_v1{0x33, 0x44};
-    provider_v1_->answer_request(request_v1_, [payload_v1] { return payload_v1; });
 
     local_client->send_request(request_v1_);
     EXPECT_TRUE(local_client->wait_for_messages({payload_v1}));
@@ -1398,6 +1398,9 @@ TEST_F(test_multiversion_support_aggregate_consumption, remote_consumer_of_v2_wi
     start_apps();
     auto* remote_client = provider_v1_ecu_.apps_[remote_v2_client_name];
 
+    std::vector<unsigned char> const payload_v2{0x33, 0x44};
+    provider_v2_->answer_request(request_v2_, [payload_v2] { return payload_v2; });
+
     provider_v1_->offer(interface_v1_.instance_);
     provider_v2_->offer(interface_v2_.instance_);
     client_v1_->request_service(interface_v1_.instance_);
@@ -1408,9 +1411,6 @@ TEST_F(test_multiversion_support_aggregate_consumption, remote_consumer_of_v2_wi
     // now the service should be known to the router of ecu_provider_v2
     remote_client->request_service(interface_v2_.instance_);
     ASSERT_TRUE(remote_client->availability_record_.wait_for_last(service_availability::available(interface_v2_.instance_)));
-
-    std::vector<unsigned char> const payload_v2{0x33, 0x44};
-    provider_v2_->answer_request(request_v2_, [payload_v2] { return payload_v2; });
 
     remote_client->send_request(request_v2_);
     EXPECT_TRUE(remote_client->wait_for_messages({payload_v2}));
@@ -1424,6 +1424,9 @@ TEST_F(test_multiversion_support_aggregate_consumption, remote_consumer_of_v1_wi
     start_apps();
     auto* remote_client = provider_v2_ecu_.apps_[remote_v1_client_name];
 
+    std::vector<unsigned char> const payload_v1{0x33, 0x44};
+    provider_v1_->answer_request(request_v1_, [payload_v1] { return payload_v1; });
+
     provider_v1_->offer(interface_v1_.instance_);
     provider_v2_->offer(interface_v2_.instance_);
     client_v1_->request_service(interface_v1_.instance_);
@@ -1434,9 +1437,6 @@ TEST_F(test_multiversion_support_aggregate_consumption, remote_consumer_of_v1_wi
     // now the service should be known to the router of ecu_provider_v2
     remote_client->request_service(interface_v1_.instance_);
     ASSERT_TRUE(remote_client->availability_record_.wait_for_last(service_availability::available(interface_v1_.instance_)));
-
-    std::vector<unsigned char> const payload_v1{0x33, 0x44};
-    provider_v1_->answer_request(request_v1_, [payload_v1] { return payload_v1; });
 
     remote_client->send_request(request_v1_);
     EXPECT_TRUE(remote_client->wait_for_messages({payload_v1}));

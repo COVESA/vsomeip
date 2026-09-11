@@ -123,8 +123,6 @@ private:
     }
 
     void offer() {
-        app_->offer_service(service_info_.service_id, service_info_.instance_id);
-
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(service_info_.eventgroup_id);
 
@@ -138,6 +136,8 @@ private:
         app_->offer_event(service_info_.service_id, service_info_.instance_id, service_info_.selective_event_id, its_eventgroups,
                           vsomeip::event_type_e::ET_SELECTIVE_EVENT, std::chrono::milliseconds::zero(), false, true, nullptr,
                           vsomeip::reliability_type_e::RT_UNKNOWN);
+
+        app_->offer_service(service_info_.service_id, service_info_.instance_id);
     }
 
     void notify() {

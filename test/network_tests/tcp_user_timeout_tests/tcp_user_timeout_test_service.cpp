@@ -20,8 +20,8 @@ TEST(TcpUserTimeoutTest, ServerOffersService) {
     ASSERT_TRUE(application->init()) << "Should initialize application.";
 
     // Offer the test service
-    application->offer_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
     application->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID}, vsomeip_v3::event_type_e::ET_EVENT);
+    application->offer_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
 
     // Only begin notifying after application is registered
     std::mutex service_register_mutex;

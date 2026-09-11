@@ -30,14 +30,13 @@ bool client_t::init() {
                                           std::bind(&client_t::on_message, this, std::placeholders::_1));
     vsomeip_app->register_message_handler(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, OTHER_METHOD_ID,
                                           std::bind(&client_t::on_message, this, std::placeholders::_1));
-    vsomeip_app->request_service(SERVICE_ID, INSTANCE_ID);
-
     vsomeip_app->register_availability_handler(
             SERVICE_ID, INSTANCE_ID,
             std::bind(&client_t::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     vsomeip_app->register_availability_handler(
             OTHER_SERVICE_ID, OTHER_INSTANCE_ID,
             std::bind(&client_t::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    vsomeip_app->request_service(SERVICE_ID, INSTANCE_ID);
     vsomeip_app->request_service(OTHER_SERVICE_ID, OTHER_INSTANCE_ID);
 
     return true;

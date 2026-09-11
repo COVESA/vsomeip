@@ -43,13 +43,17 @@ struct test_connection_restoration : public base_fake_socket_fixture {
         ASSERT_TRUE(await_connectable(routingmanager_name_));
     }
 
-    void start_server() {
+    // _before_offer runs after the registration, but still before the offer goes out.
+    void start_server(std::function<void()> const& _before_offer = {}) {
         server_ = start_client(server_name_);
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-        server_->offer(service_instance_);
         server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
         server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
+        if (_before_offer) {
+            _before_offer();
+        }
+        server_->offer(service_instance_);
     }
 
     void start_client_app() {
@@ -58,9 +62,9 @@ struct test_connection_restoration : public base_fake_socket_fixture {
         ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
     }
 
-    void start_apps() {
+    void start_apps(std::function<void()> const& _before_offer = {}) {
         start_router();
-        start_server();
+        start_server(_before_offer);
         start_client_app();
     }
 
@@ -905,9 +909,7 @@ struct test_reoffer_on_connection_breaking : test_connection_restoration {
 
     void setup() {
         ASSERT_TRUE(setup_data_pipe(client_name_, routingmanager_name_, socket_role::client, router_to_client_gate_->get_data_pipe()));
-        start_apps();
-        request_service(); // do not subscribe to an event!
-        answer_requests_with(expected_payload_);
+        start_apps([this] { answer_requests_with(expected_payload_); });
         auto c = client_->get_application();
         // let the client always dispatch a request on availability
         c->register_availability_handler(
@@ -922,6 +924,7 @@ struct test_reoffer_on_connection_breaking : test_connection_restoration {
                         TEST_LOG << "Client received service state: UNAVAILABLE";
                     }
                 });
+        request_service(); // do not subscribe to an event!
     }
 
     // setup the control to be in control when the routing_info is received by the client
@@ -1270,10 +1273,9 @@ struct test_single_connection_breakdown : test_connection_restoration,
 TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is_restored_with_request_reply) {
 
     auto [from, to] = GetParam();
-    start_apps();
+    start_apps([this] { answer_requests_with({0x2, 0x3}); });
     ASSERT_TRUE(subscribe_to_event());
 
-    answer_requests_with({0x2, 0x3});
     client_->send_request(request_);
     ASSERT_TRUE(server_->message_record_.wait_for_last(expected_request_));
     ASSERT_TRUE(client_->message_record_.wait_for_last(expected_reply_));
@@ -1372,9 +1374,9 @@ TEST_F(test_connection_restoration, double_assign_client_ack_id_diff_ids) {
     // Start the server without checking if it is registered
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
-    server_->offer(service_instance_);
     server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
     server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
+    server_->offer(service_instance_);
     server_->request_service(service_instance_);
 
     EXPECT_TRUE(router_to_server_gate->wait_for_blocked());

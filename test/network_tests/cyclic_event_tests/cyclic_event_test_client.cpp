@@ -51,10 +51,6 @@ TEST(CyclicEventTest, ClientReceivesMultipleEvents) {
                                               shutdown_promise.set_value(true);
                                           });
 
-    // Request the test service.
-    application->request_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
-    application->request_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID});
-
     // Subscribe to the test service when it becomes available.
     application->register_availability_handler(
             SERVICE_ID, INSTANCE_ID,
@@ -64,6 +60,10 @@ TEST(CyclicEventTest, ClientReceivesMultipleEvents) {
                 }
             },
             MAJOR_VERSION, MINOR_VERSION);
+
+    // Request the test service.
+    application->request_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
+    application->request_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID});
 
     // Start the vsomeip application.
     std::thread worker_thread([application] { application->start(); });

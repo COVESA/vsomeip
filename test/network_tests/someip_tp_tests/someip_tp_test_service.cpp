@@ -64,6 +64,9 @@ public:
                                                             std::placeholders::_4, std::placeholders::_5));
 
         // request remote service
+        app_->register_availability_handler(someip_tp_test::service_slave.service_id, someip_tp_test::service_slave.instance_id,
+                                            std::bind(&someip_tp_test_service::on_availability, this, std::placeholders::_1,
+                                                      std::placeholders::_2, std::placeholders::_3));
         app_->request_service(someip_tp_test::service_slave.service_id, someip_tp_test::service_slave.instance_id);
         its_eventgroups.clear();
         its_eventgroups.insert(someip_tp_test::service_slave.eventgroup_id);
@@ -75,9 +78,6 @@ public:
                                        std::bind(&someip_tp_test_service::on_notification, this, std::placeholders::_1));
         app_->subscribe(someip_tp_test::service_slave.service_id, someip_tp_test::service_slave.instance_id,
                         someip_tp_test::service_slave.eventgroup_id, 0x0, someip_tp_test::service_slave.event_id);
-        app_->register_availability_handler(someip_tp_test::service_slave.service_id, someip_tp_test::service_slave.instance_id,
-                                            std::bind(&someip_tp_test_service::on_availability, this, std::placeholders::_1,
-                                                      std::placeholders::_2, std::placeholders::_3));
         app_->register_message_handler(someip_tp_test::service_slave.service_id, someip_tp_test::service_slave.instance_id,
                                        someip_tp_test::service_slave.method_id,
                                        std::bind(&someip_tp_test_service::on_response_from_slave, this, std::placeholders::_1));

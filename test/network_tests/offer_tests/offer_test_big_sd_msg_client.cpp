@@ -45,15 +45,15 @@ public:
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(offer_test::big_msg_eventgroup_id);
         for (uint16_t s = 1; s <= offer_test::big_msg_number_services; s++) {
-            app_->request_service(s, 0x1, 0x1, 0x1);
-            app_->request_event(s, 0x1, offer_test::big_msg_event_id, its_eventgroups, vsomeip::event_type_e::ET_EVENT,
-                                vsomeip::reliability_type_e::RT_UNKNOWN);
-            app_->subscribe(s, 0x1, offer_test::big_msg_eventgroup_id, 0x1, offer_test::big_msg_event_id);
             services_available_subscribed_[s] = std::make_pair(false, 0);
             app_->register_subscription_status_handler(s, 0x1, offer_test::big_msg_eventgroup_id, offer_test::big_msg_event_id,
                                                        std::bind(&offer_test_big_sd_msg_client::subscription_status_changed, this,
                                                                  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                                                                  std::placeholders::_4, std::placeholders::_5));
+            app_->request_service(s, 0x1, 0x1, 0x1);
+            app_->request_event(s, 0x1, offer_test::big_msg_event_id, its_eventgroups, vsomeip::event_type_e::ET_EVENT,
+                                vsomeip::reliability_type_e::RT_UNKNOWN);
+            app_->subscribe(s, 0x1, offer_test::big_msg_eventgroup_id, 0x1, offer_test::big_msg_event_id);
         }
         app_->start();
     }

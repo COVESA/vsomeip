@@ -155,8 +155,8 @@ struct test_someip_gate : public base_fake_socket_fixture {
         ecu_two_.start_apps();
         auto* server = ecu_two_.apps_[ecu_two_server_name_];
         ASSERT_NE(server, nullptr);
-        server->offer(si_);
         server->answer_request(_req, [_rsp_payload] { return _rsp_payload; });
+        server->offer(si_);
 
         // Consumer routing manager up, then the keeper (keeps the remote service referenced).
         ecu_one_.start_router();
@@ -354,9 +354,9 @@ TEST_F(test_someip_gate, blocks_request_then_response) {
 
     request const req{si_, method_, vsomeip::message_type_e::MT_REQUEST, false /* UDP */, req_payload};
 
-    // Server offers the service and registers a handler that replies with rsp_payload.
-    ecu_two_server_->offer(si_);
+    // Server registers a handler that replies with rsp_payload and offers the service.
     ecu_two_server_->answer_request(req, [rsp_payload] { return rsp_payload; });
+    ecu_two_server_->offer(si_);
 
     // Client discovers the service via SD.
     router_one->request_service(si_);
