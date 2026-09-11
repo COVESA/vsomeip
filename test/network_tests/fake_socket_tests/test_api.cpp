@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdlib>
+#include <future>
 
 using namespace vsomeip_v3;
 using namespace vsomeip_v3::testing;
@@ -55,6 +56,8 @@ struct test_api_helper : public base_fake_socket_fixture {
         start_server();
         start_client_app();
     }
+
+    using offered_services_t = std::vector<std::pair<vsomeip::service_t, vsomeip::instance_t>>;
 
     service_instance service_instance_{.service_ = 0x3344, .instance_ = 0x1, .major_ = 0x1};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
@@ -259,3 +262,19 @@ INSTANTIATE_TEST_SUITE_P(
                           std::make_pair(vsomeip::reliability_type_e::RT_UNRELIABLE, vsomeip::reliability_type_e::RT_BOTH),
                           std::make_pair(vsomeip::reliability_type_e::RT_RELIABLE, vsomeip::reliability_type_e::RT_UNKNOWN),
                           std::make_pair(vsomeip::reliability_type_e::RT_UNKNOWN, vsomeip::reliability_type_e::RT_RELIABLE)));
+
+TEST_F(test_api_helper, offered_services_info_without_offers) {
+    // an empty answer is a valid answer: the handler must still be called
+
+    start_router();
+    start_client_app();
+
+    auto its_promise = std::make_shared<std::promise<offered_services_t>>();
+    auto its_future = its_promise->get_future();
+    client_->get_application()->get_offered_services_async(
+            vsomeip::offer_type_e::OT_ALL, [its_promise](offered_services_t const& _services) { its_promise->set_value(_services); });
+
+    ASSERT_TRUE(std::future_status::ready == its_future.wait_for(common::scaled_timeout(std::chrono::seconds(3))))
+            << "the offered services handler was not called";
+    EXPECT_TRUE(its_future.get().empty());
+}
