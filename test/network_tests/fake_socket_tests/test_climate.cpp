@@ -36,8 +36,8 @@ struct test_climate : public base_fake_socket_fixture {
         server_ = start_client(server_name_);
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-        server_->offer(service_instance_);
         server_->offer_field(field_.si_, field_.to_event_spec());
+        server_->offer(service_instance_);
     }
 
     void start_client_app() {

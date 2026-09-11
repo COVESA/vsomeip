@@ -31,8 +31,7 @@ TEST(OfferTestExternal, OfferTestExternalLocalService) {
     ASSERT_TRUE(application) << "Should create a vsomeip application.";
     ASSERT_TRUE(application->init()) << "Should initialize application.";
 
-    // Offer the test service
-    application->offer_service(service.service_id, service.instance_id);
+    // Offer the event of the test service
     application->offer_event(service.service_id, service.instance_id, service.event_id, {service.eventgroup_id},
                              vsomeip_v3::event_type_e::ET_EVENT);
 
@@ -45,6 +44,9 @@ TEST(OfferTestExternal, OfferTestExternalLocalService) {
                                                    // Do not assert file creation as this lambda needs to return true;
                                                    return true;
                                                });
+
+    // Offer the test service, now that its event and handler are in place
+    application->offer_service(service.service_id, service.instance_id);
 
     // Start the vsomeip application
     std::thread start_thread([&application] { application->start(); });

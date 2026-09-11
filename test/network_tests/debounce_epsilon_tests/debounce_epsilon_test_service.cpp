@@ -48,11 +48,11 @@ TEST(debounce_filter_tests, server_sends_notifications) {
                                   });
 
     // Offer the test service.
-    app->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
     app->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
                      {TEST_SERVICE_EVENTGROUP_ID}, vsomeip::event_type_e::ET_EVENT, std::chrono::milliseconds::zero(), false, true,
                      &is_payload_divisible_by_10 // Epsilon change function.
     );
+    app->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
 
     VSOMEIP_INFO << "debounce_epsilon_test_service: Waiting for shutdown request.";
 

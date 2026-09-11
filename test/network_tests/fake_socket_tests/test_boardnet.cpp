@@ -286,8 +286,8 @@ TEST_F(test_boardnet_helper, property_mismatch_regression) {
     event_ids event_wrong_minor{si_wrong_minor, 0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE};
 
     // Server offers the service.
-    ecu_two_server_->offer(si_right_minor);
     ecu_two_server_->offer_field(event_right_minor.si_, event_right_minor.to_event_spec());
+    ecu_two_server_->offer(si_right_minor);
 
     // Client one requests the service using the right minor version.
     ecu_one_client_->request_service(si_right_minor);
@@ -868,8 +868,8 @@ TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
     router_two_->request_service(service_instance_);
     ecu_two_client->request_service(service_instance_);
 
-    ecu_one_server->offer(service_instance_);
     ecu_one_server->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    ecu_one_server->offer(service_instance_);
 
     // Wait for service availability on all clients
     ASSERT_TRUE(router_two_->availability_record_.wait_for_last(service_availability::available(service_instance_)))
@@ -1436,8 +1436,8 @@ TEST_F(length_field_too_big, length_field_too_big_tcp) {
     auto* router_one_ = ecu_one_.router_;
     auto* router_two_ = ecu_two_.router_;
 
-    router_two_->offer(interface_tcp_);
     router_two_->answer_request(request_tcp_, [] { return std::vector<unsigned char>{}; });
+    router_two_->offer(interface_tcp_);
     router_one_->request_service(interface_tcp_.instance_);
 
     auto bad_request_payload = construct_someip_raw_message(static_cast<uint16_t>(interface_tcp_.instance_.service_), // service id
@@ -1485,8 +1485,8 @@ TEST_F(length_field_too_big, length_field_too_big_udp) {
     auto* router_one_ = ecu_one_.router_;
     auto* router_two_ = ecu_two_.router_;
 
-    router_two_->offer(interface_udp_);
     router_two_->answer_request(request_udp_, [] { return std::vector<unsigned char>{}; });
+    router_two_->offer(interface_udp_);
     router_one_->request_service(interface_udp_.instance_);
 
     auto bad_request_payload = construct_someip_raw_message(static_cast<uint16_t>(interface_udp_.instance_.service_), // service id

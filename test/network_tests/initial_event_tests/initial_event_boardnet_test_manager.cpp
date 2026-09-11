@@ -83,12 +83,12 @@ public:
     }
 
     void offer_and_notify() {
-        app_->offer_service(service_info_.service_id, service_info_.instance_id);
         // offer field
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(service_info_.eventgroup_id);
         app_->offer_event(service_info_.service_id, service_info_.instance_id, static_cast<vsomeip::event_t>(service_info_.event_id),
                           its_eventgroups, vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr);
+        app_->offer_service(service_info_.service_id, service_info_.instance_id);
 
         // set value to field
         std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();

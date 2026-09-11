@@ -152,7 +152,6 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
     message_checker request_checker{std::nullopt, interface_.instance_, specific_method, vsomeip::message_type_e::MT_REQUEST,
                                     first_payload};
 
-    server_->offer(interface_);
     // as soon as we unblock the gate the following code will be executed, note that this is only executed for field_one_ subscriptions!
     server_->register_group_subscription_handler(
             field_one_, [&, this, request_checker](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
@@ -230,6 +229,8 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
                 VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription: " << _is_subscribed << " returning";
                 return true;
             });
+
+    server_->offer(interface_);
 
     ASSERT_TRUE(c2s_gate_->wait_for_blocked());
     // because the pipe is blocked -> service is available -> request should be queued immediately
@@ -313,7 +314,6 @@ TEST_F(test_event_subscription_callback_local, check_dispatcher_ordering_when_su
      *
      **/
     start_apps();
-    server_->offer(interface_);
 
     enum test_step { sub, unsub, message }; // enum is streamable by default
     auto reception = std::make_shared<attribute_recorder<test_step>>();
@@ -338,6 +338,7 @@ TEST_F(test_event_subscription_callback_local, check_dispatcher_ordering_when_su
                                                              VSOMEIP_INFO << "[DISPATCHER_TAG] server received a message";
                                                              reception->record(test_step::message);
                                                          });
+    server_->offer(interface_);
 
     c2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
 
@@ -379,17 +380,7 @@ TEST_F(test_event_subscription_callback_local, a_broken_c2s_connection_does_not_
      * 8. Ensure no message for field_one is received
      *
      **/
-    // 1.
     start_apps();
-    server_->offer(interface_);
-
-    // To be able to write first "2." and then the dispatcher logic
-    c2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
-
-    // 2.
-    client_->request_service(interface_.instance_);
-    client_->subscribe_field(field_one_);
-
     // 3.
     server_->register_group_subscription_handler(field_one_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
         VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription: " << _is_subscribed;
@@ -414,6 +405,15 @@ TEST_F(test_event_subscription_callback_local, a_broken_c2s_connection_does_not_
         VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription: " << _is_subscribed << " returning";
         return true;
     });
+    // 1.
+    server_->offer(interface_);
+
+    // To be able to gate "2." and then let the dispatcher logic run
+    c2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
+
+    // 2.
+    client_->request_service(interface_.instance_);
+    client_->subscribe_field(field_one_);
 
     ASSERT_TRUE(c2s_gate_->wait_for_blocked());
     c2s_gate_->block(false);
@@ -453,12 +453,6 @@ TEST_F(test_event_subscription_callback_local, a_broken_s2r_connection_does_not_
      **/
 
     start_apps();
-    server_->offer(interface_);
-
-    c2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
-    client_->request_service(interface_.instance_);
-    client_->subscribe_field(field_one_);
-
     // as soon as we unblock the gate the following code will be executed, note that this is only executed for field_one_ subscriptions!
     server_->register_group_subscription_handler(field_one_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
         VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription: " << _is_subscribed;
@@ -481,6 +475,11 @@ TEST_F(test_event_subscription_callback_local, a_broken_s2r_connection_does_not_
         VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription: " << _is_subscribed << " returning";
         return true;
     });
+    server_->offer(interface_);
+
+    c2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
+    client_->request_service(interface_.instance_);
+    client_->subscribe_field(field_one_);
 
     // Ensure that one notify_id was put on the wire (later)
     s2c_gate_->block_at(vsomeip_v3::protocol::id_e::SEND_ID);
@@ -520,12 +519,6 @@ TEST_F(test_event_subscription_callback_local, an_intermediate_unregistration_of
      *
      **/
     start_apps();
-    server_->offer(interface_);
-
-    c2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
-    client_->request_service(interface_.instance_);
-    client_->subscribe_field(field_one_);
-
     // as soon as we unblock the gate the following code will be executed, note that this is only executed for field_one_ subscriptions!
     server_->register_group_subscription_handler(field_one_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
         VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription: " << _is_subscribed;
@@ -538,6 +531,11 @@ TEST_F(test_event_subscription_callback_local, an_intermediate_unregistration_of
         VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription: " << _is_subscribed << " returning";
         return true;
     });
+    server_->offer(interface_);
+
+    c2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
+    client_->request_service(interface_.instance_);
+    client_->subscribe_field(field_one_);
 
     // Ensure that one notify_id was put on the wire (later)
     s2c_gate_->block_at(vsomeip_v3::protocol::id_e::SEND_ID);
@@ -585,7 +583,6 @@ TEST_F(test_event_subscription_callback_local, a_stuck_subscription_does_not_blo
         provider_ecu_.add_app(client);
     }
     start_apps();
-    server_->offer(interface_);
 
     std::atomic<int> counter{0};
     attribute_recorder<int> record;
@@ -600,8 +597,9 @@ TEST_F(test_event_subscription_callback_local, a_stuck_subscription_does_not_blo
                 }
                 return true;
             });
-    for (auto const& client : clients) {
+    server_->offer(interface_);
 
+    for (auto const& client : clients) {
         auto* app = provider_ecu_.apps_[client];
         app->request_service(interface_.instance_);
         app->subscribe_field(field_one_);
@@ -645,13 +643,6 @@ TEST_F(test_event_subscription_callback_boardnet, a_broken_connection_to_the_rou
     GTEST_SKIP() << "Sometimes the subscription for the event group two are not forwarded via the boardnet";
 
     start_apps();
-    server_->offer(interface_);
-
-    r2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
-
-    client_->request_service(interface_.instance_);
-    client_->subscribe_field(field_one_);
-
     // as soon as we unblock the gate the following code will be executed, note that this is only executed for field_one_ subscriptions!
     server_->register_group_subscription_handler(field_one_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
         VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription: " << _is_subscribed;
@@ -687,6 +678,12 @@ TEST_F(test_event_subscription_callback_boardnet, a_broken_connection_to_the_rou
         VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription: " << _is_subscribed << " returning";
         return true;
     });
+    server_->offer(interface_);
+
+    r2s_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
+
+    client_->request_service(interface_.instance_);
+    client_->subscribe_field(field_one_);
 
     // Ensure that one notify_id was put on the wire (later)
     s2r_gate_->block_at(vsomeip_v3::protocol::id_e::NOTIFY_ID);
@@ -794,7 +791,6 @@ TEST_F(test_event_subscription_callback_local, stale_subscription_callback_does_
      *   2e. Return true -> ack continuation checks token -> mismatch -> drops.
      */
     start_apps();
-    server_->offer(interface_);
     client_->request_service(interface_.instance_);
 
     // Guard: only do the reconnect logic on the first subscription invocation.
@@ -816,6 +812,7 @@ TEST_F(test_event_subscription_callback_local, stale_subscription_callback_does_
         }
         return true; // 2e
     });
+    server_->offer(interface_);
 
     client_->subscribe_field(field_one_);
 

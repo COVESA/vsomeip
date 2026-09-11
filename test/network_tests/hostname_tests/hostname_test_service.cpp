@@ -44,8 +44,8 @@ TEST(HostnameTest, ServiceOffersService) {
             });
 
     // Offer the test service
-    application->offer_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
     application->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID}, vsomeip_v3::event_type_e::ET_EVENT);
+    application->offer_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
 
     // Start the vsomeip application
     std::thread worker_thread([&application] { application->start(); });

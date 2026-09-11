@@ -74,8 +74,8 @@ struct test_queue_limit_helper : public base_fake_socket_fixture {
     }
 
     void offer_and_subscribe() {
-        ecu_two_server_->offer(service_instance_);
         ecu_two_server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+        ecu_two_server_->offer(service_instance_);
 
         ecu_one_client_->request_service(service_instance_);
         ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));

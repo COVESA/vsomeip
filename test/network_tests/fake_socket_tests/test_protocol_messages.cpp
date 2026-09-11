@@ -42,12 +42,16 @@ struct protocol_messages_fixture : public base_fake_socket_fixture {
         ASSERT_TRUE(await_connectable(routingmanager_name_));
     }
 
-    void start_server() {
+    // _before_offer runs after the registration, but still before the offer goes out.
+    void start_server(std::function<void()> const& _before_offer = {}) {
         server_ = start_client(server_name_);
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
         server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
+        if (_before_offer) {
+            _before_offer();
+        }
         server_->offer(service_instance_);
     }
 
@@ -57,9 +61,9 @@ struct protocol_messages_fixture : public base_fake_socket_fixture {
         ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
     }
 
-    void start_apps() {
+    void start_apps(std::function<void()> const& _before_offer = {}) {
         start_router();
-        start_server();
+        start_server(_before_offer);
         start_client_app();
     }
 
@@ -380,10 +384,9 @@ TEST_F(test_protocol_messages, ensure_sequence_of_stop_offer_event) {
 
 TEST_F(test_protocol_messages, ensure_sequence_of_request_reply) {
     // first start all the applications registration sequence is covered elsewhere
-    start_apps();
+    start_apps([this] { answer_requests_with({0x2, 0x3}); });
 
     client_->request_service(service_instance_);
-    answer_requests_with({0x2, 0x3});
 
     // wait for availability, before sending the request
     // or tracking the path of the request, otherwise no guarantee that it is sent out
@@ -424,9 +427,8 @@ TEST_F(test_protocol_messages, request_after_stop_offer_is_not_routed_to_defunct
     message_checker const request_checker{std::nullopt, service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, std::nullopt};
     message_checker const reply_checker{std::nullopt, service_instance_, method_, vsomeip::message_type_e::MT_RESPONSE, std::nullopt};
 
-    start_apps();
+    start_apps([this] { answer_requests_with({0x2, 0x3}); });
     client_->request_service(service_instance_);
-    answer_requests_with({0x2, 0x3});
     ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
 
     // Baseline: the request reaches the provider and is answered, proving the consumer routing table

@@ -49,8 +49,8 @@ TEST(cached_event_test, service_is_offered) {
     });
 
     // Offer the test service and set the event payload.
-    app->offer_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
     app->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID}, vsomeip::event_type_e::ET_FIELD);
+    app->offer_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
     app->notify(SERVICE_ID, INSTANCE_ID, EVENT_ID, vsomeip::runtime::get()->create_payload({0x01}));
 
     // Wait for the shutdown request.

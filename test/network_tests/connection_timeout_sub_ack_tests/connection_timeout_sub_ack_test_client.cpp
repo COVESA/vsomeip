@@ -26,11 +26,6 @@ TEST(ConnectionTimeoutSubAckTest, ClientSubscribesToService) {
     ASSERT_TRUE(application) << "Should create a vsomeip application.";
     ASSERT_TRUE(application->init()) << "Should initialize application.";
 
-    // Request the test service
-    application->request_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
-    application->request_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID});
-    application->subscribe(SERVICE_ID, INSTANCE_ID, EVENTGROUP_ID, MAJOR_VERSION);
-
     // When the service becomes unavailable after the time out, signal the script to restore comms
     application->register_availability_handler(
             SERVICE_ID, INSTANCE_ID,
@@ -60,6 +55,11 @@ TEST(ConnectionTimeoutSubAckTest, ClientSubscribesToService) {
                 }
             },
             false);
+
+    // Request the test service
+    application->request_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
+    application->request_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID});
+    application->subscribe(SERVICE_ID, INSTANCE_ID, EVENTGROUP_ID, MAJOR_VERSION);
 
     // Start the vsomeip application
     std::thread start_thread([&application] { application->start(); });

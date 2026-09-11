@@ -60,10 +60,10 @@ public:
                 || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
                 continue;
             }
-            app_->request_service(i.service_id, i.instance_id);
             app_->register_availability_handler(i.service_id, i.instance_id,
                                                 std::bind(&subscribe_notify_test_service::on_availability, this, std::placeholders::_1,
                                                           std::placeholders::_2, std::placeholders::_3));
+            app_->request_service(i.service_id, i.instance_id);
 
             auto handler = std::bind(&subscribe_notify_test_service::on_subscription_state_change, this, std::placeholders::_1,
                                      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
