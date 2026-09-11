@@ -1979,10 +1979,8 @@ void configuration_impl::load_service(const boost::property_tree::ptree& _tree, 
     try {
         bool is_loaded(true);
         bool use_magic_cookies(false);
-        service_t service_id(0);
-        instance_t instance_id(0);
 
-        auto its_service = std::make_shared<service>(service_id, instance_id);
+        auto its_service = std::make_shared<service>(0, 0);
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
         its_service->unicast_address_ = _unicast_address;
         its_service->protocol_ = "someip";
@@ -2037,15 +2035,12 @@ void configuration_impl::load_service(const boost::property_tree::ptree& _tree, 
                 }
 
                 if (its_key == "service") {
-                    its_converter >> service_id;
+                    its_converter >> its_service->service_instance_.service;
                 } else if (its_key == "instance") {
-                    its_converter >> instance_id;
+                    its_converter >> its_service->service_instance_.instance;
                 }
             }
         }
-
-        // Initialize service_instance_ from the loaded service and instance values
-        its_service->service_instance_ = service_instance_t{service_id, instance_id};
 
         if (services_.count(its_service->service_instance_) > 0) {
             VSOMEIP_WARNING << "Multiple configurations for service [" << its_service->service_instance_ << "]";
@@ -2139,14 +2134,16 @@ void configuration_impl::load_event(std::shared_ptr<service>& _service, const bo
             } else {
                 // If event reliability type was not configured,
                 if (its_reliability == reliability_type_e::RT_UNKNOWN) {
+                    const char* its_reliability_name = "RT_UNKNOWN";
                     if (_service->unreliable_ != ILLEGAL_PORT) {
                         its_reliability = reliability_type_e::RT_UNRELIABLE;
+                        its_reliability_name = "RT_UNRELIABLE";
                     } else if (_service->reliable_ != ILLEGAL_PORT) {
                         its_reliability = reliability_type_e::RT_RELIABLE;
+                        its_reliability_name = "RT_RELIABLE";
                     }
                     VSOMEIP_WARNING << "Reliability type for event [" << _service->service_instance_ << "." << hex4(its_event_id)
-                                    << "] was not configured Using : "
-                                    << ((its_reliability == reliability_type_e::RT_RELIABLE) ? "RT_RELIABLE" : "RT_UNRELIABLE");
+                                    << "] was not configured Using : " << its_reliability_name;
                 }
 
                 auto its_event = std::make_shared<event>(its_event_id, its_is_field, its_reliability, its_cycle, its_change_resets_cycle,
