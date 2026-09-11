@@ -1245,8 +1245,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
         }
 
         case protocol::id_e::OFFERED_SERVICES_RESPONSE_ID: {
+            auto const its_payload_size = _size - parsed_hdr_bytes;
             if (std::vector<protocol::service_data> its_services;
-                protocol::deserialize(its_services, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
+                its_payload_size == 0 || protocol::deserialize(its_services, _data + parsed_hdr_bytes, its_payload_size)) {
                 if (is_from_routing) {
                     on_offered_services_info(its_services);
                 } else {
