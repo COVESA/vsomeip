@@ -77,8 +77,6 @@ public:
     virtual void remove_local(client_t _client) = 0;
 
     virtual boost::asio::io_context& get_io() = 0;
-    virtual client_t get_client() const = 0;
-    virtual vsomeip_sec_client_t get_sec_client() const = 0;
 
     virtual void on_pong(client_t _client) = 0;
 
@@ -90,8 +88,6 @@ public:
 
     virtual bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
                                                    instance_t _instance, eventgroup_t _eventgroup) = 0;
-
-    virtual std::string get_client_host() const = 0;
 
     virtual std::vector<protocol::service> get_requested_services(client_t _client) const = 0;
 

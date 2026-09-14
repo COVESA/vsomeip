@@ -764,16 +764,13 @@ bool endpoint_manager_impl::create_local_tcp_acceptor(std::shared_ptr<local_acce
 }
 
 void endpoint_manager_impl::setup_root_server(std::shared_ptr<local_server>& _root, std::shared_ptr<local_acceptor> _acceptor,
-                                              const std::shared_ptr<routing_host>& _host) {
-    auto create_server = [this, _host](std::shared_ptr<local_acceptor> acceptor) {
-        return std::make_shared<local_server>(io_, std::move(acceptor), configuration_, _host, true, get_client_host());
-    };
-
-    _root = create_server(_acceptor);
+                                              const std::shared_ptr<routing_host>& _host, const std::string& _env) {
+    _root = std::make_shared<local_server>(io_, std::move(_acceptor), configuration_, _host, true, _env);
 }
 
 bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _root, const transport_protocol_e& _type,
-                                                bool& _is_socket_activated, const std::shared_ptr<routing_host>& _host) {
+                                                bool& _is_socket_activated, const std::shared_ptr<routing_host>& _host,
+                                                const std::string& _env) {
 
     std::stringstream its_endpoint_path_ss;
     its_endpoint_path_ss << utility::get_base_path(configuration_->get_network()) << VSOMEIP_ROUTING_CLIENT;
@@ -801,7 +798,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
         _is_socket_activated = false;
     }
 
-    setup_root_server(_root, acceptor, _host);
+    setup_root_server(_root, acceptor, _host, _env);
     return true;
 }
 
@@ -1316,7 +1313,7 @@ bool endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client
     router_->register_client_error_handler(_client, _ep);
     routing_endpoints_[_client] = _ep;
     _ep->start();
-    VSOMEIP_INFO_P << "self 0x" << hex4(router_->get_client()) << ", client 0x" << hex4(_client) << ", connection > " << _ep->name();
+    VSOMEIP_INFO_P << "self 0x" << hex4(VSOMEIP_ROUTING_CLIENT) << ", client 0x" << hex4(_client) << ", connection > " << _ep->name();
     return true;
 }
 
@@ -1335,7 +1332,7 @@ void endpoint_manager_impl::remove_routing_endpoint(client_t _client) {
         std::unique_lock its_lock{routing_endpoint_mtx_};
         if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
             it->second->stop(true);
-            VSOMEIP_INFO_P << "self 0x" << hex4(router_->get_client()) << " is closing connection to client 0x" << hex4(_client)
+            VSOMEIP_INFO_P << "self 0x" << hex4(VSOMEIP_ROUTING_CLIENT) << " is closing connection to client 0x" << hex4(_client)
                            << " endpoint > " << it->second->name();
             routing_endpoints_.erase(it);
         }
@@ -1498,13 +1495,6 @@ void endpoint_manager_impl::resume() {
             its_endpoint->stop(true);
         }
     }
-}
-client_t endpoint_manager_impl::get_client() const {
-    return router_->get_client();
-}
-
-std::string endpoint_manager_impl::get_client_host() const {
-    return router_->get_client_host();
 }
 
 bool endpoint_manager_impl::get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const {

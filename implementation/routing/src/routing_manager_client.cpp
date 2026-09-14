@@ -80,7 +80,7 @@ routing_manager_client::routing_manager_client(routing_manager_host* _host, bool
                                                                : routing_mode_e::TCP_ONLY),
     request_debounce_timer_running_(false), request_debounce_timer_(io_) {
 
-    ep_mgr_ = std::make_shared<endpoint_manager_base>(*this, io_, configuration_, get_name(), get_client_host());
+    ep_mgr_ = std::make_shared<endpoint_manager_base>(*this, io_, configuration_, get_name(), env_);
 }
 
 routing_manager_client::~routing_manager_client() { }
@@ -2003,7 +2003,7 @@ client_t routing_manager_client::get_client_id() {
 }
 
 void routing_manager_client::set_port(port_t _port) {
-    set_sec_client_port(_port);
+    host_->set_sec_client_port(_port);
 }
 
 void routing_manager_client::register_error_handler(client_t _client, std::shared_ptr<local_endpoint> _ep, connection_role_e _role) {
@@ -2242,7 +2242,7 @@ void routing_manager_client::lazy_load(const std::string& _client_host) {
     if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
         auto& pm = *get_policy_manager();
         configuration_->lazy_load_security(_client_host, pm);
-        configuration_->lazy_load_security(get_client_host(), pm); // necessary for lazy loading from inside android container
+        configuration_->lazy_load_security(env_, pm); // necessary for lazy loading from inside android container
     }
 #endif
     // The routing client has no need to store this data.
@@ -3114,8 +3114,8 @@ bool routing_manager_client::send_event_to(const client_t, const std::shared_ptr
     VSOMEIP_ERROR_P << "Not implemented";
     return false;
 }
-client_t routing_manager_client::get_client() const {
 
+client_t routing_manager_client::get_client() const {
     return host_->get_client();
 }
 
@@ -3147,16 +3147,8 @@ std::string const& routing_manager_client::get_name() const {
     return host_->get_name();
 }
 
-std::string routing_manager_client::get_client_host() const {
-    return env_;
-}
-
 vsomeip_sec_client_t routing_manager_client::get_sec_client() const {
     return host_->get_sec_client();
-}
-
-void routing_manager_client::set_sec_client_port(port_t _port) {
-    host_->set_sec_client_port(_port);
 }
 
 bool routing_manager_client::is_available(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) const {

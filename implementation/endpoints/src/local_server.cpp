@@ -224,7 +224,7 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
 
             auto ep = local_endpoint::create_server_ep(
                     local_endpoint_context{io_, configuration_, routing_host_},
-                    local_endpoint_params{_client, rh->get_client(), std::move(_environment), std::move(_socket),
+                    local_endpoint_params{_client, own_client_id_, std::move(_environment), std::move(_socket),
                                           // For TCP sockets use the real peer endpoint directly.
                                           // For UDS, fall back to what the client advertised in assign_client_command.
                                           !peer_endpoint.address().is_unspecified() ? peer_endpoint.address() : _routing_address,

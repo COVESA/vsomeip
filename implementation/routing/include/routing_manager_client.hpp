@@ -143,9 +143,7 @@ public:
     std::shared_ptr<event> find_consumed_event(service_t _service, instance_t _instance, event_t _event) const;
 
     std::string const& get_name() const;
-    std::string get_client_host() const;
     vsomeip_sec_client_t get_sec_client() const;
-    void set_sec_client_port(port_t _port);
 
     bool is_available(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) const;
     bool are_available(available_t& _available, service_t _service, instance_t _instance, major_version_t _major,
@@ -319,11 +317,12 @@ private:
     bool send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target, std::shared_ptr<message> _message);
 
     // routing_host
-    client_t get_client() const override;
     void on_message(const byte_t* _data, length_t _length, const local_client_data& _peer_data) override;
     void lazy_load(const std::string& _client_host) override;
     std::shared_ptr<policy_manager_impl> get_policy_manager() const override;
     std::shared_ptr<security> get_security() const override;
+
+    client_t get_client() const;
 
     void collect_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major,
                                        std::vector<subscription_data_t>& _collected_subscriptions, std::scoped_lock<std::mutex> const&);

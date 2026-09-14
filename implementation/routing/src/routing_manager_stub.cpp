@@ -42,8 +42,9 @@ namespace vsomeip_v3 {
 
 #define VSOMEIP_LOG_PREFIX "rms"
 
-routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, const std::shared_ptr<configuration>& _configuration) :
-    host_(_host), io_(_host->get_io()), configuration_(_configuration), is_socket_activated_(false),
+routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, const std::shared_ptr<configuration>& _configuration,
+                                           const std::string& _env) :
+    host_(_host), io_(_host->get_io()), env_(_env), configuration_(_configuration), is_socket_activated_(false),
     routing_mode_(configuration_->is_local_routing()           ? routing_mode_e::UDS_ONLY
                           : configuration_->is_uds_preferred() ? routing_mode_e::UDS_AND_TCP
                                                                : routing_mode_e::TCP_ONLY),
@@ -392,7 +393,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
                     host_->request_service(its_client, r.key_.service_, r.key_.instance_, r.key_.major_, r.minor_version_);
                     its_allowed_requests.insert(protocol::service(r.key_.service_, r.key_.instance_, r.key_.major_, r.minor_version_));
                 } else {
-                    VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " received a request from client 0x"
+                    VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(VSOMEIP_ROUTING_CLIENT) << " received a request from client 0x"
                                   << hex4(its_client) << " to service/instance " << hex4(r.key_.service_) << "/" << hex4(r.key_.instance_)
                                   << " ~> skip message!";
                 }
@@ -508,7 +509,7 @@ void routing_manager_stub::lazy_load(const std::string& _client_host) {
     if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
         auto& pm = *get_policy_manager();
         configuration_->lazy_load_security(_client_host, pm);
-        configuration_->lazy_load_security(host_->get_client_host(), pm); // necessary for lazy loading from inside android container
+        configuration_->lazy_load_security(env_, pm); // necessary for lazy loading from inside android container
     }
 #endif
 }
@@ -623,7 +624,7 @@ void routing_manager_stub::init_routing_endpoint() {
         if (_root) {
             return; // already initialised, skip
         }
-        if (!ep_mgr->create_routing_root(_root, _protocol, is_socket_activated_, shared_from_this())) {
+        if (!ep_mgr->create_routing_root(_root, _protocol, is_socket_activated_, shared_from_this(), env_)) {
             is_successful = false;
         }
     };
@@ -929,10 +930,6 @@ void routing_manager_stub::deregister_client(client_t _client) {
     remove_from_pinged_clients(_client);
     remove_client_connections(_client);
     utility::release_client_id(configuration_->get_network(), _client);
-}
-
-client_t routing_manager_stub::get_client() const {
-    return host_->get_client();
 }
 
 void routing_manager_stub::handle_credentials(const client_t _client, std::set<protocol::service>& _requests) {

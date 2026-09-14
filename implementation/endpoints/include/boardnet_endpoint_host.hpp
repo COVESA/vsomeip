@@ -26,8 +26,6 @@ public:
     virtual void on_disconnect(std::shared_ptr<boardnet_endpoint> _endpoint) = 0;
     virtual bool on_bind_error(std::shared_ptr<boardnet_endpoint> _endpoint, const boost::asio::ip::address& _remote_address,
                                uint16_t _remote_port, uint16_t& _local_port) = 0;
-    virtual client_t get_client() const = 0;
-    virtual std::string get_client_host() const = 0;
     /**
      * @brief Find instance for a given service+endpoint pair
      *
