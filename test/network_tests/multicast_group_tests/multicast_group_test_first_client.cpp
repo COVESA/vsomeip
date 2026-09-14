@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "common/test_main.hpp"
+#include "common/timeout_scale.hpp"
 
 #include "multicast_group_test_globals.hpp"
 
@@ -52,8 +53,10 @@ TEST(MulticastGroupTest, FirstClientSubscribesToService) {
     client_application->register_availability_handler(
             SERVICE_ID_MULTICAST, INSTANCE_ID, [&](vsomeip::service_t, vsomeip::instance_t, bool _is_available) {
                 VSOMEIP_INFO << "Test service is:" << (_is_available ? " available" : "not available") << std::endl;
-                client_application->subscribe(SERVICE_ID_MULTICAST, INSTANCE_ID, EVENTGROUP_ID, MAJOR_VERSION);
-                client_application->subscribe(SERVICE_ID_UNICAST, INSTANCE_ID, EVENTGROUP_ID, MAJOR_VERSION);
+                if (_is_available) {
+                    client_application->subscribe(SERVICE_ID_MULTICAST, INSTANCE_ID, EVENTGROUP_ID, MAJOR_VERSION);
+                    client_application->subscribe(SERVICE_ID_UNICAST, INSTANCE_ID, EVENTGROUP_ID, MAJOR_VERSION);
+                }
             });
 
     // Check if the received payload is in order with the last one and if it is the last msg
@@ -118,9 +121,14 @@ TEST(MulticastGroupTest, FirstClientSubscribesToService) {
     // Start the vsomeip application
     std::thread worker_thread([client_application] { client_application->start(); });
 
-    // Check if last msg was received
-    received_last_msg_fut.wait();
-    EXPECT_TRUE(received_last_msg_fut.get()) << "Failed to receive a notification!";
+    // Check if last msg was received.
+    auto const last_msg_timeout = common::scaled_timeout(std::chrono::seconds(20));
+    bool const got_last_msg = received_last_msg_fut.wait_for(last_msg_timeout) == std::future_status::ready;
+    EXPECT_TRUE(got_last_msg) << "Timed out after " << std::chrono::duration_cast<std::chrono::seconds>(last_msg_timeout).count()
+                              << "s waiting for the last notification (last multicast payload seen: " << last_payload << ")";
+    if (got_last_msg) {
+        EXPECT_TRUE(received_last_msg_fut.get()) << "Failed to receive a notification!";
+    }
 
     {
         // The test continues to run; we must pause it during validation.
