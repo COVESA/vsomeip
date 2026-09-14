@@ -18,6 +18,17 @@
 namespace vsomeip_v3 {
 
 /**
+ * @brief Tells whether a debounce filter has no forwarding trigger at all.
+ *
+ * A filter with `on_change` false and an `interval` of zero or less, set explicitly or left at the
+ * `debounce_filter_t` defaults, cannot decide to forward anything, so it is treated as "no debouncing"
+ * rather than "block everything".
+ */
+inline bool is_passthrough_filter(debounce_filter_t const& _filter) {
+    return !_filter.on_change_ && _filter.interval_ <= 0;
+}
+
+/**
  * @brief Compiles a per-subscriber debounce filter into an epsilon-change predicate.
  *
  * Shared by `event` and `provider_event`. The returned predicate forwards a payload
@@ -25,9 +36,15 @@ namespace vsomeip_v3 {
  * interval has elapsed. Interval state (`last_forwarded_`) lives on the filter object,
  * so the closure is portable and holds no owner-specific state.
  *
+ * A filter without any trigger (see `is_passthrough_filter`) forwards every update.
+ *
  * The current time is read from `abstract_socket_factory::get()->get_clock()`.
  */
 inline epsilon_change_func_t make_debounce_func(std::shared_ptr<debounce_filter_impl_t> const& _filter) {
+    if (is_passthrough_filter(*_filter)) {
+        return [](std::shared_ptr<payload> const&, std::shared_ptr<payload> const&) { return true; };
+    }
+
     auto clock = abstract_socket_factory::get()->get_clock();
     return [_filter, clock](std::shared_ptr<payload> const& _old, std::shared_ptr<payload> const& _new) {
         bool is_changed = false, is_elapsed = false;

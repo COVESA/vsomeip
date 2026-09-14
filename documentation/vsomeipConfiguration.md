@@ -233,7 +233,7 @@ The following example assumes that different machines (i.e., with different IP a
     - **name** - The name of the plug-in.
     - **type** - The plug-in type (valid values: `application_plugin`). An application plug-in extends the functionality on application level. It gets informed by vsomeip over the basic application states (INIT/START/STOP) and can, based on these notifications, access the standard "application"-API via the runtime.
     - **additional** - Generic way to define configuration data for plugins.
-  - **debounce** - Client/Application specific configuration of debouncing.
+  - **debounce** - Client/Application specific configuration of debouncing. Uses the same format as the global [Debounce](#debounce) section and replaces the global configuration for the listed events for this application only. An event entry that uses the default values for both `on_change` and `interval` disables debouncing, so the application receives the event at its original rate.
   - **has_session_handling** - Configures the session handling. Mostly used for E2E use cases when the application handles the CRC calculation over the SOME/IP header by themself, and need the ability to switch off the session handling as otherwise their calculated checksum does not match reality after vsomeip inserts the session identifier. Valid values are `true` or `false`. The default value is `true`.
 
 <details><summary>Example of Applications configuration</summary>
@@ -1562,6 +1562,8 @@ It is common that events/fields are emitted cyclically, often at high frequencie
         - **interval** - Specifies if the event shall be debounced based on elapsed time interval. (valid values: `time in ms`, `never`). The default value is  `never`.
           **NOTE**: avoid setting an **interval** that is a multiple of the event frequency, as this causes non-deterministic debouncing behavior. It is recommended that the interval is always "off by half the cycle".
         - **on_change_resets_interval** (optional) - Specifies if interval timer is reset when payload change was detected, valid values are `false`, `true`. The default value is `false`.
+
+    An event entry that neither sets `on_change` to `true` nor specifies an `interval` has no forwarding trigger and does not debounce: every notification is forwarded. Use such an entry in an application's `debounce` section to override the global debounce configuration and receive the event at its original rate.
 
 A couple of technical notes:
 - these debounce filters will also apply if a local application is offering the service, and another local application consumes. In that case, of course, it is the offering application that applies the debouncing, not the routing manager.

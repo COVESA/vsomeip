@@ -1,4 +1,4 @@
-@startuml
+@startuml debounce_filter_test_client
 
 Actor service_consumer as SC
 
@@ -43,8 +43,8 @@ end note
 SC -> SC : check if average_time is\nbetween 995 and 1005 ms
 
 note over SC
-  disable
+  no_trigger_forwards_every_event
 end note
-SC -> SC : check if number of received messages is 0
+SC -> SC : check that messages are received\nat the raw rate (average_time < 50 ms)
 
 @enduml

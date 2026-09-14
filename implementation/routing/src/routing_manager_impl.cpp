@@ -25,6 +25,7 @@
 #include <vsomeip/runtime.hpp>
 
 #include "logger_ext.hpp"
+#include "../include/debounce_func.hpp"
 #include "../include/event.hpp"
 #include "../include/eventgroupinfo.hpp"
 #include "../include/remote_subscription.hpp"
@@ -4206,67 +4207,11 @@ void routing_manager_impl::register_event(client_t _client, service_t _service, 
 
                 VSOMEIP_WARNING << "Using debounce configuration for SOME/IP event " << hex4(_service) << "." << hex4(_instance) << "."
                                 << hex4(_notifier) << ". Debounce parameters: " << its_debounce_parameters.str();
+                if (is_passthrough_filter(*its_debounce)) {
+                    VSOMEIP_INFO << "Debounce configuration has no on_change/interval trigger: forwarding every update";
+                }
 
-                _epsilon_change_func = [its_debounce](const std::shared_ptr<payload>& _old, const std::shared_ptr<payload>& _new) {
-                    bool is_changed(false), is_elapsed(false);
-
-                    // Check whether we should forward because of changed data
-                    if (its_debounce->on_change_) {
-                        length_t its_min_length, its_max_length;
-
-                        if (_old->get_length() < _new->get_length()) {
-                            its_min_length = _old->get_length();
-                            its_max_length = _new->get_length();
-                        } else {
-                            its_min_length = _new->get_length();
-                            its_max_length = _old->get_length();
-                        }
-
-                        // Check whether all additional bytes (if any) are excluded
-                        for (length_t i = its_min_length; i < its_max_length; i++) {
-                            auto j = its_debounce->ignore_.find(i);
-                            // A change is detected when an additional byte is not
-                            // excluded at all or if its exclusion does not cover all
-                            // bits
-                            if (j == its_debounce->ignore_.end() || j->second != 0xFF) {
-                                is_changed = true;
-                                break;
-                            }
-                        }
-
-                        if (!is_changed) {
-                            const byte_t* its_old = _old->get_data();
-                            const byte_t* its_new = _new->get_data();
-                            for (length_t i = 0; i < its_min_length; i++) {
-                                auto j = its_debounce->ignore_.find(i);
-                                if (j == its_debounce->ignore_.end()) {
-                                    if (its_old[i] != its_new[i]) {
-                                        is_changed = true;
-                                        break;
-                                    }
-                                } else if (j->second != 0xFF) {
-                                    if ((its_old[i] & ~(j->second)) != (its_new[i] & ~(j->second))) {
-                                        is_changed = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (its_debounce->interval_ > -1) {
-                        // Check whether we should forward because of the elapsed time since
-                        // we did last time
-                        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-                        std::chrono::steady_clock::time_point last = its_debounce->last_forwarded_.load();
-                        int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count();
-                        is_elapsed = (last == std::chrono::steady_clock::time_point::max() || elapsed >= its_debounce->interval_);
-                        if (is_elapsed || (is_changed && its_debounce->on_change_resets_interval_)) {
-                            its_debounce->last_forwarded_.store(now);
-                        }
-                    }
-                    return (is_changed || is_elapsed);
-                };
+                _epsilon_change_func = make_debounce_func(its_debounce);
 
             } else {
                 if (_is_shadow) {

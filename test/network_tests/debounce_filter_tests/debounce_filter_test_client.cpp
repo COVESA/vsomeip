@@ -93,8 +93,9 @@ void debounce_test_client::run() {
 }
 
 void debounce_test_client::wait() {
-    if (runner_.joinable())
+    if (runner_.joinable()) {
         runner_.join();
+    }
 }
 
 void debounce_test_client::on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
@@ -132,8 +133,9 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
     s << "\t- Message: " << std::dec << std::setw(2) << count;
 
     if (count == 1) {
-        // Start the warm-up window on the first received event.
-        warmup_end = now + std::chrono::milliseconds(WARMUP_INTERVALS * interval);
+        // Start the warm-up window on the first received event. Without an interval there is
+        // no debounced backlog to settle, so measure right away.
+        warmup_end = now + std::chrono::milliseconds(interval > 0 ? WARMUP_INTERVALS * interval : 0);
         time_last = now;
     } else if (now < warmup_end) {
         // Still warming up: advance the baseline but don't measure, so an
@@ -164,15 +166,10 @@ void debounce_test_client::run_test() {
     its_message->set_payload(its_payload);
     app_->send(its_message);
 
-    if (interval > 0) {
-        // wait until we have collected enough steady-state samples
-        const auto deadline = std::chrono::steady_clock::now() + common::scaled_timeout(std::chrono::seconds(15));
-        while (nb_measured.load() < MEASURE_INTERVALS && std::chrono::steady_clock::now() < deadline) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-    } else {
-        // wait.. a while, to see that nothing appears
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // wait until we have collected enough steady-state samples
+    const auto deadline = std::chrono::steady_clock::now() + common::scaled_timeout(std::chrono::seconds(15));
+    while (nb_measured.load() < MEASURE_INTERVALS && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
@@ -231,15 +228,18 @@ TEST(debounce_test, large_interval) {
     EXPECT_LE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_2 + its_tolerance);
 }
 
-TEST(debounce_test, disable) {
-    debounce_test_client its_client(DEBOUNCE_INTERVAL_3);
+TEST(debounce_test, no_trigger_forwards_every_event) {
+    debounce_test_client its_client(DEBOUNCE_INTERVAL_NONE);
     ASSERT_TRUE(its_client.init());
     VSOMEIP_INFO << "Debounce Client successfully initialized!";
     its_client.start();
     its_client.wait();
 
-    // With a debounce interval disabled (-1), the client is expected to not receive any message
-    EXPECT_EQ(its_client.getNbMsgsRcvd(), 0);
+    // A filter with neither on_change nor an interval has no trigger and must not block anything:
+    // the client receives the raw stream (the service notifies every 5 ms), which is far below
+    // the smallest debounce interval exercised above.
+    EXPECT_GE(its_client.getNbMsgsRcvd(), MEASURE_INTERVALS);
+    EXPECT_LT(its_client.get_avgtime().count(), DEBOUNCE_INTERVAL_1);
 }
 
 int main(int argc, char** argv) {

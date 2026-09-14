@@ -1,6 +1,6 @@
 # Debounce_filter_test
 
-This test assures that the filter passed to the application is respected and the messages respect the set debounce time.
+This test assures that the filter passed to the application is respected: the messages respect the set debounce time, and a filter without any trigger forwards everything.
 
 There is 1 service being offered through all 3 tests with different debounce times.
 
@@ -28,8 +28,8 @@ Set debounce interval to 100ms.
 
 Set debounce interval to 1 second.
 
-#### 3rd Test Case - disable
+#### 3rd Test Case - no_trigger_forwards_every_event
 
-Set debounce interval to -1 (do not receive any messages).
+Set neither `on_change` nor an interval (interval -1). Such a filter has no trigger and must not debounce: every notification is received at the service's original rate.
 
 ![Diagram](docs/debounce_filter_test_client.png)

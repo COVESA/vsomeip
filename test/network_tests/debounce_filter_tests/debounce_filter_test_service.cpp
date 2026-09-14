@@ -54,8 +54,9 @@ void debounce_test_service::run() {
 }
 
 void debounce_test_service::wait() {
-    if (runner_.joinable())
+    if (runner_.joinable()) {
         runner_.join();
+    }
 }
 
 void debounce_test_service::on_start(const std::shared_ptr<vsomeip::message>&) {
@@ -103,7 +104,7 @@ TEST(debounce_test, large_interval) {
     its_service.wait();
 }
 
-TEST(debounce_test, disable) {
+TEST(debounce_test, no_trigger_forwards_every_event) {
     debounce_test_service its_service;
     ASSERT_TRUE(its_service.init());
     its_service.start();
