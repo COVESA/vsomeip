@@ -66,6 +66,10 @@ void routing_client_state_machine::target_running() {
     return true;
 }
 
+client_t routing_client_state_machine::client() const {
+    return client_;
+}
+
 void routing_client_state_machine::deregistered() {
     change_state(routing_client_state_e::ST_DEREGISTERED);
     if (client_ != VSOMEIP_CLIENT_UNSET) {

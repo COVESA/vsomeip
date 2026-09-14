@@ -40,7 +40,10 @@ std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
  * application registration with the routing manager.
  *
  * **Thread Safety:**
- * Not thread safe. Any usage has to be synchronized externally.
+ * Not thread safe: state_ and client_ are plain members with no internal locking of their
+ * own. Every method here must be called with routing_manager_client::mutex_ held - that
+ * external lock is the only thing making this safe today. A new call site added without it
+ * is a silent, hard-to-spot data race, not a compile error.
  *
  * **State Transitions:**
  * The state machine enforces strict state transition rules. Attempts to
@@ -78,6 +81,9 @@ public:
     /**
      * @brief Get the current state.
      *
+     * Must be called with routing_manager_client::mutex_ held - see the class-level
+     * Thread Safety note. state_ has no locking of its own.
+     *
      * @return Current registration state
      */
     routing_client_state_e state() const;
@@ -113,11 +119,24 @@ public:
      *
      * Valid transition: ST_REGISTERING -> ST_REGISTERED
      *
-     * @param client_ assigned client-id, used for logging
+     * @param client_ assigned client-id, also retained and readable via client()
      * @return true if transition succeeded, false if:
      *         - Current state is not ST_REGISTERING
      */
     [[nodiscard]] bool registered(client_t _client);
+
+    /**
+     * @brief The client-id this registration was established with.
+     *
+     * Must be called with routing_manager_client::mutex_ held - see the class-level
+     * Thread Safety note. client_ has no locking of its own; only registered() writes it,
+     * and it does so under that same lock. A caller holding mutex_ that observes
+     * ST_REGISTERED therefore reads exactly the id the routing manager bound the current
+     * connection to, and it cannot change before that lock is released.
+     *
+     * @return the assigned client-id, or VSOMEIP_CLIENT_UNSET before the first registration
+     */
+    [[nodiscard]] client_t client() const;
 
     /**
      * @brief Mark deregistration as complete.
@@ -144,7 +163,8 @@ private:
     /// Current registration state
     routing_client_state_e state_{routing_client_state_e::ST_DEREGISTERED};
 
-    /// Client-id for logging
+    /// Client-id the current registration was established with, exposed by client().
+    /// Load-bearing: routing_manager_client stamps outgoing commands from it.
     client_t client_ = VSOMEIP_CLIENT_UNSET;
 
     /// Former Client-id for logging
