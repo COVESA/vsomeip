@@ -57,7 +57,6 @@
 
 #define VSOMEIP_UNICAST_ADDRESS                 "127.0.0.1"
 #define VSOMEIP_NETMASK                         "255.255.255.0"
-#define VSOMEIP_PREFIX                          24
 
 #define VSOMEIP_DEFAULT_CONNECT_TIMEOUT         100
 #define VSOMEIP_MAX_CONNECT_TIMEOUT             1600

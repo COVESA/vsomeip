@@ -132,7 +132,6 @@ private:
     std::map<service_t, endpoint_type> default_targets_;
 
     boost::asio::ip::address netmask_;
-    uint16_t prefix_{0};
 
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
     boost::asio::steady_timer tp_cleanup_timer_;

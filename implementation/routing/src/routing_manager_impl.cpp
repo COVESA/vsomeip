@@ -184,16 +184,13 @@ void routing_manager_impl::start() {
         VSOMEIP_ERROR << "Illegal multicast address \"" << configuration_->get_sd_multicast() << "\". Please check your configuration.";
     }
 
-    std::stringstream its_netmask_or_prefix;
+    std::stringstream its_netmask;
     auto its_unicast = configuration_->get_unicast_address();
     if (its_unicast.is_v4()) {
-        its_netmask_or_prefix << "netmask:" << configuration_->get_netmask().to_string();
-    } else {
-        its_netmask_or_prefix << "prefix:" << configuration_->get_prefix();
+        its_netmask << ", netmask:" << configuration_->get_netmask().to_string();
     }
 
-    VSOMEIP_INFO << "Client [" << hex4(VSOMEIP_ROUTING_CLIENT) << "] routes unicast:" << its_unicast.to_string() << ", "
-                 << its_netmask_or_prefix.str();
+    VSOMEIP_INFO << "Client [" << hex4(VSOMEIP_ROUTING_CLIENT) << "] routes unicast:" << its_unicast.to_string() << its_netmask.str();
 
     netlink_connector_ =
             abstract_socket_factory::get()->create_netlink_connector(host_->get_io(), configuration_->get_unicast_address(), its_multicast);

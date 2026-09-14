@@ -35,11 +35,14 @@ namespace ip = boost::asio::ip;
 
 namespace vsomeip_v3 {
 
+// Prefix length used to decide whether an IPv6 peer belongs to the local subnet.
+constexpr unsigned short IPV6_SUBNET_PREFIX_LENGTH = 24;
+
 udp_server_endpoint_impl::udp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                                                    const std::shared_ptr<boardnet_routing_host>& _routing_host,
                                                    boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration) :
     server_endpoint_impl<ip::udp>(_boardnet_endpoint_host, _routing_host, _io, _configuration), lifecycle_idx_(0),
-    multicast_lifecycle_idx_(0), netmask_(_configuration->get_netmask()), prefix_(_configuration->get_prefix()),
+    multicast_lifecycle_idx_(0), netmask_(_configuration->get_netmask()),
     tp_reassembler_(std::make_shared<tp::tp_reassembler>(_configuration->get_max_message_size_unreliable(), _io)), tp_cleanup_timer_(_io) {
     is_supporting_someip_tp_ = true;
     max_message_size_ = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
@@ -756,7 +759,7 @@ bool udp_server_endpoint_impl::is_same_subnet_unlocked(const boost::asio::ip::ad
         boost::asio::ip::address_v4_range its_hosts = its_network.hosts();
         is_same = (its_hosts.find(_address.to_v4()) != its_hosts.end());
     } else {
-        boost::asio::ip::network_v6 its_network(local_.address().to_v6(), prefix_);
+        boost::asio::ip::network_v6 its_network(local_.address().to_v6(), IPV6_SUBNET_PREFIX_LENGTH);
         boost::asio::ip::address_v6_range its_hosts = its_network.hosts();
         is_same = (its_hosts.find(_address.to_v6()) != its_hosts.end());
     }
