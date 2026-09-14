@@ -277,6 +277,11 @@ bool eventgroupinfo::update_remote_subscription(const std::shared_ptr<remote_sub
                             its_item.second->set_answers(its_item.second->get_answers() + 1);
                             _subscription->set_parent(its_item.second);
                             _subscription->set_answers(0);
+                            // The still-pending parent will emit the initial events; this merged child
+                            // must not repeat them, unless a StopSubscribe/Subscribe explicitly forces it.
+                            if (!_subscription->force_initial_events()) {
+                                _subscription->set_initial(false);
+                            }
                         }
                     }
                 } else {

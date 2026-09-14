@@ -3329,46 +3329,10 @@ void service_discovery_impl::send_subscription_ack(const std::shared_ptr<remote_
 
     uint32_t its_max_answers(1); // Must be 1 as "_acknowledgement" not
                                  // necessarily contains subscriptions
-    bool do_not_answer(false);
-    std::shared_ptr<remote_subscription> its_parent;
 
     // Find highest number of necessary answers
     for (const auto& its_subscription : _acknowledgement->get_subscriptions()) {
-        auto its_answers = its_subscription->get_answers();
-        if (its_answers > its_max_answers) {
-            its_max_answers = its_answers;
-        } else if (its_answers == 0) {
-            do_not_answer = true;
-            its_parent = its_subscription->get_parent();
-        }
-    }
-
-    if (do_not_answer) {
-        if (its_parent) {
-            // Snapshot the parent ack under pending_remote_subscriptions_mutex_, then
-            // release that lock before calling get_subscriptions() on it.
-            // Holding pending_remote_subscriptions_mutex_ while acquiring another
-            // ack's mutex_ (inside get_subscriptions) would invert the lock order
-            // relative to update_acknowledgement, which holds ack->mutex_ first and
-            // then acquires pending_remote_subscriptions_mutex_.
-            std::shared_ptr<remote_subscription_ack> its_parent_ack;
-            {
-                std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
-                auto it = pending_remote_subscriptions_.find(its_parent);
-                if (it != pending_remote_subscriptions_.end()) {
-                    its_parent_ack = it->second;
-                }
-            }
-            if (its_parent_ack) {
-                std::scoped_lock its_parent_lock(its_parent_ack->get_mutex());
-                for (const auto& its_subscription : its_parent_ack->get_subscriptions()) {
-                    if (its_subscription != its_parent) {
-                        its_subscription->set_answers(its_subscription->get_answers() + 1);
-                    }
-                }
-            }
-        }
-        return;
+        its_max_answers = std::max(its_max_answers, its_subscription->get_answers());
     }
 
     // send messages
