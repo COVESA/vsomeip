@@ -31,6 +31,7 @@ add_custom_test(
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_one_test_master_starter.sh
         UDP subscribe_notify_one_test_diff_client_ids_diff_ports_master_udp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -38,6 +39,7 @@ add_custom_test(
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_one_test_master_starter.sh
         TCP subscribe_notify_one_test_diff_client_ids_diff_ports_master_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -45,4 +47,5 @@ add_custom_test(
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_one_test_master_starter.sh
         TCP_AND_UDP subscribe_notify_one_test_diff_client_ids_diff_ports_master.json
     SLAVES 1
+    PROCESSES 6
 )

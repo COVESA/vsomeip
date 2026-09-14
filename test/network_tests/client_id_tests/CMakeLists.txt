@@ -54,18 +54,21 @@ add_custom_test(
     NAME client_id_test_diff_client_ids_diff_ports
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/client_id_test_master_starter.sh client_id_test_diff_client_ids_diff_ports_master.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
     NAME client_id_test_diff_client_ids_same_ports
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/client_id_test_master_starter.sh client_id_test_diff_client_ids_same_ports_master.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
     NAME client_id_test_diff_client_ids_partial_same_ports
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/client_id_test_master_starter.sh client_id_test_diff_client_ids_partial_same_ports_master.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(

@@ -38,4 +38,5 @@ add_custom_test(
     NAME start_stop_start_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/start_stop_start_test_manager
     SLAVES 1
+    PROCESSES 3
 )

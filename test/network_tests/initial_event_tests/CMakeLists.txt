@@ -78,6 +78,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master_udp.json
         UDP
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -86,6 +87,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master_tcp.json
         TCP
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -94,6 +96,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master.json
         TCP_AND_UDP
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -102,6 +105,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_same_ports_master_udp.json
         UDP
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -110,6 +114,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_same_ports_master_tcp.json
         TCP
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -118,6 +123,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_same_ports_master.json
         TCP_AND_UDP
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -126,6 +132,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_partial_same_ports_master.json
         TCP_AND_UDP
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -134,6 +141,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
         TCP_AND_UDP SAME_SERVICE_ID
     SLAVES 1
+    PROCESSES 6
 )
 
 # Initial Events Tests - Multiple Events
@@ -144,6 +152,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master_udp.json
         UDP MULTIPLE_EVENTS
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -152,6 +161,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master_tcp.json
         TCP MULTIPLE_EVENTS
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -160,6 +170,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master.json
         TCP_AND_UDP MULTIPLE_EVENTS
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -168,6 +179,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_same_ports_master_udp.json
         UDP MULTIPLE_EVENTS
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -176,6 +188,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_same_ports_master_tcp.json
         TCP MULTIPLE_EVENTS
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -184,6 +197,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_same_ports_master.json
         TCP_AND_UDP MULTIPLE_EVENTS
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -192,6 +206,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_partial_same_ports_master.json
         TCP_AND_UDP MULTIPLE_EVENTS
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -200,6 +215,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
         TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS
     SLAVES 1
+    PROCESSES 6
 )
 
 # Initial Events Tests - Multiple Events, Subscribe On Availability
@@ -210,6 +226,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master_udp.json
         UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -218,6 +235,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master_tcp.json
         TCP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -226,6 +244,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master.json
         TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -234,6 +253,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_same_ports_master_udp.json
         UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -242,6 +262,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_same_ports_master_tcp.json
         TCP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -250,6 +271,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_same_ports_master.json
         TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -258,6 +280,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_partial_same_ports_master.json
         TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -266,6 +289,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
         TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
     SLAVES 1
+    PROCESSES 6
 )
 
 # Initial Events Tests - Multiple Events, Subscribe Only One
@@ -276,6 +300,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master_udp.json
         UDP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -284,6 +309,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master_tcp.json
         TCP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -292,6 +318,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master.json
         TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE
     SLAVES 1
+    PROCESSES 6
 )
 
 # Initial Events Tests - Subscribe Twice
@@ -302,6 +329,7 @@ add_custom_test(
         initial_event_test_diff_client_ids_diff_ports_master_udp.json
         UDP CLIENT_SUBSCRIBES_TWICE
     SLAVES 1
+    PROCESSES 6
 )
 
 # Boardnet initial event
@@ -309,4 +337,5 @@ add_custom_test(
     NAME initial_event_boardnet_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_boardnet_test_manager
     SLAVES 1
+    PROCESSES 3
 )

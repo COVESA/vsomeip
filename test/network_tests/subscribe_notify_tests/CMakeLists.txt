@@ -93,6 +93,7 @@ add_custom_test(
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_master_udp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -101,6 +102,7 @@ add_custom_test(
         TCP
         subscribe_notify_test_diff_client_ids_diff_ports_master_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -109,6 +111,7 @@ add_custom_test(
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_diff_ports_master.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -117,6 +120,7 @@ add_custom_test(
         UDP
         subscribe_notify_test_diff_client_ids_same_ports_master_udp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -125,6 +129,7 @@ add_custom_test(
         TCP
         subscribe_notify_test_diff_client_ids_same_ports_master_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -133,6 +138,7 @@ add_custom_test(
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_same_ports_master.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -141,6 +147,7 @@ add_custom_test(
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_partial_same_ports_master.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -150,6 +157,7 @@ add_custom_test(
         subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_master_udp.json
         SAME_SERVICE_ID
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -158,6 +166,7 @@ add_custom_test(
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_master.json
     SLAVES 1
+    PROCESSES 6
 )
 
 # Subscribe Notify Tests - Local Communication over TCP
@@ -168,6 +177,7 @@ add_custom_test(
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_master_udp_local_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -176,6 +186,7 @@ add_custom_test(
         TCP
         subscribe_notify_test_diff_client_ids_diff_ports_master_tcp_local_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -184,6 +195,7 @@ add_custom_test(
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_diff_ports_master_local_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -192,6 +204,7 @@ add_custom_test(
         UDP
         subscribe_notify_test_diff_client_ids_same_ports_master_udp_local_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -200,6 +213,7 @@ add_custom_test(
         TCP
         subscribe_notify_test_diff_client_ids_same_ports_master_tcp_local_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -208,6 +222,7 @@ add_custom_test(
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_same_ports_master_local_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -216,6 +231,7 @@ add_custom_test(
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_partial_same_ports_master_local_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -225,6 +241,7 @@ add_custom_test(
         subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_master_udp_local_tcp.json
         SAME_SERVICE_ID
     SLAVES 1
+    PROCESSES 6
 )
 
 add_custom_test(
@@ -233,6 +250,7 @@ add_custom_test(
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_master_local_tcp.json
     SLAVES 1
+    PROCESSES 6
 )
 
 # Subscribe Notify Tests - One Event Two Eventgroups
