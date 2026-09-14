@@ -424,15 +424,14 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
                 escalate_internal(lock);
                 return;
             }
-            // A mismatch is not necessarily an attack: over UDS we may simply be connecting late to a
-            // client id that has meanwhile been re-used by a different process. Either way the peer
-            // is not the one we were told about, so the connection must not be used.
-            if (expected_sec_client_
-                && (expected_sec_client_->user != peer_data_.sec_client_.user
-                    || expected_sec_client_->group != peer_data_.sec_client_.group)) {
+            // Only the uid is comparable across both local transports: a local TCP connection
+            // carries no gid. A uid mismatch is not necessarily an attack. We may simply be
+            // connecting late to a client id that has meanwhile been re-used by a different
+            // process. Either way the peer is not the one we were told about, so the connection
+            // must not be used.
+            if (expected_sec_client_ && expected_sec_client_->user != peer_data_.sec_client_.user) {
                 VSOMEIP_WARNING_P << "vSomeIP Security: local connection to client 0x" << hex4(peer_data_.id_)
-                                  << " has uid/gid=" << peer_data_.sec_client_.user << "/" << peer_data_.sec_client_.group
-                                  << " instead of the reported " << expected_sec_client_->user << "/" << expected_sec_client_->group
+                                  << " has uid=" << peer_data_.sec_client_.user << " instead of the reported " << expected_sec_client_->user
                                   << " (client id re-used?)";
                 escalate_internal(lock);
                 return;

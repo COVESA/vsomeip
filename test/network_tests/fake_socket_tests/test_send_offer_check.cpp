@@ -10,6 +10,9 @@
 
 #include "internal.hpp"
 
+#include "../../../implementation/runtime/include/application_impl.hpp"
+#include "../../../implementation/security/include/security.hpp"
+
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
 
@@ -54,6 +57,40 @@ security_credentials unknown_peer() {
 /// this entry would re-authorize the very peer the deny case must reject.
 security_credentials own_credentials() {
     return {getuid(), getgid(), {}, {service_instance_}};
+}
+
+/// Local TCP routing with uds_preferred, i.e. the offerer registers over UDS but is also reachable
+/// over TCP -- the transport a guest has to use for it.
+ecu_config hybrid_config() {
+    ecu_config its_config;
+    its_config.apps_ = {{routingmanager_name_, routingmanager_id_}, {server_name_, server_id_}};
+    its_config.routing_config_ = local_tcp_config{.router_name_ = routingmanager_name_,
+                                                  .host_ = boost::asio::ip::make_address("127.0.0.1"),
+                                                  .guest_ = boost::asio::ip::make_address("127.0.0.1")};
+    its_config.sd_ = false;
+    its_config.uds_preferred_ = true;
+    return its_config;
+}
+
+constexpr uid_t offerer_uid_{14202};
+constexpr uid_t impersonator_uid_{5002};
+/// A gid the security library could not resolve, as seen in the field for local TCP peers.
+constexpr gid_t unresolved_gid_{static_cast<gid_t>(-1)};
+
+/// What the routing manager reads off the offerer's UDS routing connection and reports for it in
+/// ROUTING_INFO.
+constexpr vsomeip_sec_client_t offerer_uds_identity{
+        .user = offerer_uid_, .group = offerer_uid_, .host = 0, .port = VSOMEIP_SEC_PORT_UNUSED};
+
+/// Mimics the deployed security library, which resolves a local TCP peer's uid out of band -- the
+/// connection itself carries no credentials -- and leaves the gid unset.
+void resolve_peer_uid_as(app& _app, uid_t _uid) {
+    auto its_app = std::dynamic_pointer_cast<application_impl>(_app.get_application());
+    ASSERT_NE(its_app, nullptr);
+    its_app->get_security()->sync_client = [_uid](vsomeip_sec_client_t* _client) {
+        _client->user = _uid;
+        _client->group = unresolved_gid_;
+    };
 }
 
 /// UDS routing with security in enforcing mode. Local TCP would not do: check_credentials() passes
@@ -165,5 +202,63 @@ TEST_F(send_offer_check_fixture, request_is_routed_via_the_host_when_the_offerer
     EXPECT_TRUE(server_->message_record_.wait_for(request_checker_)) << "request did not reach the offerer";
     EXPECT_EQ(0u, socket_manager_->count_established_connections(client_name_, server_name_))
             << "consumer connected directly to a peer whose identity it could not verify";
+}
+
+struct guest_offer_check_fixture : public base_fake_socket_fixture {
+    /// _resolved_uid is what the consumer's security library reports for the offerer when it
+    /// connects to it over local TCP.
+    void start_ecu(uid_t _resolved_uid) {
+        ecu_.add_guest({client_name_, client_id_});
+        ecu_.prepare();
+        ecu_.start_router();
+        ASSERT_NE(ecu_.router_, nullptr);
+
+        socket_manager_->set_peer_identity(server_name_, offerer_uds_identity);
+
+        server_ = ecu_.start_one(server_name_);
+        ASSERT_NE(server_, nullptr);
+        ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        server_->offer(service_instance_);
+        server_->answer_request(request_, [] { return std::vector<unsigned char>{0x02, 0x03}; });
+
+        client_ = ecu_.start_one(client_name_);
+        ASSERT_NE(client_, nullptr);
+        ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        resolve_peer_uid_as(*client_, _resolved_uid);
+        client_->request_service(service_instance_);
+        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    }
+
+    request request_{service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
+    message_checker const request_checker_{std::nullopt, service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, std::nullopt};
+
+    app* client_{};
+    app* server_{};
+
+    ecu_setup ecu_{"guest_offer_check", hybrid_config(), *socket_manager_};
+};
+
+// A guest consumer reaches the offerer over local TCP, where only the uid gets resolved. Comparing
+// the gid too rejects every such connection and leaves the consumer looping connect -> reject ->
+// cleanup -> reconnect, so the request never arrives.
+TEST_F(guest_offer_check_fixture, request_reaches_the_offerer_when_only_its_uid_can_be_resolved) {
+    start_ecu(offerer_uid_);
+
+    client_->send_request(request_);
+
+    EXPECT_TRUE(server_->message_record_.wait_for(request_checker_)) << "request did not reach the offerer";
+    EXPECT_NE(0u, socket_manager_->count_established_connections(client_name_, server_name_))
+            << "consumer did not connect directly to the offerer";
+}
+
+// The uid remains verified over local TCP: a peer resolving to a different uid than the one
+// reported for it must not be used.
+TEST_F(guest_offer_check_fixture, request_is_skipped_when_the_resolved_uid_does_not_match_the_reported_one) {
+    start_ecu(impersonator_uid_);
+
+    client_->send_request(request_);
+
+    EXPECT_FALSE(server_->message_record_.wait_for(request_checker_, std::chrono::milliseconds(500)))
+            << "request reached a peer whose uid did not match the one reported for it";
 }
 }
