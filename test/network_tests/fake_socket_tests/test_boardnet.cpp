@@ -1187,16 +1187,25 @@ TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_str_) {
     ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
 
     server->offer(multi_field_service_);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // Offer inside the graceful stop-offer window must not propagate on its own.
+    ASSERT_FALSE(client->availability_record_.wait_for_count(service_availability::available(multi_field_service_.instance_), 2,
+                                                             std::chrono::milliseconds(100)))
+            << "Offer must not propagate during graceful stop-offer window.";
+
     router_one->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
     router_one->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
 
-    client->availability_record_.clear();
     // Debounced offer are immediately propagated after a STR, so the offer must be received immediately.
     // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
-    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
-                                                           std::chrono::milliseconds(650)))
+    ASSERT_TRUE(client->availability_record_.wait_for_count(service_availability::available(multi_field_service_.instance_), 2,
+                                                            std::chrono::milliseconds(650)))
             << "Debounced offer must propagate immediately after a STR.";
+
+    // The offer/stop offer cycle inside the window must not have triggered any other availability change.
+    EXPECT_TRUE(client->availability_record_.equals({service_availability::available(multi_field_service_.instance_),
+                                                     service_availability::unavailable(multi_field_service_.instance_),
+                                                     service_availability::available(multi_field_service_.instance_)}))
+            << client->availability_record_;
 }
 
 TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_and_after_str) {
@@ -1215,16 +1224,18 @@ TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_and_after_str
     ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
 
     server->offer(multi_field_service_);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // Offer inside the graceful stop-offer window must not propagate on its own.
+    ASSERT_FALSE(client->availability_record_.wait_for_count(service_availability::available(multi_field_service_.instance_), 2,
+                                                             std::chrono::milliseconds(100)))
+            << "Offer must not propagate during graceful stop-offer window.";
+
     router_one->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
     router_one->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
 
-    client->availability_record_.clear();
-
     // Debounced offer are immediately propagated after a STR, so the offer must be received immediately.
     // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
-    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
-                                                           std::chrono::milliseconds(650)))
+    ASSERT_TRUE(client->availability_record_.wait_for_count(service_availability::available(multi_field_service_.instance_), 2,
+                                                            std::chrono::milliseconds(650)))
             << "Debounced offer must propagate immediately after a STR.";
 
     server->stop_offer(multi_field_service_.instance_);
@@ -1237,6 +1248,14 @@ TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_and_after_str
 
     ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
                                                            std::chrono::milliseconds(2500)));
+
+    // Both offer/stop offer cycles inside the window must not have triggered any other availability change.
+    EXPECT_TRUE(client->availability_record_.equals({service_availability::available(multi_field_service_.instance_),
+                                                     service_availability::unavailable(multi_field_service_.instance_),
+                                                     service_availability::available(multi_field_service_.instance_),
+                                                     service_availability::unavailable(multi_field_service_.instance_),
+                                                     service_availability::available(multi_field_service_.instance_)}))
+            << client->availability_record_;
 }
 
 struct tcp_notifications : public base_fake_socket_fixture {
