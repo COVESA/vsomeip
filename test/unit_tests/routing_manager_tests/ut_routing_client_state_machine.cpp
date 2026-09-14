@@ -13,6 +13,10 @@ using namespace vsomeip_v3;
 class routing_client_state_machine_test : public ::testing::Test {
 protected:
     std::shared_ptr<routing_client_state_machine> create_state_machine() { return std::make_shared<routing_client_state_machine>(); }
+
+    static constexpr client_t assigned_client_{0x6363};
+    static constexpr client_t reassigned_client_{0x6364};
+    static constexpr client_t foreign_client_{0xcafe};
 };
 
 // ============================================================================
@@ -35,8 +39,47 @@ TEST_F(routing_client_state_machine_test, happy_path_full_registration) {
     EXPECT_EQ(routing_client_state_e::ST_REGISTERING, sm->state());
 
     // ST_REGISTERING -> ST_REGISTERED
-    EXPECT_TRUE(sm->registered(0x1234));
+    EXPECT_TRUE(sm->registered(assigned_client_));
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
+}
+
+// ============================================================================
+// Registered client-id (NTWALL-1304)
+// ============================================================================
+
+TEST_F(routing_client_state_machine_test, client_is_unset_before_the_first_registration) {
+    auto sm = create_state_machine();
+    EXPECT_EQ(VSOMEIP_CLIENT_UNSET, sm->client());
+
+    sm->target_running();
+    ASSERT_TRUE(sm->start_registration());
+    EXPECT_EQ(VSOMEIP_CLIENT_UNSET, sm->client()) << "no id is assigned until the registration completes";
+}
+
+TEST_F(routing_client_state_machine_test, client_reports_the_registered_id) {
+    auto sm = create_state_machine();
+    sm->target_running();
+    ASSERT_TRUE(sm->start_registration());
+
+    ASSERT_TRUE(sm->registered(assigned_client_));
+    EXPECT_EQ(assigned_client_, sm->client());
+}
+
+TEST_F(routing_client_state_machine_test, client_is_only_changed_by_a_completed_registration) {
+    auto sm = create_state_machine();
+    sm->target_running();
+    ASSERT_TRUE(sm->start_registration());
+    ASSERT_TRUE(sm->registered(assigned_client_));
+
+    EXPECT_FALSE(sm->registered(foreign_client_)) << "already registered, transition is refused";
+    EXPECT_EQ(assigned_client_, sm->client()) << "a refused transition leaves the registered id alone";
+
+    sm->deregistered();
+    EXPECT_EQ(VSOMEIP_CLIENT_UNSET, sm->client());
+
+    ASSERT_TRUE(sm->start_registration());
+    ASSERT_TRUE(sm->registered(reassigned_client_));
+    EXPECT_EQ(reassigned_client_, sm->client());
 }
 
 TEST_F(routing_client_state_machine_test, deregistered_from_any_state) {
@@ -54,7 +97,7 @@ TEST_F(routing_client_state_machine_test, deregistered_from_any_state) {
 
     // From ST_REGISTERED
     ASSERT_TRUE(sm->start_registration());
-    ASSERT_TRUE(sm->registered(0x1234));
+    ASSERT_TRUE(sm->registered(assigned_client_));
     sm->deregistered();
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
 }
@@ -65,7 +108,7 @@ TEST_F(routing_client_state_machine_test, graceful_deregistration_flow) {
 
     // Get to registered state
     ASSERT_TRUE(sm->start_registration());
-    ASSERT_TRUE(sm->registered(0x1234));
+    ASSERT_TRUE(sm->registered(assigned_client_));
 
     // ST_REGISTERED -> ST_DEREGISTERED
     sm->deregistered();
@@ -96,7 +139,7 @@ TEST_F(routing_client_state_machine_test, cannot_start_connecting_from_non_dereg
     EXPECT_EQ(routing_client_state_e::ST_REGISTERING, sm->state());
 
     // Get to ST_REGISTERED
-    ASSERT_TRUE(sm->registered(0x1234));
+    ASSERT_TRUE(sm->registered(assigned_client_));
     EXPECT_FALSE(sm->start_registration());
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
 }
@@ -106,15 +149,15 @@ TEST_F(routing_client_state_machine_test, cannot_mark_assigned_from_non_assignin
     sm->target_running();
 
     // From ST_DEREGISTERED
-    EXPECT_FALSE(sm->registered(0x1234));
+    EXPECT_FALSE(sm->registered(assigned_client_));
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
 
     // Get to ST_REGISTERED
     ASSERT_TRUE(sm->start_registration());
-    ASSERT_TRUE(sm->registered(0x1234));
+    ASSERT_TRUE(sm->registered(assigned_client_));
 
     // From ST_REGISTERED
-    EXPECT_FALSE(sm->registered(0x1234));
+    EXPECT_FALSE(sm->registered(assigned_client_));
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
 }
 
@@ -123,15 +166,15 @@ TEST_F(routing_client_state_machine_test, cannot_mark_registered_from_non_regist
     sm->target_running();
 
     // From ST_DEREGISTERED
-    EXPECT_FALSE(sm->registered(0x1234));
+    EXPECT_FALSE(sm->registered(assigned_client_));
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
 
     // Get to ST_REGISTERED
     ASSERT_TRUE(sm->start_registration());
-    ASSERT_TRUE(sm->registered(0x1234));
+    ASSERT_TRUE(sm->registered(assigned_client_));
 
     // From ST_REGISTERED
-    EXPECT_FALSE(sm->registered(0x1234));
+    EXPECT_FALSE(sm->registered(assigned_client_));
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
 }
 
@@ -145,7 +188,7 @@ TEST_F(routing_client_state_machine_test, can_reregister_after_deregistration) {
 
     // First registration
     ASSERT_TRUE(sm->start_registration());
-    ASSERT_TRUE(sm->registered(0x1234));
+    ASSERT_TRUE(sm->registered(assigned_client_));
 
     // Deregister
     sm->deregistered();
@@ -153,7 +196,7 @@ TEST_F(routing_client_state_machine_test, can_reregister_after_deregistration) {
 
     // Second registration
     EXPECT_TRUE(sm->start_registration());
-    EXPECT_TRUE(sm->registered(0x1234));
+    EXPECT_TRUE(sm->registered(assigned_client_));
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
 }
 
@@ -182,7 +225,7 @@ TEST_F(routing_client_state_machine_test, can_restart_after_shutdown) {
     sm->target_shutdown();
 
     // Cannot proceed while shut down
-    ASSERT_TRUE(sm->registered(0x1234));
+    ASSERT_TRUE(sm->registered(assigned_client_));
     ASSERT_FALSE(sm->start_registration());
 
     // Deregister and restart
@@ -202,7 +245,7 @@ TEST_F(routing_client_state_machine_test, rapid_state_transitions) {
 
     // Rapid transitions without delays
     EXPECT_TRUE(sm->start_registration());
-    EXPECT_TRUE(sm->registered(0x1234));
+    EXPECT_TRUE(sm->registered(assigned_client_));
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
 }
 
@@ -220,7 +263,7 @@ TEST_F(routing_client_state_machine_test, multiple_state_machine_instances) {
     EXPECT_EQ(routing_client_state_e::ST_REGISTERING, sm1->state());
     EXPECT_EQ(routing_client_state_e::ST_REGISTERING, sm2->state());
 
-    EXPECT_TRUE(sm1->registered(0x1234));
+    EXPECT_TRUE(sm1->registered(assigned_client_));
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm1->state());
     EXPECT_EQ(routing_client_state_e::ST_REGISTERING, sm2->state());
 }

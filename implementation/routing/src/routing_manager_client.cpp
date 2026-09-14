@@ -295,8 +295,9 @@ bool routing_manager_client::offer_service(client_t _client, service_t _service,
     protocol::service_data offer_data{.key_ = {.service_ = _service, .instance_ = _instance, .major_ = _major}, .minor_version_ = _minor};
     offered_services_.insert(offer_data);
     if (state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
+        client_t const its_client = state_machine_->client();
         if (sender_) {
-            if (!sender_->send(protocol::create_offer_service_cmd(get_client(), _service, _instance, _major, _minor))) {
+            if (!sender_->send(protocol::create_offer_service_cmd(its_client, _service, _instance, _major, _minor))) {
                 VSOMEIP_ERROR_P << "Failed to send OFFER_SERVICE for service " << offer_data;
             }
         } else {
@@ -323,8 +324,9 @@ void routing_manager_client::stop_offer_service(client_t _client, service_t _ser
     offered_services_.remove(offer_data);
     std::scoped_lock inner_lock(mutex_);
     if (state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
+        client_t const its_client = state_machine_->client();
         if (sender_) {
-            if (!sender_->send(protocol::create_stop_offer_service_cmd(get_client(), _service, _instance, _major, _minor))) {
+            if (!sender_->send(protocol::create_stop_offer_service_cmd(its_client, _service, _instance, _major, _minor))) {
                 VSOMEIP_ERROR_P << "Failed to send STOP_OFFER_SERVICE for service " << offer_data;
             }
         } else {
@@ -371,6 +373,9 @@ void routing_manager_client::request_service([[maybe_unused]] client_t _client, 
 }
 
 void routing_manager_client::release_service(client_t _client, service_t _service, instance_t _instance) {
+
+    (void)_client;
+
     bool already_requested(false);
     {
         std::scoped_lock its_service_guard(consumer_mutex_);
@@ -411,9 +416,10 @@ void routing_manager_client::release_service(client_t _client, service_t _servic
     }
     std::scoped_lock inner_lock(mutex_);
     if (already_requested && state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
+        client_t const its_client = state_machine_->client();
         if (sender_) {
-            if (!sender_->send(protocol::create_release_service_cmd(_client, _service, _instance, ANY_MAJOR))) {
-                VSOMEIP_ERROR_P << "Failed to send RELEASE_SERVICE for client 0x" << hex4(_client) << " and service [" << hex4(_service)
+            if (!sender_->send(protocol::create_release_service_cmd(its_client, _service, _instance, ANY_MAJOR))) {
+                VSOMEIP_ERROR_P << "Failed to send RELEASE_SERVICE for client 0x" << hex4(its_client) << " and service [" << hex4(_service)
                                 << "." << hex4(_instance) << "]";
             }
         } else {
@@ -481,9 +487,10 @@ void routing_manager_client::register_event(client_t _client, service_t _service
     }
     std::scoped_lock lock{mutex_};
     if (state_machine_->state() == routing_client_state_e::ST_REGISTERED && new_registration) {
-        if (send_event_registrations(get_client(), std::span{&reg_event_data, 1}, lock)) {
+        client_t const its_client = state_machine_->client();
+        if (send_event_registrations(its_client, std::span{&reg_event_data, 1}, lock)) {
             if (_is_provided) {
-                VSOMEIP_INFO << "REGISTER EVENT(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
+                VSOMEIP_INFO << "REGISTER EVENT(" << hex4(its_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
                              << hex4(_notifier) << ":is_provider=" << std::boolalpha << _is_provided << "]";
             }
         } else {
@@ -520,8 +527,9 @@ void routing_manager_client::unregister_event(client_t _client, service_t _servi
         }
     }
     if (std::scoped_lock lock{mutex_}; state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
+        client_t const its_client = state_machine_->client();
         if (sender_) {
-            if (!sender_->send(protocol::create_unregister_event_cmd(get_client(), _service, _instance, _notifier, _is_provided))) {
+            if (!sender_->send(protocol::create_unregister_event_cmd(its_client, _service, _instance, _notifier, _is_provided))) {
                 VSOMEIP_ERROR_P << "Failed to send UNREGISTER_EVENT for event [" << hex4(_service) << "." << hex4(_instance) << "."
                                 << hex4(_notifier) << ":is_provider=" << std::boolalpha << _is_provided << "]";
             }
@@ -751,9 +759,10 @@ void routing_manager_client::unsubscribe(client_t _client, service_t _service, i
         auto its_target = find_consumer_ep(its_target_client);
         std::scoped_lock lock{mutex_};
         if (state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
+            client_t const its_client = state_machine_->client();
 
             auto cmd = protocol::create_unsubscribe_cmd(
-                    _client,
+                    its_client,
                     protocol::subscribe_data{.service_key_ = {.service_ = _service, .instance_ = _instance, .major_ = ANY_MAJOR},
                                              .eventgroup_ = _eventgroup,
                                              .event_ = _event,
