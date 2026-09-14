@@ -158,8 +158,8 @@ TEST_F(test_debounce_helper, debounce_default) {
 
     start_apps();
 
-    // default `filter`, so.. essentially the same as a normal subscribe
-    // no "on-change", no interval, nothing
+    // default `filter`: no "on-change", no interval, nothing. Such a filter has no trigger, so it
+    // does not debounce at all and behaves like a normal subscribe.
     debounce_filter_t filter;
 
     ASSERT_TRUE(subscribe_to_event(filter));
@@ -169,10 +169,7 @@ TEST_F(test_debounce_helper, debounce_default) {
     server_->send_event(offered_event_, {0x00});
     server_->send_event(offered_event_, {0x01, 0x01});
     server_->send_event(offered_event_, {0x02});
-    // currently receive nothing
-    // TODO: FIXME!
-    ASSERT_FALSE(client_->wait_for_messages({{0x00}, {0x00}, {0x01, 0x01}, {0x02}}, std::chrono::milliseconds(10)));
-    ASSERT_TRUE(client_->wait_for_messages({}));
+    ASSERT_TRUE(client_->wait_for_messages({{0x00}, {0x00}, {0x01, 0x01}, {0x02}})) << client_->message_record_;
 }
 
 TEST_F(test_debounce_helper, debounce_interval) {

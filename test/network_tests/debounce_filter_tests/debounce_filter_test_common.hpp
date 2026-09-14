@@ -18,4 +18,4 @@ const vsomeip::minor_version_t DEBOUNCE_MINOR = 0x01;
 
 const int64_t DEBOUNCE_INTERVAL_1 = 50;
 const int64_t DEBOUNCE_INTERVAL_2 = 300;
-const int64_t DEBOUNCE_INTERVAL_3 = -1;
+const int64_t DEBOUNCE_INTERVAL_NONE = -1;

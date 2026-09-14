@@ -693,6 +693,30 @@ TEST_F(provider_event_filters, filter_uses_injected_clock_not_wall_clock) {
     EXPECT_EQ(ev->update(make_payload({3}), false).second, std::set<client_t>{client1_}); // advancing fake clock forwards
 }
 
+TEST_F(provider_event_filters, filter_without_trigger_forwards_every_update) {
+    // on_change=false with no interval is the debounce_filter_t default. It has no forwarding
+    // trigger, so it means "no debouncing" (the way an application overrides a platform debounce),
+    // not "block everything".
+    auto ev = make_event(event_type_e::ET_EVENT, {group1_});
+    ev->add_subscriber(group1_, client1_, make_filter(false));
+
+    EXPECT_EQ(ev->update(make_payload({1}), false).second, std::set<client_t>{client1_});
+    EXPECT_EQ(ev->update(make_payload({1}), false).second, std::set<client_t>{client1_}); // unchanged, clock not advanced
+    EXPECT_EQ(ev->update(make_payload({2}), false).second, std::set<client_t>{client1_});
+}
+
+TEST_F(provider_event_filters, filter_without_trigger_overrides_default_epsilon) {
+    // The trigger-less per-client filter wins over a suppressing event-wide epsilon, so that client
+    // gets the raw stream while unfiltered subscribers stay debounced.
+    auto epsilon = [](std::shared_ptr<payload> const&, std::shared_ptr<payload> const&) { return false; };
+    auto ev = make_event(event_type_e::ET_EVENT, {group1_}, 0ms, true, false, epsilon);
+    ev->add_subscriber(group1_, client1_, make_filter(false));
+    ev->add_subscriber(group1_, client2_, nullptr);
+
+    EXPECT_EQ(ev->update(make_payload({1}), false).second, std::set<client_t>{client1_});
+    EXPECT_EQ(ev->update(make_payload({1}), false).second, std::set<client_t>{client1_});
+}
+
 // ---------------------------------------------------------------------------
 // cyclic timer (+ change_resets_cycle) and rmc poke
 // ---------------------------------------------------------------------------

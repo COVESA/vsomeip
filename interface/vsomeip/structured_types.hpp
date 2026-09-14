@@ -16,7 +16,9 @@ namespace vsomeip_v3 {
 // because of a changed value may reset the time until the next unchanged
 // message is forwarded or not (on_change_resets_interval). By specifiying
 // indexes and bit masks, the comparison that is carried out to decide whether
-// or not two message values differ is configurable (ignore).
+// or not two message values differ is configurable (ignore). A filter with
+// on_change false and an interval of zero or less (the default state) has no
+// trigger and does not debounce at all.
 struct debounce_filter_t {
     debounce_filter_t() : on_change_(false), on_change_resets_interval_(false), interval_(-1), send_current_value_after_(false) { }
 

@@ -113,6 +113,9 @@ void provider_event::add_subscriber(eventgroup_t _group, client_t _client, const
         }
         filter_parameters << "], send_current_value_after_=" << std::boolalpha << _filter->send_current_value_after_ << ")";
         VSOMEIP_INFO_P << "filter parameters: " << filter_parameters.str();
+        if (is_passthrough_filter(*_filter)) {
+            VSOMEIP_INFO_P << "filter has no on_change/interval trigger: forwarding every update";
+        }
 
         if (_filter->send_current_value_after_) {
             VSOMEIP_WARNING_P << "filter uses unsupported parameter `send_current_value_after_`";
