@@ -117,10 +117,7 @@ function gen-core-backtraces
 			-ex 'echo \n[Cached Traces]\n' \
 			-batch "${prog%.*}" "$core" | tee "$outputs_folder/backtrace.${prefix}${prog##*/}"
 		destination="$outputs_folder/core.${prefix}${prog##*/}"
-		if [[ "$core" != "$destination" ]]
-		then
-			cp -v "$core" "$destination"
-		fi
+		mv -v "$core" "$destination"
 	done
 	shopt -u nullglob
 }
