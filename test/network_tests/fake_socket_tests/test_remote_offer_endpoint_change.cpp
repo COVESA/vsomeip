@@ -11,6 +11,7 @@
 #include "helpers/message_checker.hpp"
 #include "helpers/service_state.hpp"
 #include "helpers/someip_gate.hpp"
+#include "common/timeout_scale.hpp"
 
 #include "internal.hpp"
 #include "../../../implementation/message/include/serializer.hpp"
@@ -180,7 +181,7 @@ struct remote_offer_endpoint_change : public base_fake_socket_fixture {
     }
 
     // Wait until the client sends a request
-    [[nodiscard]] bool wait_for_client_request(std::chrono::milliseconds _timeout = std::chrono::seconds(2)) {
+    [[nodiscard]] bool wait_for_client_request(std::chrono::milliseconds _timeout = common::scaled_timeout(std::chrono::seconds(2))) {
         return client_request_gate_
                 && client_request_gate_->sd_record_.wait_for_any({sd::entry_type_e::FIND_SERVICE, vsomeip::DEFAULT_TTL}, _timeout);
     }
