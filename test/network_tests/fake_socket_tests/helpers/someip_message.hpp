@@ -31,6 +31,10 @@ struct someip_sd_record_message {
     bool operator==(const someip_sd_record_message& _other) const { return id_ == _other.id_ && ttl_ == _other.ttl_; }
 };
 
+inline std::ostream& operator<<(std::ostream& _out, someip_sd_record_message const& _m) {
+    return _out << "{" << to_string(_m.id_, _m.ttl_) << " ttl=" << std::dec << _m.ttl_ << "}";
+}
+
 /// Lightweight struct capturing the header fields of a SOME/IP message for recording.
 /// Used with attribute_recorder to allow tests to assert on boardnet SOME/IP traffic.
 struct someip_record_message {
@@ -74,6 +78,11 @@ inline std::ostream& operator<<(std::ostream& _out, someip_record_message const&
 [[nodiscard]] size_t parse_sequential_someip(unsigned char* _message, size_t _message_size, someip_message& _out_message);
 [[nodiscard]] std::shared_ptr<vsomeip_v3::sd::message_impl> parse_sd(std::vector<unsigned char>& _message);
 std::vector<unsigned char> construct_subscription(event_ids const& _subscription, boost::asio::ip::address _address, uint16_t _port);
+
+/// Builds a single SD message carrying one SubscribeEventgroup entry per element, as a peer
+/// does when it batches several subscriptions into the same message.
+std::vector<unsigned char> construct_subscription(std::vector<event_ids> const& _subscriptions, boost::asio::ip::address _address,
+                                                  uint16_t _port);
 std::vector<unsigned char> construct_offer(event_ids const& _offer, boost::asio::ip::address _address, uint16_t _port);
 
 std::ostream& operator<<(std::ostream& _out, someip_message const& _m);

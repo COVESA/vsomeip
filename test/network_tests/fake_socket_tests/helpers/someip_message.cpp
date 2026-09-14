@@ -98,23 +98,28 @@ namespace vsomeip_v3::testing {
 }
 
 std::vector<unsigned char> construct_subscription(event_ids const& _subscription, boost::asio::ip::address _address, uint16_t _port) {
-    std::shared_ptr<vsomeip_v3::sd::entry_impl> entry_;
-    std::vector<std::shared_ptr<vsomeip_v3::sd::option_impl>> options_;
-    auto its_entry = std::make_shared<vsomeip_v3::sd::eventgroupentry_impl>();
-    its_entry->set_type(vsomeip_v3::sd::entry_type_e::SUBSCRIBE_EVENTGROUP);
-    its_entry->set_service(_subscription.si_.service_);
-    its_entry->set_instance(_subscription.si_.instance_);
-    its_entry->set_eventgroup(_subscription.eventgroup_id_);
-    its_entry->set_counter(0);
-    its_entry->set_major_version(0);
-    its_entry->set_ttl(0x03);
-    entry_ = its_entry;
+    return construct_subscription(std::vector<event_ids>{_subscription}, _address, _port);
+}
 
-    auto its_option = std::make_shared<vsomeip_v3::sd::ipv4_option_impl>(_address, _port, false);
-    options_.push_back(its_option);
-
+std::vector<unsigned char> construct_subscription(std::vector<event_ids> const& _subscriptions, boost::asio::ip::address _address,
+                                                  uint16_t _port) {
     auto its_current_message = std::make_shared<vsomeip_v3::sd::message_impl>();
-    its_current_message->add_entry_data(entry_, options_);
+
+    for (auto const& its_subscription : _subscriptions) {
+        auto its_entry = std::make_shared<vsomeip_v3::sd::eventgroupentry_impl>();
+        its_entry->set_type(vsomeip_v3::sd::entry_type_e::SUBSCRIBE_EVENTGROUP);
+        its_entry->set_service(its_subscription.si_.service_);
+        its_entry->set_instance(its_subscription.si_.instance_);
+        its_entry->set_eventgroup(its_subscription.eventgroup_id_);
+        its_entry->set_counter(0);
+        its_entry->set_major_version(its_subscription.si_.major_);
+        its_entry->set_ttl(0x03);
+
+        std::vector<std::shared_ptr<vsomeip_v3::sd::option_impl>> options_{
+                std::make_shared<vsomeip_v3::sd::ipv4_option_impl>(_address, _port, false)};
+
+        its_current_message->add_entry_data(std::static_pointer_cast<vsomeip_v3::sd::entry_impl>(its_entry), options_);
+    }
 
     vsomeip_v3::serializer serializer{VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD};
     serializer.serialize(its_current_message.get());

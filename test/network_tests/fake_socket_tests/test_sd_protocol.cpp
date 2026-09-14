@@ -5,8 +5,11 @@
 
 #include "sample_configurations.hpp"
 
+#include "../../../implementation/service_discovery/include/eventgroupentry_impl.hpp"
+
 #include "helpers/app.hpp"
 #include "helpers/base_fake_socket_fixture.hpp"
+#include "helpers/command_gate.hpp"
 #include "helpers/ecu_setup.hpp"
 #include "helpers/message_checker.hpp"
 #include "helpers/someip_gate.hpp"
@@ -613,5 +616,116 @@ TEST_F(test_sd_acceptance, expire_remote_subscription) {
     ASSERT_FALSE(router_one->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_event_),
                                                                common::scaled_timeout(std::chrono::milliseconds(500))));
     ASSERT_TRUE(ecu_two_sd_send_gate_->sd_record_.wait_for_any({sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 0}));
+}
+
+struct duplicate_remote_subscribe : public base_fake_socket_fixture {
+    std::vector<event_spec> const fields_{{0x8020, {0x3}, vsomeip::reliability_type_e::RT_UNRELIABLE},
+                                          {0x8021, {0x4}, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    interface iface_{0x3349, {}, fields_};
+
+    ecu_config ecu_one_cfg_{boardnet::ecu_one_config};
+    ecu_setup ecu_one_{"ecu_one", ecu_one_cfg_.add_interface({iface_}), *socket_manager_};
+
+    event_ids pending_field_{iface_.instance_, iface_.fields_[0]};
+    event_ids fresh_field_{iface_.instance_, iface_.fields_[1]};
+
+    std::vector<unsigned char> const field_payload_{0x42, 0x13};
+
+    void prepare_offering_ecu() {
+        ecu_one_.add_app(ecu_one_server_name_);
+        ecu_one_.prepare();
+
+        ASSERT_TRUE(
+                set_udp_data_pipe({ecu_one_.sd_endpoint(), router_one_name_}, udp_party::any(), ecu_one_sd_send_gate_->get_data_pipe()));
+        ASSERT_TRUE(
+                setup_data_pipe(ecu_one_server_name_, ecu_one_.router_name_, socket_role::server, subscribe_ack_gate_->get_data_pipe()));
+
+        ecu_one_.start_apps();
+
+        ecu_one_.apps_[ecu_one_server_name_]->offer(iface_);
+        // The eventgroups only exist once the offer has been processed; subscribing earlier is NACKed.
+        ASSERT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_any({sd::entry_type_e::OFFER_SERVICE, 3}))
+                << "service was never offered, recorded: " << ecu_one_sd_send_gate_->sd_record_.to_string();
+        ASSERT_TRUE(set_udp_data_pipe({ecu_one_.sd_endpoint(), router_one_name_}, udp_party::any(), sd_send_pipe_));
+
+        ASSERT_TRUE(set_udp_data_pipe({boost::asio::ip::udp::endpoint{ecu_one_.address(), 30501}, router_one_name_}, udp_party::any(),
+                                      initial_notify_pipe_));
+
+        ecu_one_.apps_[ecu_one_server_name_]->send_event(pending_field_, field_payload_);
+        ecu_one_.apps_[ecu_one_server_name_]->send_event(fresh_field_, field_payload_);
+    }
+
+    void subscribe_from_peer(std::vector<event_ids> const& _events) {
+        send_someip_sd_message(construct_subscription(_events, subscriber_endpoint().address(), subscriber_endpoint().port()),
+                               remote_sd_endpoint(), ecu_one_.sd_endpoint());
+    }
+
+    /// Eventgroups ecu_one acknowledged on the wire.
+    attribute_recorder<vsomeip::eventgroup_t> acked_eventgroups_;
+    attribute_recorder<vsomeip::event_t> initial_notifications_;
+
+    std::shared_ptr<data_pipe> sd_send_pipe_ =
+            std::make_shared<data_pipe>(static_cast<data_pipe::external_message_checker_t>([this](someip_message const& _message) {
+                if (_message.sd_) {
+                    for (auto const& its_entry : _message.sd_->get_entries()) {
+                        if (its_entry->get_type() == sd::entry_type_e::SUBSCRIBE_EVENTGROUP_ACK && its_entry->get_ttl() > 0) {
+                            acked_eventgroups_.record(std::static_pointer_cast<sd::eventgroupentry_impl>(its_entry)->get_eventgroup());
+                        }
+                    }
+                }
+                return data_pipe_state::OPEN;
+            }));
+
+    std::shared_ptr<data_pipe> initial_notify_pipe_ =
+            std::make_shared<data_pipe>(static_cast<data_pipe::external_message_checker_t>([this](someip_message const& _message) {
+                if (_message.msg_ && _message.msg_->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
+                    initial_notifications_.record(_message.msg_->get_method());
+                }
+                return data_pipe_state::OPEN;
+            }));
+
+    /// Records the SD entries ecu_one puts on the wire.
+    std::shared_ptr<someip_gate> ecu_one_sd_send_gate_ = someip_gate::create();
+    /// Withholds the offering app's answer to the remote subscriptions.
+    std::shared_ptr<command_gate> subscribe_ack_gate_ = command_gate::create();
+
+    /// Unicast endpoint the injected subscriptions come from.
+    boost::asio::ip::udp::endpoint subscriber_endpoint() { return {boardnet::ecu_two_config.unicast_ip_, 30501}; }
+    boost::asio::ip::udp::endpoint remote_sd_endpoint() { return {boardnet::ecu_two_config.unicast_ip_, 30490}; }
+};
+
+TEST_F(duplicate_remote_subscribe, duplicate_entry_does_not_suppress_the_acknowledgement_of_its_neighbours) {
+    // A peer may repeat a SubscribeEventgroup it has not been answered yet, batched in the same SD
+    // message as a subscription the offering side has never seen. The repeated entry carries no new
+    // client and is merged into the still pending subscription. That must neither cost the message's
+    // other entry its SubscribeEventgroupAck, nor make the offering side re-send the merged field's
+    // initial event (the still-pending parent already accounts for it).
+    prepare_offering_ecu();
+
+    // Hold the app's answers, so the repeated entry is processed while the first one is pending.
+    subscribe_ack_gate_->block_at(protocol::id_e::SUBSCRIBE_ACK_ID);
+
+    subscribe_from_peer({pending_field_});
+    ASSERT_TRUE(subscribe_ack_gate_->wait_for_blocked()) << "offering app never answered the first remote subscription";
+
+    clear_command_record(ecu_one_server_name_, ecu_one_.router_name_);
+    subscribe_from_peer({pending_field_, fresh_field_});
+    ASSERT_TRUE(wait_for_command(ecu_one_server_name_, ecu_one_.router_name_, protocol::id_e::SUBSCRIBE_ID, socket_role::client))
+            << "the fresh subscription never reached the offering app";
+
+    subscribe_ack_gate_->block(false);
+
+    EXPECT_TRUE(acked_eventgroups_.wait_for_any(fresh_field_.eventgroup_id_))
+            << "eventgroup " << std::hex << fresh_field_.eventgroup_id_
+            << " was never acknowledged, acknowledged: " << acked_eventgroups_.to_string();
+
+    // Each field's initial value must reach the subscriber exactly once ...
+    ASSERT_TRUE(initial_notifications_.wait_for_count(fresh_field_.event_id_, 1))
+            << "fresh field initial value was never delivered, seen: " << initial_notifications_.to_string();
+    ASSERT_TRUE(initial_notifications_.wait_for_count(pending_field_.event_id_, 1))
+            << "pending field initial value was never delivered, seen: " << initial_notifications_.to_string();
+    // ... and the merged duplicate must not produce a second one for the repeated field.
+    EXPECT_FALSE(initial_notifications_.wait_for_count(pending_field_.event_id_, 2, common::scaled_timeout(std::chrono::milliseconds(500))))
+            << "the merged duplicate re-sent the initial event, seen: " << initial_notifications_.to_string();
 }
 }
