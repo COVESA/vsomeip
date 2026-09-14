@@ -310,12 +310,8 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
                                               minor_version_t _minor) {
     std::scoped_lock its_lock{mutex_};
 
-    bool is_local(false);
-    {
-        std::shared_ptr<serviceinfo> its_info = find_service(_service, _instance, _major);
-        is_local = (its_info && its_info->is_local());
-    }
-    if (is_local) {
+    std::shared_ptr<serviceinfo> its_info = find_service(_service, _instance, _major);
+    if (its_info && its_info->is_local()) {
         {
             std::scoped_lock its_lock(pending_sd_offers_mutex_);
             for (auto it = pending_sd_offers_.begin(); it != pending_sd_offers_.end();) {
@@ -333,12 +329,12 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
         on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor, true);
         VSOMEIP_INFO << "STOP OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "."
                      << _minor << "] (" << std::boolalpha << true << ")";
-    } else {
-        VSOMEIP_WARNING_P << "Received STOP_OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
-                          << int(_major) << "." << _minor << "] for remote service --> ignore";
-    }
 
-    remove_pending_requests(pending_request_removal_type_e::OFFERING_ONLY, _client, _service, _instance);
+        remove_pending_requests(pending_request_removal_type_e::OFFERING_ONLY, _client, _service, _instance);
+    } else {
+        VSOMEIP_ERROR_P << "Client " << get_client_info(_client) << " tried to stop-offer " << (its_info ? "remote" : "non-existent")
+                        << " service [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "." << _minor << "]";
+    }
 }
 
 void routing_manager_impl::request_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
@@ -4704,7 +4700,6 @@ void routing_manager_impl::offer_remote_service(service_t _service, instance_t _
         } else {
             std::scoped_lock its_lock_inner(pending_sd_offers_mutex_);
             pending_sd_offers_.emplace(_service, _instance);
-            VSOMEIP_INFO << "Added service 0x" << hex4(_service) << " to pending_sd_offers[" << pending_sd_offers_.size() << "]";
         }
     }
 
