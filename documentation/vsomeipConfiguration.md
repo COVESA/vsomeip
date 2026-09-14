@@ -280,7 +280,7 @@ The following example assumes that different machines (i.e., with different IP a
 
     Setting the mask to `0xFE00` doubles client ID range to 511 clients as the Hamming weight of the inverted mask is greater by one. With a diagnosis address of 0x45 the start value of client IDs is 0x4401 as bit 8 in 0x4500 is masked out. This then yields a client ID range of 0x4400 to 0x45ff.
 - **unicast** (optional) - The IP address of the host system.
-- **netmask** (optional) - The netmask to specify the subnet of the host system.
+- **netmask** (optional) - The netmask to specify the subnet of the host system. The default value is `255.255.255.0`. It determines which remote addresses are considered part of the local subnet.
 - **device** (optional) - If specified, IP endpoints will be bound to this device.
 
 <details><summary>Example of Network configuration!</summary>

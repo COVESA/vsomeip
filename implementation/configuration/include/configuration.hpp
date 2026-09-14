@@ -83,7 +83,6 @@ public:
 
     virtual const boost::asio::ip::address& get_unicast_address() const = 0;
     virtual const boost::asio::ip::address& get_netmask() const = 0;
-    virtual unsigned short get_prefix() const = 0;
     virtual const std::string& get_device() const = 0;
     virtual diagnosis_t get_diagnosis_address() const = 0;
     virtual diagnosis_t get_diagnosis_mask() const = 0;

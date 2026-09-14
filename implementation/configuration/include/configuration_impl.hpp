@@ -91,7 +91,6 @@ public:
 
     const boost::asio::ip::address& get_unicast_address() const;
     const boost::asio::ip::address& get_netmask() const;
-    unsigned short get_prefix() const;
     const std::string& get_device() const;
     unsigned short get_diagnosis_address() const;
     uint16_t get_diagnosis_mask() const;
@@ -433,7 +432,6 @@ protected:
     // Configuration data
     boost::asio::ip::address unicast_;
     boost::asio::ip::address netmask_;
-    unsigned short prefix_;
     std::string device_;
     diagnosis_t diagnosis_;
     diagnosis_t diagnosis_mask_;

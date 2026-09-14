@@ -48,8 +48,8 @@ namespace vsomeip_v3 {
 namespace cfg {
 
 configuration_impl::configuration_impl(const std::string& _path) :
-    default_unicast_{"local"}, is_loaded_{false}, is_logging_loaded_{false}, prefix_{VSOMEIP_PREFIX}, diagnosis_{VSOMEIP_DIAGNOSIS_ADDRESS},
-    diagnosis_mask_{0xFF00}, has_console_log_{true}, has_file_log_{false}, has_dlt_log_{false}, logfile_{"/tmp/vsomeip.log"},
+    default_unicast_{"local"}, is_loaded_{false}, is_logging_loaded_{false}, diagnosis_{VSOMEIP_DIAGNOSIS_ADDRESS}, diagnosis_mask_{0xFF00},
+    has_console_log_{true}, has_file_log_{false}, has_dlt_log_{false}, logfile_{"/tmp/vsomeip.log"},
     loglevel_{vsomeip_v3::logger::level_e::LL_INFO}, is_suppress_events_enabled_{false}, is_sd_enabled_{VSOMEIP_SD_DEFAULT_ENABLED},
     sd_protocol_{VSOMEIP_SD_DEFAULT_PROTOCOL}, sd_multicast_{VSOMEIP_SD_DEFAULT_MULTICAST}, sd_port_{VSOMEIP_SD_DEFAULT_PORT},
     sd_initial_delay_min_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN}, sd_initial_delay_max_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX},
@@ -1585,27 +1585,9 @@ void configuration_impl::load_netmask(const configuration_element& _element) {
         auto its_value = _element.tree_.get_optional<std::string>("netmask");
         if (its_value) {
             if (is_configured_[ET_NETMASK]) {
-                VSOMEIP_WARNING << "Multiple definitions for netmask/prefix. Ignoring netmask definition from " << _element.name_;
+                VSOMEIP_WARNING << "Multiple definitions for netmask. Ignoring definition from " << _element.name_;
             } else {
                 netmask_ = boost::asio::ip::make_address(*its_value);
-                is_configured_[ET_NETMASK] = true;
-            }
-        }
-
-        its_value = _element.tree_.get_optional<std::string>("prefix");
-        if (its_value) {
-            if (is_configured_[ET_NETMASK]) {
-                VSOMEIP_WARNING << "Multiple definitions for prefix/netmask. Ignoring prefix definition from " << _element.name_;
-            } else {
-                std::stringstream its_converter;
-                its_converter << *its_value;
-                its_converter >> std::dec >> prefix_;
-
-                // Convert to netmask as this is used for IPv4.
-                uint32_t its_netmask = (std::numeric_limits<uint32_t>::max() << (std::numeric_limits<uint32_t>::digits - prefix_))
-                        & std::numeric_limits<uint32_t>::max();
-                netmask_ = boost::asio::ip::address_v4(its_netmask);
-
                 is_configured_[ET_NETMASK] = true;
             }
         }
@@ -2736,10 +2718,6 @@ const boost::asio::ip::address& configuration_impl::get_unicast_address() const 
 
 const boost::asio::ip::address& configuration_impl::get_netmask() const {
     return netmask_;
-}
-
-unsigned short configuration_impl::get_prefix() const {
-    return prefix_;
 }
 
 const std::string& configuration_impl::get_device() const {
