@@ -2307,4 +2307,74 @@ TEST_F(test_force_notify_dedup, force_send_event_one_with_no_change_for_event) {
     EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
             << "A did not receive its own notify_one-ed ev1 (plain event, force=false): " << a_->message_record_;
 }
+
+struct test_payload_set : public test_client_lifecycle {
+    void start_apps_gated() {
+        start_router();
+        ASSERT_TRUE(setup_data_pipe(server_name_, routingmanager_name_, socket_role::client, r2s_gate_->get_data_pipe()));
+        start_server();
+        start_client_app();
+    }
+
+    std::shared_ptr<command_gate> r2s_gate_ = command_gate::create();
+};
+
+/**
+ * A stop offer that is still in flight must not clear the payload of a field
+ * that the application has already re-offered.
+ *
+ * Sequence being reproduced:
+ *   1. the application stop-offers the service (e.g. a stub re-registration),
+ *   2. it immediately re-offers it and refills the field payload,
+ *   3. the DELETE_SERVICE_INSTANCE belonging to step 1 only now reaches the
+ *      application's own client library and runs on_stop_offer_service.
+ *
+ * If on_stop_offer_service iterates the *provided* events, is_set_ of the
+ * freshly refilled field is cleared and every later notification is answered
+ * with "Event payload not (yet) set!" / "Initial value ... not yet set",
+ * for the whole lifetime of the application.
+ */
+TEST_F(test_payload_set, stale_stop_offer_must_not_clear_reoffered_field_payload) {
+
+    start_apps_gated();
+
+    // This is required for the issue to happen, as the app receives the stop offer
+    // itself sent which would unset the payload
+    server_->request_service(service_instance_);
+
+    // Baseline: the field has a value and reaches the consumer.
+    send_field_message();
+    ASSERT_TRUE(subscribe_to_field());
+    ASSERT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
+    client_->message_record_.clear();
+
+    // Hold the next ROUTING_INFO on its way to the offering application.
+    r2s_gate_->block_at(vsomeip_v3::protocol::id_e::ROUTING_INFO_ID);
+
+    stop_offer();
+    ASSERT_TRUE(r2s_gate_->wait_for_blocked());
+
+    // Re-offer and refill the payload while the stop offer is still held back.
+    // These are local operations in the application's own client library, so
+    // they complete even though the router -> server direction is blocked.
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
+    server_->offer(service_instance_);
+    server_->send_event(offered_field_, field_payload_);
+
+    // Release the stale stop offer.
+    r2s_gate_->block(false);
+
+    // Wait until the stale stop offer has actually been processed by the
+    // offering application. The gate sits on the router -> server link, so the
+    // delete is delivered ahead of the add that follows it; the server seeing
+    // its own service available again proves the delete is already through.
+    ASSERT_TRUE(server_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    client_->message_record_.clear();
+
+    client_->subscribe_field(offered_field_);
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+
+    EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
+}
 }
