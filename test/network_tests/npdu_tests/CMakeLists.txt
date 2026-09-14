@@ -62,12 +62,14 @@ if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         NAME npdu_test_udp
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/npdu_test_starter.sh UDP sync
         SLAVES 1
+        PROCESSES 4
     )
 
     add_custom_test(
         NAME npdu_test_tcp
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/npdu_test_starter.sh TCP sync
         SLAVES 1
+        PROCESSES 4
     )
 
 endif()

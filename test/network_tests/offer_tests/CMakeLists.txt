@@ -84,6 +84,7 @@ targets_link_default_libraries("${executables}")
 add_custom_test(
     NAME offer_test_local
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_local_starter.sh
+    PROCESSES 5
 )
 
 add_custom_test(

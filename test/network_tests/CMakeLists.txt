@@ -105,13 +105,16 @@ endfunction()
 #   NAME my_test_name
 #   COMMAND ${CMAKE_CURRENT_BINARY_DIR}/my_test_starter.sh ARG1 ARG2...
 #   SLAVES 1 # Number of slave containers needed (0 = none, default 0)
+#   PROCESSES 6 # Test processes alive for most of the test, master and slave
+#               # side together. Default: 1 + SLAVES for a plain binary,
+#               # 2 + SLAVES for a starter script.
 #   SKIP_VALGRIND # Do not register this test when VALGRIND_TYPE is set.
 #   SKIP_SANITIZERS # Do not register this test in sanitizer builds.
 #   ENVIRONMENT VSOMEIP_CONFIGURATION=my_test_config.json # Optional.
 # )
 function(add_custom_test)
     set(options SKIP_VALGRIND SKIP_SANITIZERS)
-    set(oneValueArgs NAME TIMEOUT SLAVES)
+    set(oneValueArgs NAME TIMEOUT SLAVES PROCESSES)
     set(multiValueArgs COMMAND ENVIRONMENT)
     cmake_parse_arguments(MY_TEST
         "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN}
@@ -144,9 +147,22 @@ function(add_custom_test)
     )
 
     # Tell CTest that this test needs slave containers, if applicable.
-    if(DEFINED MY_TEST_SLAVES AND MY_TEST_SLAVES GREATER 0)
+    if(NOT DEFINED MY_TEST_SLAVES)
+        set(MY_TEST_SLAVES 0)
+    endif()
+    if(MY_TEST_SLAVES GREATER 0)
         set_tests_properties(${MY_TEST_NAME} PROPERTIES RESOURCE_GROUPS "${MY_TEST_SLAVES},slaves:1")
     endif()
+
+    if(NOT DEFINED MY_TEST_PROCESSES)
+        list(GET MY_TEST_COMMAND 0 MY_TEST_EXECUTABLE)
+        if(MY_TEST_EXECUTABLE MATCHES "\\.sh$")
+            math(EXPR MY_TEST_PROCESSES "2 + ${MY_TEST_SLAVES}")
+        else()
+            math(EXPR MY_TEST_PROCESSES "1 + ${MY_TEST_SLAVES}")
+        endif()
+    endif()
+    set_tests_properties(${MY_TEST_NAME} PROPERTIES PROCESSORS ${MY_TEST_PROCESSES})
 
     # Set a timeout for the test.
     # Under valgrind/sanitizers, processes run significantly slower; TEST_TIMEOUT_SCALE allows to scale the CTest timeout accordingly.

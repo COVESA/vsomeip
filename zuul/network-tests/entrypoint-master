@@ -74,8 +74,9 @@ gen-result-file "$tests_result_file" "/home/source/.tests-whitelist"
 # Enable pcap capture inside each test's network namespace.
 export PCAP_DIR=/home/logs/pcap
 
-PARALLEL_JOBS="$(nproc --all)"
-echo "Running tests with up to $PARALLEL_JOBS parallel jobs..."
+# One slot per core; each test declares its cores through the CTest PROCESSORS property.
+PARALLEL_JOBS="${TEST_PARALLEL_JOBS:-$(nproc --all)}"
+echo "Running tests with up to $PARALLEL_JOBS parallel slots (1 slot = 1 declared test process)..."
 
 # Build CTest resource spec file with one instance per slave, identified by IP
 resource_spec_file=/home/build/resource-specs.json

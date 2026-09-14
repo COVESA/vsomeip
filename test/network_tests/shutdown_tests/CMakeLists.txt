@@ -49,17 +49,21 @@ add_custom_test(
     NAME shutdown_test_client_send_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_starter.sh TCP CLIENT
     SLAVES 1
+    PROCESSES 3
 )
 add_custom_test(
     NAME shutdown_test_client_send_local_uds
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_starter.sh UDS CLIENT
+    PROCESSES 3
 )
 add_custom_test(
     NAME shutdown_test_service_send_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_starter.sh TCP SERVICE
     SLAVES 1
+    PROCESSES 3
 )
 add_custom_test(
     NAME shutdown_test_service_send_local_uds
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_starter.sh UDS SERVICE
+    PROCESSES 3
 )
