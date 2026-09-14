@@ -6,6 +6,7 @@
 #include <iomanip>
 
 #include "common/test_main.hpp"
+#include "common/timeout_scale.hpp"
 #include "multicast_group_test_globals.hpp"
 
 using namespace multicast_group_test;
@@ -86,7 +87,7 @@ TEST(MulticastGroupTest, ServiceOffersTheService) {
     service_application->notify(SERVICE_ID_MULTICAST, INSTANCE_ID, EVENT_ID_MULTICAST, payload);
 
     // Sleep before stopping application
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(common::scaled_timeout(std::chrono::milliseconds(100)));
 
     service_application->stop();
 
