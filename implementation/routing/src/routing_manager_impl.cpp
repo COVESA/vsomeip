@@ -98,22 +98,6 @@ boost::asio::io_context& routing_manager_impl::get_io() {
     return io_;
 }
 
-client_t routing_manager_impl::get_client() const {
-    return VSOMEIP_ROUTING_CLIENT;
-}
-
-vsomeip_sec_client_t routing_manager_impl::get_sec_client() const {
-    return host_->get_sec_client();
-}
-
-void routing_manager_impl::set_sec_client_port(port_t _port) {
-    host_->set_sec_client_port(_port);
-}
-
-std::string routing_manager_impl::get_client_host() const {
-    return env_;
-}
-
 std::string const& routing_manager_impl::get_name() const {
     return host_->get_name();
 }
@@ -159,7 +143,7 @@ void routing_manager_impl::lazy_load([[maybe_unused]] std::string_view _client_h
 
 void routing_manager_impl::init() {
 
-    stub_ = std::make_shared<routing_manager_stub>(this, configuration_);
+    stub_ = std::make_shared<routing_manager_stub>(this, configuration_, env_);
     stub_->init();
 
     if (configuration_->is_sd_enabled()) {
@@ -208,7 +192,7 @@ void routing_manager_impl::start() {
         its_netmask_or_prefix << "prefix:" << configuration_->get_prefix();
     }
 
-    VSOMEIP_INFO << "Client [" << hex4(get_client()) << "] routes unicast:" << its_unicast.to_string() << ", "
+    VSOMEIP_INFO << "Client [" << hex4(VSOMEIP_ROUTING_CLIENT) << "] routes unicast:" << its_unicast.to_string() << ", "
                  << its_netmask_or_prefix.str();
 
     netlink_connector_ =
@@ -630,9 +614,9 @@ bool routing_manager_impl::send_notification(client_t _client, std::shared_ptr<m
     bool is_sent(false);
     std::shared_ptr<serializer> its_serializer(get_serializer());
     if (its_serializer->serialize(_message.get())) {
-        auto const sec_client = get_sec_client();
+        auto const sec_client = host_->get_sec_client();
         is_sent = send(_client, its_serializer->get_data(), its_serializer->get_size(), _message->get_instance(), _message->is_reliable(),
-                       get_client(), &sec_client, 0, false, _force);
+                       VSOMEIP_ROUTING_CLIENT, &sec_client, 0, false, _force);
         its_serializer->reset();
         put_serializer(its_serializer);
     } else {
@@ -2762,7 +2746,7 @@ void routing_manager_impl::register_client_error_handler(client_t _client, const
 }
 
 void routing_manager_impl::cleanup_client(client_t _client) {
-    VSOMEIP_INFO_P << "self 0x" << hex4(get_client()) << " handles cleanup of client 0x" << hex4(_client);
+    VSOMEIP_INFO_P << "self 0x" << hex4(VSOMEIP_ROUTING_CLIENT) << " handles cleanup of client 0x" << hex4(_client);
 
     // Since the client could be offering services that need to be removed
     // Lock state and offer serialization. This is needed here to prevent
@@ -4743,9 +4727,9 @@ void routing_manager_impl::offer_remote_service(service_t _service, instance_t _
 std::shared_ptr<serializer> routing_manager_impl::get_serializer() {
     std::unique_lock its_lock(serializer_mutex_);
     while (serializers_.empty()) {
-        VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " has no available serializer. Waiting...";
+        VSOMEIP_INFO_P << "Client 0x" << hex4(VSOMEIP_ROUTING_CLIENT) << " has no available serializer. Waiting...";
         serializer_condition_.wait(its_lock, [this] { return !serializers_.empty(); });
-        VSOMEIP_INFO_P << ": Client 0x" << hex4(get_client()) << " now checking for available serializer.";
+        VSOMEIP_INFO_P << ": Client 0x" << hex4(VSOMEIP_ROUTING_CLIENT) << " now checking for available serializer.";
     }
 
     auto its_serializer = serializers_.front();

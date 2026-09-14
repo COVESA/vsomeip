@@ -72,7 +72,7 @@ public:
     void print_status() const;
 
     bool create_routing_root(std::shared_ptr<local_server>& _root, const transport_protocol_e& _type, bool& _is_socket_activated,
-                             const std::shared_ptr<routing_host>& _host);
+                             const std::shared_ptr<routing_host>& _host, const std::string& _env);
 
     instance_t find_instance(service_t _service, boardnet_endpoint* const _endpoint) const;
     instance_t find_instance_multicast(service_t _service, const boost::asio::ip::address& _sender) const;
@@ -129,12 +129,10 @@ private:
     // TCP routing root acceptor bound to the configured host address+port; used by guests.
     bool create_local_tcp_acceptor(std::shared_ptr<local_acceptor>& _tcp_acceptor) const;
     void setup_root_server(std::shared_ptr<local_server>& _root, std::shared_ptr<local_acceptor> _acceptor,
-                           const std::shared_ptr<routing_host>& _host);
+                           const std::shared_ptr<routing_host>& _host, const std::string& _env);
 
     bool is_used_endpoint(boardnet_endpoint* const _endpoint) const;
 
-    client_t get_client() const;
-    std::string get_client_host() const;
     /// @return true if _ep was installed as the live routing endpoint for _client, false if it was
     /// only queued as pending because an existing endpoint for _client is still being cleaned up.
     bool add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep);

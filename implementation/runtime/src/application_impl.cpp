@@ -1112,7 +1112,6 @@ uid_t application_impl::get_sec_client_uid() const {
 }
 
 void application_impl::set_sec_client_port(port_t _port) {
-
     sec_client_.port = htons(_port);
 }
 

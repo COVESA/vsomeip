@@ -70,10 +70,6 @@ public:
     ~routing_manager_impl();
 
     boost::asio::io_context& get_io();
-    client_t get_client() const;
-    vsomeip_sec_client_t get_sec_client() const;
-    void set_sec_client_port(port_t _port);
-    std::string get_client_host() const;
     std::string const& get_name() const;
 
     void init();

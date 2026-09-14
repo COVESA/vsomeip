@@ -31,7 +31,6 @@ public:
      */
     virtual void on_message(const byte_t* _data, length_t _length, const local_client_data& _peer_data) = 0;
 
-    virtual client_t get_client() const = 0;
     virtual void lazy_load(const std::string& _client_host) = 0;
 
     virtual std::shared_ptr<policy_manager_impl> get_policy_manager() const = 0;
