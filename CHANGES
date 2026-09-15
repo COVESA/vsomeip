@@ -1,6 +1,110 @@
 Changes
 =======
 
+v3.8.0
+
+- global
+  - Remove unused variables
+  - Collapse libvsomeip-cfg/sd/e2e into libvsomeip
+  - Remove unused defines
+  - Suppress a couple of useless logs
+  - Drop ENABLE_MULTIPLE_ROUTING_MANAGERS
+  - Drop signal handling
+  - Remove dead Selective Broadcasts support
+  - Improve statistics logs
+  - Drop unused/useless cmake vars
+  - Add fix for host flag
+  - Clarify behavior of notify/notify_one
+  - Keep force check for field_dedup check
+  - Fix -Wstringop-overflow false positive
+  - Fix gcc11 build
+  - Cleanup ifdef ANDROID, again
+  - Fix 0000.0000 service identity in event config warnings
+  - Refactor and optimize trace logger; make hex output faster
+
+- configuration
+  - Cleanup configuration_impl
+  - Cleanup used SD configuration
+  - Add log for used config
+  - Improve debouncing docs
+  - Nuke network prefix
+  - Modify debounce behavior
+
+- protocol
+  - Minor cleanup
+  - Add major version support to commands
+
+- application
+  - Set thread niceness as early as possible
+  - Revert thread niceness behaviour
+  - Report empty offered services response to the application
+
+- routing
+  - Fix TOC-TOU race
+  - Change assign_client_ack sequence
+  - Drop policy manager security mapping
+  - Prevent internal services from triggering boardnet features
+  - Refactor service expiration and remote subscription path
+  - Reorder state change
+  - Fix major version in provider_event
+  - Accept changed offer from same ECU
+  - Move provider endpoints into the rmc
+  - Forward event version in cached messages
+  - Refactor client ID validation and allocation logic
+  - Consume multiple major versions via the boardnet
+  - Fix the diag address to avoid client id connections
+  - Enforce security during request-send path
+  - Fix SD handlers data race
+  - Improve on_message errors
+  - Rework routing state
+  - Reduce allocations in routing and SD hot paths
+  - Address small issues in rmc
+  - Cleanup get_client* helpers
+  - Fix stale client id in unsubscribe and release_service
+  - Trace routing manager callbacks block
+  - Cleanup a couple of pointless logs
+  - Drop the gid from the local peer identity check
+  - Fill major version in rmc commands
+
+- endpoints
+  - Avoid timers and trains for non-configured services
+  - Remove multicast thread
+
+- service discovery
+  - Minor cleanup
+  - Report the offer round trip before aborting
+  - Add SD loopback KPI
+  - Cleanup option setters
+  - Acknowledge every entry of an SD message
+  - Cleanup subscription
+
+- tests
+  - Re-add scaled timeouts
+  - Add fake-socket test for colliding client ids across ECUs
+  - Prevent iterations affecting each other
+  - Fix fake socket lock inversion
+  - Add a couple of API tests
+  - Fix flaky callback fake_socket test
+  - Update posttest for pytest usage
+  - Add a reliability API test
+  - Increase offer_service_before_event test reliability
+  - Fix malicious_tests on debug build
+  - Replace climate_test with fake_sockets
+  - Fix regression tests for udp_client restart loop
+  - Fix application_test_single_process on debug build
+  - Fix subscribe_notify_tests on debug build
+  - Add new memory tests
+  - Optimize availability_handler_test
+  - Add regression test for duplicate offer during registration
+  - Refactor data_pipe assignment to udp fake sockets
+  - Fix offer before event registration in tests
+  - Add test for payload set behavior
+  - Fix test_boardnet_with_fake_sockets
+  - Allocate CPU slots for each test
+  - Fix multicast_group_test
+  - Fix test_remote_offer_endpoint_change
+  - Add SD subscription test
+
 v3.7.6
 
 - global
