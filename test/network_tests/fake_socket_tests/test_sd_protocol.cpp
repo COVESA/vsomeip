@@ -577,6 +577,48 @@ TEST_F(test_sd_acceptance, expire_offer) {
                                                                 common::scaled_timeout(std::chrono::milliseconds(500))));
 }
 
+TEST_F(test_field_resubscribe, multiple_clients_partial_unsubscribe) {
+    prepare_ecus_and_apps();
+
+    auto* client_one = ecu_one_.apps_[ecu_one_client_name_];
+    auto* client_two = ecu_one_.apps_[ecu_one_server_name_];
+    auto* server = ecu_two_.apps_[ecu_two_server_name_];
+
+    server->offer(iface_);
+    server->send_event(udp_field_, payload_);
+
+    client_one->request_service(iface_.instance_);
+    client_two->request_service(iface_.instance_);
+
+    client_one->subscribe_field({udp_field_});
+    client_two->subscribe_field({udp_field_});
+
+    message_checker checker{std::nullopt, iface_.instance_, udp_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, payload_};
+    ASSERT_TRUE(client_one->message_record_.wait_for(checker));
+    ASSERT_TRUE(client_two->message_record_.wait_for(checker));
+
+    ecu_one_sd_send_gate_->sd_record_.clear();
+    client_one->message_record_.clear();
+    client_two->message_record_.clear();
+
+    client_one->release_service(iface_.instance_);
+
+    EXPECT_FALSE(ecu_one_sd_send_gate_->sd_record_.wait_for_any({sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0},
+                                                                common::scaled_timeout(std::chrono::milliseconds(100))));
+
+    std::vector<unsigned char> const updated_payload{0x8, 0x9};
+    server->send_event(udp_field_, updated_payload);
+
+    message_checker updated_checker{std::nullopt, iface_.instance_, udp_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                                    updated_payload};
+    EXPECT_TRUE(client_two->message_record_.wait_for(updated_checker));
+    EXPECT_FALSE(client_one->message_record_.wait_for(updated_checker, common::scaled_timeout(std::chrono::milliseconds(100))));
+
+    client_two->release_service(iface_.instance_);
+
+    EXPECT_TRUE(ecu_one_sd_send_gate_->sd_record_.wait_for_any({sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP, 0}));
+}
+
 TEST_F(test_sd_acceptance, expire_remote_subscription) {
     // Enabling SD acceptance for a remote device must expire everything that was established with
     // that device on the port ranges its acceptance rules cover. Here the service is subscribed on a
