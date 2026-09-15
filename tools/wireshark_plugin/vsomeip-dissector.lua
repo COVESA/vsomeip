@@ -116,6 +116,7 @@ vsomeip_register_event_name = 'vsomeip3_register_event'
 vsomeip_register_event = Proto(vsomeip_register_event_name, vsomeip_register_event_name:upper())
 vsomeip_register_event_service = ProtoField.uint16(vsomeip_register_event_name .. '.service', "Service", base.HEX)
 vsomeip_register_event_instance = ProtoField.uint16(vsomeip_register_event_name .. '.instance', "Instance", base.HEX)
+vsomeip_register_event_major = ProtoField.uint8(vsomeip_register_event_name .. '.major', "Major", base.HEX)
 vsomeip_register_event_notifier = ProtoField.uint16(vsomeip_register_event_name .. '.notifyer', "Notifier", base.HEX)
 vsomeip_register_event_type = ProtoField.uint8(vsomeip_register_event_name .. '.type', "Type", base.HEX)
 vsomeip_register_event_provided = ProtoField.uint8(vsomeip_register_event_name .. '.provided', "Provided", base.HEX)
@@ -124,6 +125,7 @@ vsomeip_register_event_iscyclic = ProtoField.uint8(vsomeip_register_event_name .
 vsomeip_register_event_numeventgroups = ProtoField.uint16(vsomeip_register_event_name .. '.numeventgroups', "Num Eventgroups", base.HEX)
 
 vsomeip_register_event.fields = {vsomeip_register_event_service, vsomeip_register_event_instance,
+                                 vsomeip_register_event_major,
                                  vsomeip_register_event_notifier, vsomeip_register_event_type,
                                  vsomeip_register_event_provided, vsomeip_register_event_reliability,
                                  vsomeip_register_event_iscyclic, vsomeip_register_event_numeventgroups}
@@ -475,7 +477,7 @@ function subscribe_command(buffer, packet_info, vsomeip_tree)
     end
 
     packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1) 
-                        .. "." .. major_version_id(1,1)..major_version_id(0,1)
+                        .. "." .. major_version_id(0,1)
                         .. "." .. eventgroupd_id(1,1)..eventgroupd_id(0,1) .. "." .. event_id(1,1)..event_id(0,1) .. "]")
 end
 
@@ -506,7 +508,7 @@ function unsubscribe_or_expire_commands(buffer, packet_info, vsomeip_tree)
     vsomeip_tree:add_le(vsomeip_id, id_field_size)
 
     packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1)
-                        .. "." .. major_version_id(1,1)..major_version_id(0,1)
+                        .. "." .. major_version_id(0,1)
                         .. "." .. eventgroupd_id(1,1)..eventgroupd_id(0,1) .. "." .. event_id(1,1)..event_id(0,1) .. "]")
 end
 
@@ -542,7 +544,7 @@ function release_service_command(buffer, packet_info, vsomeip_tree)
     vsomeip_tree:add_le(vsomeip_instance, instance_id)
     vsomeip_tree:add_le(vsomeip_major, major_version_id)
     packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1)
-        .. "." .. major_version_id(1,1)..major_version_id(0,1)
+        .. "." .. major_version_id(0,1)
         .. "]")
 
 end
@@ -574,7 +576,7 @@ function subscribe_nack_or_ack_commands(buffer, packet_info, vsomeip_tree)
     vsomeip_tree:add_le(vsomeip_id, id)
 
     packet_info.cols.info:append(" [" .. service_id(1,1)..service_id(0,1) ..".".. instance_id(1,1)..instance_id(0,1)
-                        .. "." .. major_version_id(1,1)..major_version_id(0,1)
+                        .. "." .. major_version_id(0,1)
                         .. "." .. eventgroup(1,1)..eventgroup(0,1) .. "." .. event(1,1)..event(0,1)
                         .. "] (" .. subscriber(1,1)..subscriber(0,1) .. ")")
 end
@@ -602,6 +604,7 @@ end
 -- Supports VSOMEIP_REGISTER_EVENT structure with:
 --  - Service (2 bytes)
 --  - Instance (2 bytes)
+--  - Major (1 byte)
 --  - Notifier (2 bytes)
 --  - Type (1 byte); ET_EVENT (00), ET_SELECTIVE_EVENT(01) or ET_FIELD(02)
 --  - Provided (1 byte); False (00) or True (01)
@@ -615,13 +618,15 @@ function register_event_command(buffer, packet_info, vsomeip_tree)
         local register_event_tree = vsomeip_tree:add("Services")
 
         local index = 0
-        local MIN_REGISTER_EVENT_SIZE = 12
+        local MIN_REGISTER_EVENT_SIZE = 13
         while buffer ~= nil and buffer:len() >= MIN_REGISTER_EVENT_SIZE do
             local cursor = 0
             local register_event_service_id = buffer(cursor, 2)
             cursor = cursor + 2
             local register_event_instance = buffer(cursor, 2)
             cursor = cursor + 2
+            local register_event_major = buffer(cursor, 1)
+            cursor = cursor + 1
             local register_event_notifier = buffer(cursor, 2)
             cursor = cursor + 2
             local register_event_type = buffer(cursor, 1)
@@ -635,9 +640,10 @@ function register_event_command(buffer, packet_info, vsomeip_tree)
             local register_event_numeventgroups = buffer(cursor, 2)
             cursor = cursor + 2
 
-            local register_event_tree_service_tree = register_event_tree:add(index .. ": [" .. register_event_service_id(1,1)..register_event_service_id(0,1) ..".".. register_event_instance(1,1)..register_event_instance(0,1) .. "]")
+            local register_event_tree_service_tree = register_event_tree:add(index .. ": [" .. register_event_service_id(1,1)..register_event_service_id(0,1) ..".".. register_event_instance(1,1)..register_event_instance(0,1) .. "." .. register_event_major(0,1) .. "]")
             register_event_tree_service_tree:add_le(vsomeip_register_event_service, register_event_service_id)
             register_event_tree_service_tree:add_le(vsomeip_register_event_instance, register_event_instance)
+            register_event_tree_service_tree:add(vsomeip_register_event_major, register_event_major)
             register_event_tree_service_tree:add_le(vsomeip_register_event_notifier, register_event_notifier)
             register_event_tree_service_tree:add(vsomeip_register_event_type, register_event_type):append_text(" (" .. get_register_event_type_name(register_event_type:uint()) .. ")")
             register_event_tree_service_tree:add(vsomeip_register_event_provided, register_event_provided)
@@ -660,13 +666,11 @@ end
 -- Supports VSOMEIP_UNREGISTER_EVENT structure with:
 --  - Service (2 bytes)
 --  - Instance (2 bytes)
+--  - Major (1 byte)
 --  - Notifier (2 bytes)
 --  - Provided (1 byte)
 function unregister_event_command(buffer, packet_info, vsomeip_tree)
-    local command_service = buffer(0, 2)
-    local buffer_cursor = 2
-    local command_instance = buffer(buffer_cursor, 2)
-    buffer_cursor = buffer_cursor + 2
+    local command_service, command_instance, command_major, buffer_cursor = read_service_instance_major_info(buffer, 0)
     local command_notifier = buffer(buffer_cursor, 2)
     buffer_cursor = buffer_cursor + 2
     local command_provided = buffer(buffer_cursor, 1)
@@ -674,10 +678,12 @@ function unregister_event_command(buffer, packet_info, vsomeip_tree)
 
     vsomeip_tree:add_le(vsomeip_service, command_service)
     vsomeip_tree:add_le(vsomeip_instance, command_instance)
+    vsomeip_tree:add_le(vsomeip_major, command_major)
     vsomeip_tree:add_le(vsomeip_notifier, command_notifier)
     vsomeip_tree:add(vsomeip_provided, command_provided)
 
-    packet_info.cols.info:append(" [" .. command_service(1,1)..command_service(0,1) ..".".. command_instance(1,1)..command_instance(0,1) .. "]")
+    packet_info.cols.info:append(" [" .. command_service(1,1)..command_service(0,1) ..".".. command_instance(1,1)..command_instance(0,1)
+                        .. "." .. command_major(0,1) .. "]")
 end
 
 -- Supports VSOMEIP_OFFERED_SERVICES_REQUEST structure with:
@@ -707,13 +713,11 @@ end
 -- Supports VSOMEIP_UNSUBSCRIBE_ACK structure with:
 --  - Service (2 bytes)
 --  - Instance (2 bytes)
+--  - Major (1 byte)
 --  - Eventgroup (2 bytes)
 --  - ID (2 bytes)
 function unsubscribe_ack_command(buffer, packet_info, vsomeip_tree)
-    local command_service = buffer(0, 2)
-    local buffer_cursor = 2
-    local command_instance = buffer(buffer_cursor, 2)
-    buffer_cursor = buffer_cursor + 2
+    local command_service, command_instance, command_major, buffer_cursor = read_service_instance_major_info(buffer, 0)
     local command_eventgroup = buffer(buffer_cursor, 2)
     buffer_cursor = buffer_cursor + 2
     local command_id = buffer(buffer_cursor, 2)
@@ -721,10 +725,12 @@ function unsubscribe_ack_command(buffer, packet_info, vsomeip_tree)
 
     vsomeip_tree:add_le(vsomeip_service, command_service)
     vsomeip_tree:add_le(vsomeip_instance, command_instance)
+    vsomeip_tree:add_le(vsomeip_major, command_major)
     vsomeip_tree:add_le(vsomeip_eventgroup, command_eventgroup)
     vsomeip_tree:add_le(vsomeip_id, command_id)
 
     packet_info.cols.info:append(" [" .. command_service(1,1)..command_service(0,1) ..".".. command_instance(1,1)..command_instance(0,1)
+                        .. "." .. command_major(0,1)
                         .. "." .. command_eventgroup(1,1)..command_eventgroup(0,1) .. "]")
 end
 

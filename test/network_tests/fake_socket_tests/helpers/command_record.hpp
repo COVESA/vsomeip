@@ -10,6 +10,7 @@
 
 #include <iostream>
 #include <memory>
+#include <optional>
 
 namespace vsomeip_v3::testing {
 
@@ -39,6 +40,23 @@ public:
      * get the last message received on the recorder
      **/
     command_message get_last_msg();
+
+    /**
+     * get the last recorded message with the given command id, or nullopt if none was recorded.
+     * Use together with command_payload::get_if<T>() to assert on individual payload fields.
+     **/
+    [[nodiscard]] std::optional<command_message> find_last(vsomeip_v3::protocol::id_e _id) const;
+
+    /**
+     * number of recorded messages with the given command id
+     **/
+    [[nodiscard]] size_t count(vsomeip_v3::protocol::id_e _id) const;
+
+    /**
+     * the record as the (sender, command id) sequence the equality operator compares against.
+     * Use it to assert on the relative order of two commands.
+     **/
+    [[nodiscard]] std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>> as_sequence() const;
 
     /**
      * user friendly output

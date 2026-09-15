@@ -293,9 +293,50 @@ private:
     bool is_offered(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const;
     // Lock-token overloads of the queries above: the caller must already hold the matching mutex
     // (provider_mutex_ for is_offered, consumer_mutex_ for is_requested/is_subscribed).
+    // is_requested/find_requested_major match both a concrete request for (_service, _instance)
+    // and a wildcard one for (_service, ANY_INSTANCE). Offers are always concrete, so is_offered
+    // and find_offered_major have no wildcard case.
     bool is_requested(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const;
     bool is_subscribed(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                        std::scoped_lock<std::mutex> const&) const;
+
+    // An application offers/consumes at most one major per (service, instance), so the major it is
+    // talking about is recoverable from its own bookkeeping. ANY_MAJOR means "not deducible".
+    major_version_t find_offered_major(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const& _provider_lock) const;
+    major_version_t find_requested_major(service_t _service, instance_t _instance,
+                                         std::scoped_lock<std::mutex> const& _consumer_lock) const;
+    major_version_t find_subscribed_major(service_t _service, instance_t _instance,
+                                          std::scoped_lock<std::mutex> const& _consumer_lock) const;
+
+    /**
+     * @brief Writes _major into the pending provided-event registrations of (_service, _instance) and
+     * returns those that changed, i.e. the ones the routing manager has not been told about yet.
+     *
+     * The provider-side counterpart of release_consumed_event_registrations(), called by
+     * offer_service() - the point at which the offered major becomes known. Re-offering under the
+     * same major changes nothing and yields an empty result.
+     */
+    std::vector<protocol::register_event_data> stamp_provided_event_registrations(service_t _service, instance_t _instance,
+                                                                                  major_version_t _major,
+                                                                                  std::scoped_lock<std::mutex, std::mutex> const& _lock);
+
+    /// True while a pending provided registration still awaits its major, i.e. must not be put on the
+    /// wire yet. Provider-only: a provider never offers ANY_MAJOR, whereas a consumer may request it.
+    static bool awaits_major(protocol::register_event_data const& _registration) { return _registration.service_key_.major_ == ANY_MAJOR; }
+
+    /**
+     * @brief Moves the consumed-event registrations pending for (_service, _instance) into
+     * consumed_event_registrations_ with _major applied, and returns them for forwarding.
+     *
+     * The consumer-side counterpart of stamp_provided_event_registrations(), called by
+     * request_service() - the point at which the requested major becomes known. _instance ==
+     * ANY_INSTANCE releases the registrations pending for every instance of _service, matching the
+     * scope of the request that resolved them.
+     */
+    std::vector<protocol::register_event_data> release_consumed_event_registrations(service_t _service, instance_t _instance,
+                                                                                    major_version_t _major,
+                                                                                    std::scoped_lock<std::mutex> const& _lock);
+
     void register_provider_event(service_t _service, instance_t _instance, event_t _notifier, const std::set<eventgroup_t>& _eventgroups,
                                  const event_type_e _type, std::chrono::milliseconds _cycle, bool _change_resets_cycle,
                                  bool _update_on_change, epsilon_change_func_t _epsilon_change_func,
@@ -414,8 +455,8 @@ private:
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<provider_event>>> provided_events_;
     service_instance_map<std::map<eventgroup_t, uint32_t>> remote_subscriber_count_;
     local_service_table offered_services_;
-    // Event registrations offered by this client, awaiting (re)send to the routing manager.
-    std::vector<protocol::register_event_data> pending_provided_event_registrations_;
+    // Provided-event registrations, kept until unregister_event() and re-sent on every (re)registration; awaits_major() ones are skipped.
+    std::vector<protocol::register_event_data> provided_event_registrations_;
     // lc_count is bumped on every rmc::stop and on any reconnect invocation,
     // protected by the provider_mutex_, but it may be read during a start of the
     // sender at an arbitrary moment in time - although it shouldn't.
@@ -475,7 +516,9 @@ private:
         }
     };
     std::set<subscription_data_t> pending_subscriptions_;
-    // Event registrations consumed (subscribed) by this client, awaiting (re)send to the routing manager.
+    // Consumed-event registrations, kept until unregister_event() and re-sent on every (re)registration. Unresolved ones are pending.
+    std::vector<protocol::register_event_data> consumed_event_registrations_;
+    // Consumed registrations of a not-yet-requested service. Membership here - not ANY_MAJOR, a legitimate request - marks them unresolved.
     std::vector<protocol::register_event_data> pending_consumed_event_registrations_;
 
     async::trigger on_sender_stopped_;

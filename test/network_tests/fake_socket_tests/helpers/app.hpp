@@ -152,6 +152,12 @@ public:
     void update_security_policy_configuration(uid_t _uid, gid_t _gid);
 
     /**
+     * Forwards the request to vsomeip::application::request_event() only, without subscribing.
+     * Lets a test drive request_event() and request_service() in either order.
+     */
+    void request_event(event_ids const& _ei, vsomeip::event_type_e _et = vsomeip::event_type_e::ET_EVENT);
+
+    /**
      * 1. registers a subscription handler to record subscription events with @see
      * subscription_record_.
      * 2. calls vsomeip::application::request_event()

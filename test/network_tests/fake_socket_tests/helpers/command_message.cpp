@@ -57,6 +57,20 @@ namespace vsomeip_v3::testing {
         return deal_with_payload(std::vector<std::pair<std::string, std::string>>{});
     } else if (_out_message.header_.id_ == protocol::id_e::REQUEST_SERVICE_ID) {
         return deal_with_payload(std::vector<protocol::service_data>{});
+    } else if (_out_message.header_.id_ == protocol::id_e::RELEASE_SERVICE_ID) {
+        return deal_with_payload(protocol::service_key{});
+    } else if (_out_message.header_.id_ == protocol::id_e::REGISTER_EVENT_ID) {
+        return deal_with_payload(std::vector<protocol::register_event_data>{});
+    } else if (_out_message.header_.id_ == protocol::id_e::UNREGISTER_EVENT_ID) {
+        return deal_with_payload(protocol::unregister_event_data{});
+    } else if (_out_message.header_.id_ == protocol::id_e::UNSUBSCRIBE_ID) {
+        // SUBSCRIBE_ID is deliberately absent: its payload carries a trailing debounce filter, so a
+        // subscribe_data parse would report fewer bytes than the message holds and mis-frame the stream.
+        return deal_with_payload(protocol::subscribe_data{});
+    } else if (is_value(_out_message.header_.id_).any_of(protocol::id_e::SUBSCRIBE_ACK_ID, protocol::id_e::SUBSCRIBE_NACK_ID)) {
+        return deal_with_payload(protocol::subscribe_answer_data{});
+    } else if (_out_message.header_.id_ == protocol::id_e::UNSUBSCRIBE_ACK_ID) {
+        return deal_with_payload(protocol::unsubscribe_ack_data{});
     } else {
         std::vector<unsigned char> payload;
         payload.reserve(_out_message.header_.length_);

@@ -15,10 +15,15 @@ namespace vsomeip_v3::protocol {
 
 struct service_data;
 struct service_key;
+struct event_key {
+    service_key const& key_;
+    event_t event_;
+};
 
 char const* to_string(id_e _id);
 std::ostream& operator<<(std::ostream& _out, id_e _id);
 std::ostream& operator<<(std::ostream& _out, service_key const& _data);
 std::ostream& operator<<(std::ostream& _out, service_data const& _data);
+std::ostream& operator<<(std::ostream& _out, event_key const& _data);
 }
 #endif

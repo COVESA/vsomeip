@@ -79,10 +79,8 @@ struct service_data {
 struct service_command_data {
     auto operator<=>(service_command_data const&) const = default;
 
-    static service_command_data create(id_e _id, client_t _client, service_t _service, instance_t _instance, major_version_t _major,
-                                       minor_version_t _minor) {
-        return {.header_ = command_header::create(_id, service_data::wire_size_, _client),
-                .payload_ = {.key_ = {.service_ = _service, .instance_ = _instance, .major_ = _major}, .minor_version_ = _minor}};
+    static service_command_data create(id_e _id, client_t _client, service_data const& _service) {
+        return {.header_ = command_header::create(_id, service_data::wire_size_, _client), .payload_ = _service};
     }
 
     command_header header_;
@@ -102,9 +100,8 @@ struct multiple_service_command_data {
 struct release_service_command_data {
     auto operator<=>(release_service_command_data const&) const = default;
 
-    static release_service_command_data create(client_t _client, service_t _service, instance_t _instance, major_version_t _major) {
-        return {.header_ = command_header::create(id_e::RELEASE_SERVICE_ID, service_key::wire_size_, _client),
-                .payload_ = {.service_ = _service, .instance_ = _instance, .major_ = _major}};
+    static release_service_command_data create(client_t _client, service_key const& _key) {
+        return {.header_ = command_header::create(id_e::RELEASE_SERVICE_ID, service_key::wire_size_, _client), .payload_ = _key};
     }
 
     command_header header_;
@@ -217,12 +214,9 @@ struct register_events_command_data {
 struct unregister_event_command_data {
     auto operator<=>(unregister_event_command_data const&) const = default;
 
-    static unregister_event_command_data create(client_t _client, service_t _service, instance_t _instance, event_t _event,
-                                                bool _is_provided) {
+    static unregister_event_command_data create(client_t _client, service_key const& _key, event_t _event, bool _is_provided) {
         return {.header_ = command_header::create(id_e::UNREGISTER_EVENT_ID, unregister_event_data::wire_size_, _client),
-                .payload_ = {.service_key_ = {.service_ = _service, .instance_ = _instance, .major_ = ANY_MAJOR},
-                             .event_ = _event,
-                             .is_provided_ = _is_provided}};
+                .payload_ = {.service_key_ = _key, .event_ = _event, .is_provided_ = _is_provided}};
     }
 
     command_header header_;
@@ -296,12 +290,10 @@ struct unsubscribe_ack_data {
 struct unsubscribe_ack_command_data {
     auto operator<=>(unsubscribe_ack_command_data const&) const = default;
 
-    static unsubscribe_ack_command_data create(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+    static unsubscribe_ack_command_data create(client_t _client, service_key const& _key, eventgroup_t _eventgroup,
                                                pending_id_t _pending_id) {
         return {.header_ = command_header::create(id_e::UNSUBSCRIBE_ACK_ID, unsubscribe_ack_data::wire_size_, _client),
-                .payload_ = {.service_key_ = {.service_ = _service, .instance_ = _instance, .major_ = ANY_MAJOR},
-                             .eventgroup_ = _eventgroup,
-                             .pending_id_ = _pending_id}};
+                .payload_ = {.service_key_ = _key, .eventgroup_ = _eventgroup, .pending_id_ = _pending_id}};
     }
 
     command_header header_;
@@ -471,19 +463,16 @@ inline simple_command_data create_pong_cmd(client_t _client) {
     return simple_command_data::create(id_e::PONG_ID, _client);
 }
 
-inline service_command_data create_offer_service_cmd(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
-                                                     minor_version_t _minor) {
-    return service_command_data::create(id_e::OFFER_SERVICE_ID, _client, _service, _instance, _major, _minor);
+inline service_command_data create_offer_service_cmd(client_t _client, service_data const& _service) {
+    return service_command_data::create(id_e::OFFER_SERVICE_ID, _client, _service);
 }
 
-inline service_command_data create_stop_offer_service_cmd(client_t _client, service_t _service, instance_t _instance,
-                                                          major_version_t _major, minor_version_t _minor) {
-    return service_command_data::create(id_e::STOP_OFFER_SERVICE_ID, _client, _service, _instance, _major, _minor);
+inline service_command_data create_stop_offer_service_cmd(client_t _client, service_data const& _service) {
+    return service_command_data::create(id_e::STOP_OFFER_SERVICE_ID, _client, _service);
 }
 
-inline release_service_command_data create_release_service_cmd(client_t _client, service_t _service, instance_t _instance,
-                                                               major_version_t _major) {
-    return release_service_command_data::create(_client, _service, _instance, _major);
+inline release_service_command_data create_release_service_cmd(client_t _client, service_key const& _key) {
+    return release_service_command_data::create(_client, _key);
 }
 
 inline auto create_offered_services_request_cmd(client_t _client, offer_type_e _offer_type) {
@@ -540,13 +529,14 @@ inline auto create_send_cmd_raw(id_e _id, client_t _sender, byte_t const* _data,
                             .payload_ = raw_someip_message{.auxiliary_header_ = _message_header, .data_ = _data, .size_ = _size}};
 }
 
-inline auto create_unregister_event_cmd(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided) {
-    return unregister_event_command_data::create(_client, _service, _instance, _event, _is_provided);
+inline unregister_event_command_data create_unregister_event_cmd(client_t _client, service_key const& _key, event_t _event,
+                                                                 bool _is_provided) {
+    return unregister_event_command_data::create(_client, _key, _event, _is_provided);
 }
 
-inline auto create_unsubscribe_ack_cmd(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                       pending_id_t _pending_id) {
-    return unsubscribe_ack_command_data::create(_client, _service, _instance, _eventgroup, _pending_id);
+inline unsubscribe_ack_command_data create_unsubscribe_ack_cmd(client_t _client, service_key const& _key, eventgroup_t _eventgroup,
+                                                               pending_id_t _pending_id) {
+    return unsubscribe_ack_command_data::create(_client, _key, _eventgroup, _pending_id);
 }
 
 inline auto create_remove_security_policy_cmd(client_t _client, uint32_t _update_id, uid_t _uid, gid_t _gid) {

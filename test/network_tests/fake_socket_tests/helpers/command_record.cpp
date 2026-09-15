@@ -6,6 +6,8 @@
 #include "command_record.hpp"
 
 #include "to_string.hpp"
+
+#include <algorithm>
 namespace vsomeip_v3::testing {
 
 std::shared_ptr<command_record> command_record::create() {
@@ -46,6 +48,27 @@ void command_record::add(std::string const& _sender_name, command_message _msg) 
 command_message command_record::get_last_msg() {
     std::scoped_lock lock{mtx_};
     return record_.back().second;
+}
+
+std::optional<command_message> command_record::find_last(vsomeip_v3::protocol::id_e _id) const {
+    std::scoped_lock lock{mtx_};
+    auto const its_entry = std::find_if(record_.rbegin(), record_.rend(), [_id](auto const& _e) { return _e.second.id_ == _id; });
+    return its_entry != record_.rend() ? std::optional<command_message>{its_entry->second} : std::nullopt;
+}
+
+size_t command_record::count(vsomeip_v3::protocol::id_e _id) const {
+    std::scoped_lock lock{mtx_};
+    return static_cast<size_t>(std::count_if(record_.begin(), record_.end(), [_id](auto const& _e) { return _e.second.id_ == _id; }));
+}
+
+std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>> command_record::as_sequence() const {
+    std::scoped_lock lock{mtx_};
+    std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>> its_sequence;
+    its_sequence.reserve(record_.size());
+    for (auto const& [its_sender, its_message] : record_) {
+        its_sequence.emplace_back(its_sender, its_message.id_);
+    }
+    return its_sequence;
 }
 
 std::ostream& operator<<(std::ostream& _out, command_record const& _record) {

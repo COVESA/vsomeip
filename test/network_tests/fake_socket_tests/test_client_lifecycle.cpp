@@ -2038,7 +2038,7 @@ TEST_F(test_pending_event_registration_split, stopping_provided_event_does_not_d
     bring_up();
     assert_both_directions_deliver(s1_payload_, s2_payload_);
 
-    // Provider-side unregister -> erases ev1 from pending_provided_event_registrations_.
+    // Provider-side unregister -> erases ev1 from provided_event_registrations_.
     a_->get_application()->stop_offer_event(s1_.service_, s1_.instance_, ev1_.event_id_);
 
     // The consumer-side registration (ev2) must be unaffected: A still receives fresh S2.
@@ -2056,7 +2056,7 @@ TEST_F(test_pending_event_registration_split, releasing_consumed_event_does_not_
     bring_up();
     assert_both_directions_deliver(s1_payload_, s2_payload_);
 
-    // Consumer-side unregister -> erases ev2 from pending_consumed_event_registrations_.
+    // Consumer-side unregister -> erases ev2 from consumed_event_registrations_.
     a_->get_application()->release_event(s2_.service_, s2_.instance_, ev2_.event_id_);
 
     // The provider-side registration (ev1) must be unaffected: B still receives fresh S1.
@@ -2081,7 +2081,7 @@ TEST_F(test_pending_event_registration_split, resend_provided_events_resends_onl
     EXPECT_TRUE(wait_for_command(a_name_, routingmanager_name_, protocol::id_e::REGISTER_EVENT_ID, socket_role::server))
             << "A did not resend its provided event registration on RESEND_PROVIDED_EVENTS";
 
-    // Stop offering ev1 -> pending_provided_event_registrations_ becomes empty.
+    // Stop offering ev1 -> provided_event_registrations_ becomes empty.
     a_->get_application()->stop_offer_event(s1_.service_, s1_.instance_, ev1_.event_id_);
     clear_command_record(a_name_, routingmanager_name_);
     auto resend_again = make_resend_provided_events_command(rm_->get_client());
