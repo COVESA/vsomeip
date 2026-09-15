@@ -268,7 +268,7 @@
     Command            1b
     Version            xx xx
     Client             xx xx
-    Size               xx xx xx xx    ; 11 + #eventgroups * 2
+    Size               xx xx xx xx    ; 13 + #eventgroups * 2
     Entries
         Service            xx xx
         Instance           xx xx

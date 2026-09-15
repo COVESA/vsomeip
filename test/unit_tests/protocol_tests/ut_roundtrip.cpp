@@ -117,12 +117,14 @@ TEST(ut_commands_roundtrip, pong_roundtrip) {
 // --- Service commands ---
 
 TEST(ut_commands_roundtrip, offer_service_roundtrip) {
-    auto cmd = create_offer_service_cmd(0x1234, 0xABCD, 0x0001, 0x02, 0x00000003);
+    auto cmd = create_offer_service_cmd(0x1234,
+                                        {.key_ = {.service_ = 0xABCD, .instance_ = 0x0001, .major_ = 0x02}, .minor_version_ = 0x00000003});
     EXPECT_EQ(roundtrip(cmd), cmd);
 }
 
 TEST(ut_commands_roundtrip, stop_offer_service_roundtrip) {
-    auto cmd = create_stop_offer_service_cmd(0x5678, 0x1111, 0x2222, 0x01, 0x00000000);
+    auto cmd = create_stop_offer_service_cmd(
+            0x5678, {.key_ = {.service_ = 0x1111, .instance_ = 0x2222, .major_ = 0x01}, .minor_version_ = 0x00000000});
     EXPECT_EQ(roundtrip(cmd), cmd);
 }
 
@@ -146,17 +148,17 @@ TEST(ut_commands_roundtrip, resend_provided_events_roundtrip) {
 // --- Service commands (composite payload) ---
 
 TEST(ut_commands_roundtrip, release_service_roundtrip) {
-    auto cmd = create_release_service_cmd(0x1234, 0xABCD, 0x0001, 0x1);
+    auto cmd = create_release_service_cmd(0x1234, {.service_ = 0xABCD, .instance_ = 0x0001, .major_ = 0x1});
     EXPECT_EQ(roundtrip(cmd), cmd);
 }
 
 TEST(ut_commands_roundtrip, unregister_event_roundtrip) {
-    auto cmd = create_unregister_event_cmd(0x1234, 0xABCD, 0x0001, 0x4242, true);
+    auto cmd = create_unregister_event_cmd(0x1234, {.service_ = 0xABCD, .instance_ = 0x0001, .major_ = 0x02}, 0x4242, true);
     EXPECT_EQ(roundtrip(cmd), cmd);
 }
 
 TEST(ut_commands_roundtrip, unsubscribe_ack_roundtrip) {
-    auto cmd = create_unsubscribe_ack_cmd(0x1234, 0xABCD, 0x0001, 0x0005, 0x1111);
+    auto cmd = create_unsubscribe_ack_cmd(0x1234, {.service_ = 0xABCD, .instance_ = 0x0001, .major_ = 0x02}, 0x0005, 0x1111);
     EXPECT_EQ(roundtrip(cmd), cmd);
 }
 

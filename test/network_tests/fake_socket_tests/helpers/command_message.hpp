@@ -32,6 +32,16 @@ public:
 
     friend std::string to_string(command_payload const& _payload) { return _payload.data_->to_string_impl(); }
 
+    /**
+     * Typed access to the stored payload; nullptr when the payload holds a different type
+     * (or none). Lets a test assert on individual command fields instead of the string form.
+     **/
+    template<typename T>
+    [[nodiscard]] T const* get_if() const {
+        auto const* its_derived = dynamic_cast<derived<T> const*>(data_.get());
+        return its_derived ? &its_derived->t_ : nullptr;
+    }
+
 private:
     class base {
     public:

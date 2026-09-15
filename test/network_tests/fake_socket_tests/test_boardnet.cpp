@@ -451,6 +451,27 @@ TEST_F(test_boardnet_helper, offer_event_before_service) {
             << "Failed to receive field event." << "\nRecord: " << ecu_one_client_->message_record_;
 }
 
+TEST_F(test_boardnet_helper, wildcard_requester_receives_events_of_a_remote_instance) {
+
+    start_all_apps();
+
+    ecu_one_client_->request_service({.service_ = service_instance_.service_,
+                                      .instance_ = vsomeip::ANY_INSTANCE,
+                                      .major_ = service_instance_.major_,
+                                      .minor_ = service_instance_.minor_});
+    ecu_two_server_->offer(boardnet_interface_);
+
+    ASSERT_TRUE(await_service(ecu_one_client_)) << "the wildcard request must report the concrete instance available";
+
+    ASSERT_TRUE(subscribe_to_field(ecu_one_client_)) << "Subscription failed." << "\nRecord: " << ecu_one_client_->subscription_record_;
+
+    ecu_two_server_->send_event(offered_field_, {0x5, 0x3});
+
+    field_checker_.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(field_checker_))
+            << "Failed to receive field event." << "\nRecord: " << ecu_one_client_->message_record_;
+}
+
 TEST_F(test_boardnet_helper, initial_event_received_after_availability_flap) {
 
     /**

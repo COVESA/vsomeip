@@ -311,6 +311,11 @@ void app::on_subscription_status_changed(vsomeip::service_t _service, vsomeip::i
     subscription_record_.record(event_sub);
 }
 
+void app::request_event(event_ids const& _ei, vsomeip::event_type_e _et) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting event: " << _ei;
+    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, {_ei.eventgroup_id_}, _et, _ei.reliability_);
+}
+
 void app::subscribe(event_ids const& _ei, vsomeip::event_type_e _et) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _ei;
     std::set<vsomeip::eventgroup_t> its_eventgroups;

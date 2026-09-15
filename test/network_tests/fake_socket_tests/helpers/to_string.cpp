@@ -113,6 +113,43 @@ std::string to_string(vsomeip_v3::protocol::service_data const& service) {
       << service.minor_version_ << "]";
     return s.str();
 }
+std::string to_string(vsomeip_v3::protocol::service_key const& key) {
+    std::stringstream s;
+    s << "[" << hex4(key.service_) << "." << hex4(key.instance_) << ":" << static_cast<int>(key.major_) << "]";
+    return s.str();
+}
+std::string to_string(vsomeip_v3::protocol::register_event_data const& e) {
+    std::stringstream s;
+    s << to_string(e.service_key_) << " event: " << hex4(e.event_) << ", is_provided: " << std::boolalpha << e.is_provided_
+      << ", eventgroups: [";
+    for (auto const& its_eventgroup : e.eventgroups_) {
+        s << hex4(its_eventgroup) << " ";
+    }
+    s << "]";
+    return s.str();
+}
+std::string to_string(vsomeip_v3::protocol::unregister_event_data const& e) {
+    std::stringstream s;
+    s << to_string(e.service_key_) << " event: " << hex4(e.event_) << ", is_provided: " << std::boolalpha << e.is_provided_;
+    return s.str();
+}
+std::string to_string(vsomeip_v3::protocol::subscribe_data const& s) {
+    std::stringstream out;
+    out << to_string(s.service_key_) << " eventgroup: " << hex4(s.eventgroup_) << ", event: " << hex4(s.event_)
+        << ", pending_id: " << hex4(s.pending_id_);
+    return out.str();
+}
+std::string to_string(vsomeip_v3::protocol::subscribe_answer_data const& s) {
+    std::stringstream out;
+    out << to_string(s.service_key_) << " eventgroup: " << hex4(s.eventgroup_) << ", subscriber: " << hex4(s.subscriber_)
+        << ", event: " << hex4(s.event_) << ", pending_id: " << hex4(s.pending_id_);
+    return out.str();
+}
+std::string to_string(vsomeip_v3::protocol::unsubscribe_ack_data const& s) {
+    std::stringstream out;
+    out << to_string(s.service_key_) << " eventgroup: " << hex4(s.eventgroup_) << ", pending_id: " << hex4(s.pending_id_);
+    return out.str();
+}
 std::string to_string(vsomeip_v3::protocol::routing_info_entry_data const& e) {
     std::stringstream s;
     s << "routing_info_type: " << to_string(e.type_);

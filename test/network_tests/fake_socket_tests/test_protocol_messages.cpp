@@ -269,8 +269,7 @@ TEST_F(test_protocol_messages, ensure_sequence_service_offer_after_event_registr
     auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
             {server_to_router_, id_e::CONFIG_ID},         {server_to_router_, id_e::ASSIGN_CLIENT_ID},
             {router_to_server_, id_e::CONFIG_ID},         {router_to_server_, id_e::ASSIGN_CLIENT_ACK_ID},
-            {server_to_router_, id_e::REGISTER_EVENT_ID}, {server_to_router_, id_e::REGISTER_EVENT_ID},
-            {server_to_router_, id_e::OFFER_SERVICE_ID}};
+            {server_to_router_, id_e::REGISTER_EVENT_ID}, {server_to_router_, id_e::OFFER_SERVICE_ID}};
 
     EXPECT_EQ(expected_sequence, *record_);
 }
@@ -286,8 +285,7 @@ TEST_F(test_protocol_messages, ensure_sequence_service_offer) {
     auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
             {server_to_router_, id_e::CONFIG_ID},         {server_to_router_, id_e::ASSIGN_CLIENT_ID},
             {router_to_server_, id_e::CONFIG_ID},         {router_to_server_, id_e::ASSIGN_CLIENT_ACK_ID},
-            {server_to_router_, id_e::REGISTER_EVENT_ID}, {server_to_router_, id_e::REGISTER_EVENT_ID},
-            {server_to_router_, id_e::OFFER_SERVICE_ID}};
+            {server_to_router_, id_e::REGISTER_EVENT_ID}, {server_to_router_, id_e::OFFER_SERVICE_ID}};
 
     EXPECT_EQ(expected_sequence, *record_);
 }
@@ -344,6 +342,300 @@ TEST_F(test_protocol_messages, ensure_sequence_of_unsubscribe_event) {
 
     bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
     EXPECT_TRUE(is_any) << *record_;
+}
+
+/**
+ * The rmc must fill the major version into every command that carries a service key. The routing
+ * manager still discards that field, so the wire content is the only observable effect - each case
+ * asserts on the recorded command rather than on any behaviour change.
+ */
+struct test_command_major_version : test_protocol_messages {
+    /// Fetches the last recorded command with _id and returns its typed payload.
+    template<typename T>
+    T const* last_payload(vsomeip_v3::protocol::id_e _id) {
+        auto const its_msg = record_->find_last(_id);
+        if (!its_msg) {
+            ADD_FAILURE() << "no command with id " << static_cast<int>(_id) << " was recorded: " << *record_;
+            return nullptr;
+        }
+        auto const* its_payload = its_msg->payload_.template get_if<T>();
+        if (!its_payload) {
+            ADD_FAILURE() << "command " << static_cast<int>(_id) << " did not carry the expected payload type";
+        }
+        return its_payload;
+    }
+};
+
+TEST_F(test_command_major_version, provided_event_registration_is_held_until_the_service_is_offered) {
+    track_server_router();
+
+    start_router();
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // The major only exists on the offer, so registering an event must not announce it yet.
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    EXPECT_FALSE(wait_for_command(server_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID, socket_role::server,
+                                  std::chrono::milliseconds(100)))
+            << "REGISTER_EVENT was sent before the service was offered, so it could only carry ANY_MAJOR";
+
+    server_->offer(service_instance_);
+    ASSERT_TRUE(wait_for_command(server_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::OFFER_SERVICE_ID, socket_role::server,
+                                 std::chrono::milliseconds(500)));
+
+    auto const* its_registrations =
+            last_payload<std::vector<vsomeip_v3::protocol::register_event_data>>(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+    ASSERT_NE(its_registrations, nullptr);
+    ASSERT_EQ(its_registrations->size(), 1u);
+    EXPECT_EQ(its_registrations->front().event_, offered_event_.event_id_);
+    EXPECT_EQ(its_registrations->front().service_key_.major_, service_instance_.major_)
+            << "the held registration must be stamped with the major the service is offered with";
+
+    // The router has to know the event before the service is advertised, so the flush must not slip
+    // behind the offer it was batched with.
+    auto const its_record = record_->as_sequence();
+    auto const its_offer = std::find_if(its_record.begin(), its_record.end(), [this](auto const& _entry) {
+        return _entry.first == server_to_router_ && _entry.second == vsomeip_v3::protocol::id_e::OFFER_SERVICE_ID;
+    });
+    ASSERT_NE(its_offer, its_record.end());
+    EXPECT_NE(std::find_if(its_record.begin(), its_offer,
+                           [this](auto const& _entry) {
+                               return _entry.first == server_to_router_ && _entry.second == vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID;
+                           }),
+              its_offer)
+            << "no REGISTER_EVENT ahead of OFFER_SERVICE: " << *record_;
+}
+
+TEST_F(test_command_major_version, re_offering_under_a_different_major_re_registers_the_events) {
+    std::shared_ptr<command_gate> server_to_router_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(server_name_, routingmanager_name_, socket_role::server, server_to_router_gate->get_data_pipe()));
+    track_server_router();
+
+    start_apps();
+    ASSERT_TRUE(wait_for_command(server_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::OFFER_SERVICE_ID, socket_role::server,
+                                 std::chrono::milliseconds(500)));
+    auto const its_first_offer_registrations = record_->count(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+
+    server_->stop_offer(service_instance_);
+    ASSERT_TRUE(wait_for_command(server_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::STOP_OFFER_SERVICE_ID, socket_role::server,
+                                 std::chrono::milliseconds(500)));
+
+    // Same events, new major: the router still holds them under the withdrawn major, so they have to
+    // be announced again rather than left stale.
+    auto its_second_version = service_instance_;
+    its_second_version.major_ = static_cast<vsomeip::major_version_t>(service_instance_.major_ + 1);
+    // Arm before the trigger: wait_for_command() matches the whole history, so it would return on the
+    // registration the first offer already produced instead of waiting for this one.
+    server_to_router_gate->block_at(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+    server_->offer(its_second_version);
+    ASSERT_TRUE(server_to_router_gate->wait_for_blocked());
+    server_to_router_gate->block(false);
+
+    EXPECT_GT(record_->count(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID), its_first_offer_registrations);
+
+    auto const* its_registrations =
+            last_payload<std::vector<vsomeip_v3::protocol::register_event_data>>(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+    ASSERT_NE(its_registrations, nullptr);
+    ASSERT_FALSE(its_registrations->empty());
+    EXPECT_EQ(its_registrations->front().service_key_.major_, its_second_version.major_)
+            << "the re-offer must re-stamp the registrations with the new major";
+}
+
+TEST_F(test_command_major_version, re_registering_an_event_while_not_offered_must_not_duplicate_it) {
+    std::shared_ptr<command_gate> server_to_router_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(server_name_, routingmanager_name_, socket_role::server, server_to_router_gate->get_data_pipe()));
+    track_server_router();
+
+    start_apps();
+    ASSERT_TRUE(wait_for_command(server_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::OFFER_SERVICE_ID, socket_role::server,
+                                 std::chrono::milliseconds(500)));
+
+    server_->stop_offer(service_instance_);
+    ASSERT_TRUE(wait_for_command(server_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::STOP_OFFER_SERVICE_ID, socket_role::server,
+                                 std::chrono::milliseconds(500)));
+
+    // The stored registration still carries the withdrawn major, so this one is built with ANY_MAJOR
+    // and must not be mistaken for a different registration.
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+
+    auto its_second_version = service_instance_;
+    its_second_version.major_ = static_cast<vsomeip::major_version_t>(service_instance_.major_ + 1);
+    server_to_router_gate->block_at(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+    server_->offer(its_second_version);
+    ASSERT_TRUE(server_to_router_gate->wait_for_blocked());
+    server_to_router_gate->block(false);
+
+    auto const* its_registrations =
+            last_payload<std::vector<vsomeip_v3::protocol::register_event_data>>(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+    ASSERT_NE(its_registrations, nullptr);
+    EXPECT_EQ(std::count_if(its_registrations->begin(), its_registrations->end(),
+                            [this](auto const& _reg) { return _reg.event_ == offered_event_.event_id_; }),
+              1)
+            << "the re-offer announced the same event more than once: " << *record_;
+}
+
+TEST_F(test_command_major_version, consumed_event_registration_carries_the_requested_major) {
+    track_client_router();
+
+    start_apps();
+    // Expected consumer order: the service is requested first, so the major is already known when
+    // the event is registered and the registration goes straight out carrying it.
+    ASSERT_TRUE(subscribe_to_event());
+
+    auto const* its_registrations =
+            last_payload<std::vector<vsomeip_v3::protocol::register_event_data>>(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+    ASSERT_NE(its_registrations, nullptr);
+    ASSERT_FALSE(its_registrations->empty());
+    EXPECT_FALSE(its_registrations->front().is_provided_);
+    EXPECT_EQ(its_registrations->front().service_key_.major_, service_instance_.major_)
+            << "a consumed registration must carry the major the service was requested with";
+}
+
+TEST_F(test_command_major_version, consumed_event_registration_is_held_until_the_service_is_requested) {
+    track_client_router();
+
+    start_apps();
+
+    // Reversed order: without a request there is no major to fill in, so the registration waits.
+    client_->request_event(offered_event_);
+    EXPECT_FALSE(wait_for_command(client_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID, socket_role::server,
+                                  std::chrono::milliseconds(100)))
+            << "REGISTER_EVENT was sent before the service was requested, so it could only carry ANY_MAJOR";
+
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID, socket_role::server,
+                                 std::chrono::milliseconds(500)));
+
+    auto const* its_registrations =
+            last_payload<std::vector<vsomeip_v3::protocol::register_event_data>>(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+    ASSERT_NE(its_registrations, nullptr);
+    ASSERT_EQ(its_registrations->size(), 1u);
+    EXPECT_EQ(its_registrations->front().event_, offered_event_.event_id_);
+    EXPECT_EQ(its_registrations->front().service_key_.major_, service_instance_.major_)
+            << "the held registration must be stamped with the major the service is requested with";
+}
+
+TEST_F(test_command_major_version, consumed_event_registration_is_released_by_a_wildcard_request) {
+
+    track_client_router();
+
+    start_apps();
+
+    client_->request_service({.service_ = service_instance_.service_,
+                              .instance_ = vsomeip::ANY_INSTANCE,
+                              .major_ = service_instance_.major_,
+                              .minor_ = service_instance_.minor_});
+    client_->request_event(offered_event_);
+
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID, socket_role::server,
+                                 std::chrono::milliseconds(500)))
+            << "the registration stayed held: a wildcard request never releases it: " << *record_;
+
+    auto const* its_registrations =
+            last_payload<std::vector<vsomeip_v3::protocol::register_event_data>>(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+    ASSERT_NE(its_registrations, nullptr);
+    ASSERT_EQ(its_registrations->size(), 1u);
+    EXPECT_EQ(its_registrations->front().event_, offered_event_.event_id_);
+    EXPECT_EQ(its_registrations->front().service_key_.major_, service_instance_.major_)
+            << "the wildcard request carries the major, so the released registration must be stamped with it";
+}
+
+TEST_F(test_command_major_version, pending_consumed_event_registration_is_released_by_a_later_wildcard_request) {
+    // Reverse of the case above: the event is registered first, so it is genuinely held and the
+    // wildcard request has to be what flushes it.
+    track_client_router();
+
+    start_apps();
+
+    client_->request_event(offered_event_);
+    EXPECT_FALSE(wait_for_command(client_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID, socket_role::server,
+                                  std::chrono::milliseconds(100)))
+            << "REGISTER_EVENT was sent before the service was requested, so it could only carry ANY_MAJOR";
+
+    client_->request_service({.service_ = service_instance_.service_,
+                              .instance_ = vsomeip::ANY_INSTANCE,
+                              .major_ = service_instance_.major_,
+                              .minor_ = service_instance_.minor_});
+
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID, socket_role::server,
+                                 std::chrono::milliseconds(500)))
+            << "the registration stayed held: a wildcard request never releases it: " << *record_;
+
+    auto const* its_registrations =
+            last_payload<std::vector<vsomeip_v3::protocol::register_event_data>>(vsomeip_v3::protocol::id_e::REGISTER_EVENT_ID);
+    ASSERT_NE(its_registrations, nullptr);
+    ASSERT_EQ(its_registrations->size(), 1u);
+    EXPECT_EQ(its_registrations->front().event_, offered_event_.event_id_);
+    EXPECT_EQ(its_registrations->front().service_key_.major_, service_instance_.major_);
+}
+
+TEST_F(test_command_major_version, release_service_carries_the_requested_major) {
+    std::shared_ptr<command_gate> client_to_router_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(client_name_, routingmanager_name_, socket_role::server, client_to_router_gate->get_data_pipe()));
+    track_client_router();
+
+    start_apps();
+
+    client_to_router_gate->block_at(vsomeip_v3::protocol::id_e::RELEASE_SERVICE_ID);
+    request_service();
+    ASSERT_TRUE(await_service());
+    client_->release_service(service_instance_);
+    ASSERT_TRUE(client_to_router_gate->wait_for_blocked());
+    client_to_router_gate->block(false);
+
+    auto const* its_release = last_payload<vsomeip_v3::protocol::service_key>(vsomeip_v3::protocol::id_e::RELEASE_SERVICE_ID);
+    ASSERT_NE(its_release, nullptr);
+    EXPECT_EQ(its_release->major_, service_instance_.major_) << "RELEASE_SERVICE must carry the major the service was requested with";
+}
+
+TEST_F(test_command_major_version, unregister_event_carries_the_offered_major) {
+    std::shared_ptr<command_gate> server_to_router_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(server_name_, routingmanager_name_, socket_role::server, server_to_router_gate->get_data_pipe()));
+    track_server_router();
+
+    start_apps();
+
+    server_to_router_gate->block_at(vsomeip_v3::protocol::id_e::UNREGISTER_EVENT_ID);
+    server_->stop_offer_event(offered_event_);
+    ASSERT_TRUE(server_to_router_gate->wait_for_blocked());
+    server_to_router_gate->block(false);
+
+    auto const* its_unregister = last_payload<vsomeip_v3::protocol::unregister_event_data>(vsomeip_v3::protocol::id_e::UNREGISTER_EVENT_ID);
+    ASSERT_NE(its_unregister, nullptr);
+    EXPECT_EQ(its_unregister->service_key_.major_, service_instance_.major_)
+            << "UNREGISTER_EVENT must carry the major the providing service is offered with";
+}
+
+TEST_F(test_command_major_version, unsubscribe_carries_the_subscribed_major) {
+    std::shared_ptr<command_gate> client_to_server_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(client_name_, server_name_, socket_role::server, client_to_server_gate->get_data_pipe()));
+    track_client_server();
+
+    start_apps();
+    ASSERT_TRUE(subscribe_to_event());
+
+    client_to_server_gate->block_at(vsomeip_v3::protocol::id_e::UNSUBSCRIBE_ID);
+    client_->unsubscribe_from_group(offered_event_);
+    ASSERT_TRUE(client_to_server_gate->wait_for_blocked());
+    client_to_server_gate->block(false);
+
+    auto const* its_unsubscribe = last_payload<vsomeip_v3::protocol::subscribe_data>(vsomeip_v3::protocol::id_e::UNSUBSCRIBE_ID);
+    ASSERT_NE(its_unsubscribe, nullptr);
+    EXPECT_EQ(its_unsubscribe->service_key_.major_, service_instance_.major_)
+            << "UNSUBSCRIBE must carry the same major as the SUBSCRIBE it withdraws";
+}
+
+TEST_F(test_command_major_version, subscribe_ack_carries_the_offered_major) {
+    track_client_server();
+
+    start_apps();
+    ASSERT_TRUE(subscribe_to_event());
+
+    auto const* its_ack = last_payload<vsomeip_v3::protocol::subscribe_answer_data>(vsomeip_v3::protocol::id_e::SUBSCRIBE_ACK_ID);
+    ASSERT_NE(its_ack, nullptr);
+    EXPECT_EQ(its_ack->service_key_.major_, service_instance_.major_)
+            << "SUBSCRIBE_ACK must carry the major the acknowledging provider offers";
 }
 
 TEST_F(test_protocol_messages, ensure_sequence_failover_service_reoffer) {

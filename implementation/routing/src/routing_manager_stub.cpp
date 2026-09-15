@@ -436,9 +436,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
                                              std::set<eventgroup_t>{reg.eventgroups_.begin(), reg.eventgroups_.end()}, reg.event_type_,
                                              reg.reliability_, reg.is_provided_, reg.is_cyclic_);
 
-                VSOMEIP_INFO << "REGISTER EVENT(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
-                             << hex4(reg.event_) << ":eventtype=" << static_cast<int>(reg.event_type_) << ":is_provided=" << std::boolalpha
-                             << reg.is_provided_ << ":reliable=" << static_cast<int>(reg.reliability_) << "]";
+                VSOMEIP_INFO << "REGISTER EVENT(" << hex4(its_client) << "): [" << protocol::event_key{reg.service_key_, reg.event_}
+                             << ":eventtype=" << static_cast<int>(reg.event_type_) << ":is_provided=" << std::boolalpha << reg.is_provided_
+                             << ":reliable=" << static_cast<int>(reg.reliability_) << "]";
             }
 
         } else {
@@ -453,7 +453,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
             host_->unregister_shadow_event(its_client, its_data.service_key_.service_, its_data.service_key_.instance_, its_data.event_,
                                            its_data.is_provided_);
 
-            VSOMEIP_INFO << "UNREGISTER EVENT(" << hex4(its_client) << "): [" << its_data.service_key_ << "." << hex4(its_data.event_)
+            VSOMEIP_INFO << "UNREGISTER EVENT(" << hex4(its_client) << "): [" << protocol::event_key{its_data.service_key_, its_data.event_}
                          << ":is_provider=" << std::boolalpha << its_data.is_provided_ << "]";
         } else {
             VSOMEIP_ERROR_P << "Unregister event deserialization failed, memory: " << utility::dump(_data, _size);
