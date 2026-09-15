@@ -20,21 +20,22 @@ class eventgroupinfo;
 
 namespace sd {
 
-enum class subscription_state_e : uint8_t {
-    ST_ACKNOWLEDGED = 0x00,
-    ST_NOT_ACKNOWLEDGED = 0x01,
-    ST_RESUBSCRIBING = 0x2,
-    ST_RESUBSCRIBING_NOT_ACKNOWLEDGED = 0x3,
-    ST_UNKNOWN = 0xFF
-};
+enum class subscription_state_e : uint8_t { ST_ACKNOWLEDGED, ST_NOT_ACKNOWLEDGED, ST_RESUBSCRIBING, ST_RESUBSCRIBING_NOT_ACKNOWLEDGED };
 
+/**
+ * @brief Represents a subscription in the service discovery module
+ *
+ * **Thread Safety:**
+ * Not thread safe. Any usage has to be synchronized externally.
+ */
 class subscription {
 public:
-    subscription() = default;
+    explicit subscription(major_version_t _major, bool _is_selective, ttl_t _ttl, std::shared_ptr<boardnet_endpoint> _reliable,
+                          std::shared_ptr<boardnet_endpoint> _unreliable);
     ~subscription() = default;
 
     major_version_t get_major() const;
-    void set_major(major_version_t _major);
+    bool is_selective() const;
 
     ttl_t get_ttl() const;
     void set_ttl(ttl_t _ttl);
@@ -42,21 +43,22 @@ public:
     std::shared_ptr<boardnet_endpoint> get_endpoint(bool _reliable) const;
     void set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _reliable);
 
-    bool is_selective() const;
-    void set_selective(const bool _is_selective);
-
-    subscription_state_e get_state(const client_t _client) const;
-    void set_state(const client_t _client, subscription_state_e _state);
-
     bool is_tcp_connection_established() const;
     void set_tcp_connection_established(bool _is_established);
 
     bool is_udp_connection_established() const;
     void set_udp_connection_established(bool _is_established);
 
-    bool add_client(const client_t _client);
+    bool add_client(const client_t _client, subscription_state_e _state);
     bool remove_client(const client_t _client);
-    std::set<client_t> get_clients() const;
+
+    /**
+     * @brief Get subscription clients and their states
+     *
+     * @return Mutable reference to the map of clients and their subscription states
+     */
+    std::map<client_t, subscription_state_e>& get_clients();
+
     bool has_client() const;
     bool has_client(const client_t _client) const;
 
@@ -64,20 +66,18 @@ public:
     std::weak_ptr<eventgroupinfo> get_eventgroupinfo() const;
 
 private:
-    major_version_t major_;
+    const major_version_t major_;
+    const bool is_selective_;
+
     ttl_t ttl_;
 
     std::shared_ptr<boardnet_endpoint> reliable_;
     std::shared_ptr<boardnet_endpoint> unreliable_;
 
-    bool is_selective_;
-
     bool tcp_connection_established_;
     bool udp_connection_established_;
 
-    mutable std::mutex clients_mutex_;
     std::map<client_t, subscription_state_e> clients_; // client-> is acknowledged?
-
     std::weak_ptr<eventgroupinfo> eg_info_;
 };
 

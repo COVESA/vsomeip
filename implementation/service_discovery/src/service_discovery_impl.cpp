@@ -289,8 +289,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
             if (auto its_subscription = found_eventgroup->second; its_subscription->get_major() != _major) {
                 VSOMEIP_ERROR << "Subscriptions to different versions of the same service instance are not supported!";
             } else if (its_subscription->is_selective()) {
-                if (its_subscription->add_client(_client)) {
-                    its_subscription->set_state(_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
+                if (its_subscription->add_client(_client, subscription_state_e::ST_NOT_ACKNOWLEDGED)) {
                     send_subscription(its_subscription, _service, _instance, _eventgroup, _client);
                 }
             }
@@ -311,8 +310,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
 
     subscribed_[{_service, _instance}][_eventgroup] = its_subscription;
 
-    its_subscription->add_client(_client);
-    its_subscription->set_state(_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
+    its_subscription->add_client(_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
 
     send_subscription(its_subscription, _service, _instance, _eventgroup, _client);
 }
@@ -424,21 +422,15 @@ void service_discovery_impl::unsubscribe(service_t _service, instance_t _instanc
                     } else if (its_subscription->is_selective()) {
                         // create a dummy subscription object to unsubscribe
                         // the single client.
-                        auto its_major = its_subscription->get_major();
-
-                        its_subscription = std::make_shared<subscription>();
-                        its_subscription->set_major(its_major);
-                        its_subscription->set_ttl(0);
-                        its_subscription->set_selective(true);
-                        its_subscription->set_endpoint(its_reliable, true);
-                        its_subscription->set_endpoint(its_unreliable, false);
+                        its_subscription = std::make_shared<subscription>(its_subscription->get_major(), true /*is-selective*/, 0,
+                                                                          its_reliable, its_unreliable);
                     }
                 }
 
                 // For selective subscriptions, the client must be added again
                 // to generate the selective option
                 if (its_subscription->is_selective()) {
-                    its_subscription->add_client(_client);
+                    its_subscription->add_client(_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
                 }
 
                 const reliability_type_e its_reliability_type =
@@ -788,8 +780,8 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
             its_entry->set_ttl(_subscription->get_ttl());
             its_data.entry_ = its_entry;
 
-            for (const auto its_client : _subscription->get_clients()) {
-                if (_subscription->get_state(its_client) == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
+            for (const auto& [_, its_state] : _subscription->get_clients()) {
+                if (its_state == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
                     its_other = std::make_shared<eventgroupentry_impl>();
                     its_other->set_type(entry_type_e::STOP_SUBSCRIBE_EVENTGROUP);
                     its_other->set_service(_service);
@@ -834,8 +826,8 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
                 its_data.entry_ = its_entry;
             }
 
-            for (const auto its_client : _subscription->get_clients()) {
-                if (_subscription->get_state(its_client) == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
+            for (const auto& [_, its_state] : _subscription->get_clients()) {
+                if (its_state == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
                     if (!its_other) {
                         its_other = std::make_shared<eventgroupentry_impl>();
                         its_other->set_type(entry_type_e::STOP_SUBSCRIBE_EVENTGROUP);
@@ -864,7 +856,11 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
 
     if (its_entry && _subscription->is_selective()) {
         auto its_selective_option = std::make_shared<selective_option_impl>();
-        its_selective_option->set_clients(_subscription->get_clients());
+        std::set<uint16_t> its_clients;
+        for (const auto& [its_client, _] : _subscription->get_clients()) {
+            its_clients.insert(its_client);
+        }
+        its_selective_option->set_clients(its_clients);
         its_data.options_.push_back(its_selective_option);
     }
 
@@ -1490,24 +1486,25 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
         if (const auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
             for (const auto& [its_eventgroup_id, its_subscription] : found_si->second) {
                 std::shared_ptr<boardnet_endpoint> its_reliable, its_unreliable;
+                // TODO: horrifying - do we really need to lookup-and-set the endpoints for _every_ received offer?!
                 get_subscription_endpoints(_service, _instance, its_subscription->get_major(), its_reliable, its_unreliable);
                 its_subscription->set_endpoint(its_reliable, true);
                 its_subscription->set_endpoint(its_unreliable, false);
-                for (const auto& its_client : its_subscription->get_clients()) {
-                    if (its_subscription->get_state(its_client) == subscription_state_e::ST_ACKNOWLEDGED) {
+                // NOTE: we're mutating the subscription state directly
+                for (auto& [its_client, its_state] : its_subscription->get_clients()) {
+                    if (its_state == subscription_state_e::ST_ACKNOWLEDGED) {
                         if (has_unreceived_field_value(its_subscription)) {
-                            its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED);
+                            its_state = subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED;
                         } else {
-                            its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING);
+                            its_state = subscription_state_e::ST_RESUBSCRIBING;
                         }
-                    } else if (its_subscription->get_state(its_client) != subscription_state_e::ST_ACKNOWLEDGED
-                               && was_previously_offered_by_unicast) {
-                        its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING);
+                    } else if (its_state != subscription_state_e::ST_ACKNOWLEDGED && was_previously_offered_by_unicast) {
+                        its_state = subscription_state_e::ST_RESUBSCRIBING;
                     } else {
                         VSOMEIP_WARNING_P << "Pending SubAck for client " << hex4(its_client) << " for eventgroup "
                                           << hex4(its_eventgroup_id) << ", " << service_address_str() << " will resubscribe due to Offer";
 
-                        its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED);
+                        its_state = subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED;
                     }
                 }
                 const reliability_type_e its_reliability =
@@ -1517,8 +1514,8 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
                     its_data.entry_) {
                     add_entry_data(_resubscribes, its_data);
                 }
-                for (const auto its_client : its_subscription->get_clients()) {
-                    its_subscription->set_state(its_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
+                for (auto& [_, its_state] : its_subscription->get_clients()) {
+                    its_state = subscription_state_e::ST_NOT_ACKNOWLEDGED;
                 }
             }
         }
@@ -1629,8 +1626,8 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
 
                             its_subscription->set_endpoint(its_reliable, true);
                             its_subscription->set_endpoint(its_unreliable, false);
-                            for (const auto its_client : its_subscription->get_clients()) {
-                                its_subscription->set_state(its_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
+                            for (auto& [_, its_state] : its_subscription->get_clients()) {
+                                its_state = subscription_state_e::ST_NOT_ACKNOWLEDGED;
                             }
 
                             const reliability_type_e its_reliability_type =
@@ -2246,8 +2243,9 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(service_t _servi
     if (auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
         if (auto found_eventgroup = found_si->second.find(_eventgroup); found_eventgroup != found_si->second.end()) {
             for (const auto its_client : _clients) {
-                if (found_eventgroup->second->get_state(its_client) == subscription_state_e::ST_NOT_ACKNOWLEDGED) {
-                    found_eventgroup->second->set_state(its_client, subscription_state_e::ST_ACKNOWLEDGED);
+                auto itr = found_eventgroup->second->get_clients().find(its_client);
+                if (itr != found_eventgroup->second->get_clients().end() && itr->second == subscription_state_e::ST_NOT_ACKNOWLEDGED) {
+                    itr->second = subscription_state_e::ST_ACKNOWLEDGED;
                     host_->on_subscribe_ack(its_client, _service, _instance, _eventgroup, ANY_EVENT, PENDING_SUBSCRIPTION_ID);
                 }
             }
@@ -3297,22 +3295,14 @@ std::shared_ptr<subscription> service_discovery_impl::create_subscription(major_
                                                                           const std::shared_ptr<boardnet_endpoint>& _reliable,
                                                                           const std::shared_ptr<boardnet_endpoint>& _unreliable,
                                                                           const std::shared_ptr<eventgroupinfo>& _info) const {
-    auto its_subscription = std::make_shared<subscription>();
-    its_subscription->set_major(_major);
-    its_subscription->set_ttl(_ttl);
+    auto its_subscription = std::make_shared<subscription>(_major, _info->is_selective(), _ttl, _reliable, _unreliable);
 
     if (_reliable) {
-        its_subscription->set_endpoint(_reliable, true);
         its_subscription->set_tcp_connection_established(_reliable->is_established());
     }
-
     if (_unreliable) {
-        its_subscription->set_endpoint(_unreliable, false);
         its_subscription->set_udp_connection_established(_unreliable->is_established());
     }
-
-    // check whether the eventgroup is selective
-    its_subscription->set_selective(_info->is_selective());
 
     its_subscription->set_eventgroupinfo(_info);
 

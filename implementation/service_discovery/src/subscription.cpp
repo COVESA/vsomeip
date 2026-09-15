@@ -10,12 +10,13 @@
 namespace vsomeip_v3 {
 namespace sd {
 
+subscription::subscription(major_version_t _major, bool _is_selective, ttl_t _ttl, std::shared_ptr<boardnet_endpoint> _reliable,
+                           std::shared_ptr<boardnet_endpoint> _unreliable) :
+    major_(_major), is_selective_(_is_selective), ttl_(_ttl), reliable_(_reliable), unreliable_(_unreliable),
+    tcp_connection_established_(false), udp_connection_established_(false) { }
+
 major_version_t subscription::get_major() const {
     return major_;
-}
-
-void subscription::set_major(major_version_t _major) {
-    major_ = _major;
 }
 
 ttl_t subscription::get_ttl() const {
@@ -41,26 +42,6 @@ void subscription::set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpo
 bool subscription::is_selective() const {
     return is_selective_;
 }
-void subscription::set_selective(const bool _is_selective) {
-    is_selective_ = _is_selective;
-}
-
-subscription_state_e subscription::get_state(const client_t _client) const {
-    std::scoped_lock its_lock(clients_mutex_);
-    auto found_client = clients_.find(_client);
-    if (found_client != clients_.end()) {
-        return found_client->second;
-    }
-    return subscription_state_e::ST_UNKNOWN;
-}
-
-void subscription::set_state(const client_t _client, const subscription_state_e _state) {
-    std::scoped_lock its_lock(clients_mutex_);
-    auto found_client = clients_.find(_client);
-    if (found_client != clients_.end()) {
-        found_client->second = _state;
-    }
-}
 
 bool subscription::is_tcp_connection_established() const {
     return tcp_connection_established_;
@@ -76,42 +57,31 @@ void subscription::set_udp_connection_established(bool _is_established) {
     udp_connection_established_ = _is_established;
 }
 
-bool subscription::add_client(const client_t _client) {
-    std::scoped_lock its_lock(clients_mutex_);
+bool subscription::add_client(const client_t _client, subscription_state_e _state) {
     auto find_client = clients_.find(_client);
     if (find_client != clients_.end()) {
         return false;
     }
 
-    clients_[_client] = subscription_state_e::ST_UNKNOWN;
+    clients_[_client] = _state;
     return true;
 }
 
 bool subscription::remove_client(const client_t _client) {
-    std::scoped_lock its_lock(clients_mutex_);
     auto its_size = clients_.size();
     clients_.erase(_client);
     return its_size > clients_.size();
 }
 
-std::set<client_t> subscription::get_clients() const {
-    std::set<client_t> its_clients;
-    {
-        std::scoped_lock its_lock(clients_mutex_);
-        for (const auto its_item : clients_) {
-            its_clients.insert(its_item.first);
-        }
-    }
-    return its_clients;
+std::map<client_t, subscription_state_e>& subscription::get_clients() {
+    return clients_;
 }
 
 bool subscription::has_client() const {
-    std::scoped_lock its_lock(clients_mutex_);
-    return (clients_.size() > 0);
+    return !clients_.empty();
 }
 
 bool subscription::has_client(const client_t _client) const {
-    std::scoped_lock its_lock(clients_mutex_);
     return clients_.count(_client) > 0;
 }
 
