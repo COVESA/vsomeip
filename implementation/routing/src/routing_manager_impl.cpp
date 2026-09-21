@@ -75,11 +75,12 @@ routing_manager_impl::routing_manager_impl(routing_manager_host* _host, std::sha
         char h[1024];
         return gethostname(h, sizeof(h)) == 0 ? std::string(h) : std::string{};
     }()),
-    tc_(std::move(_trace_connector)), version_log_timer_(_host->get_io()), if_state_running_(false), sd_route_set_(false),
-    routing_running_(false), routing_state_(configuration_->get_initial_routing_state()), status_log_timer_(_host->get_io()),
-    memory_log_timer_(_host->get_io()), ep_mgr_impl_(std::make_shared<endpoint_manager_impl>(this, io_, configuration_)),
-    pending_remote_offer_id_(0), last_resume_(std::chrono::steady_clock::time_point::min()), statistics_log_timer_(_host->get_io()),
-    ignored_statistics_counter_(0), stop_offer_graceful_timer_{_host->get_io()} {
+    tc_(std::move(_trace_connector)), version_log_timer_(_host->get_io()), network_state_log_timer_(_host->get_io()),
+    if_state_running_(false), sd_route_set_(false), routing_running_(false), routing_state_(configuration_->get_initial_routing_state()),
+    status_log_timer_(_host->get_io()), memory_log_timer_(_host->get_io()),
+    ep_mgr_impl_(std::make_shared<endpoint_manager_impl>(this, io_, configuration_)), pending_remote_offer_id_(0),
+    last_resume_(std::chrono::steady_clock::time_point::min()), statistics_log_timer_(_host->get_io()), ignored_statistics_counter_(0),
+    stop_offer_graceful_timer_{_host->get_io()} {
 
     VSOMEIP_INFO << "Starting Routing Manager [Host] with state '" << to_string(routing_state_) << "'";
     const size_t its_max = configuration_->get_io_thread_count(host_->get_name());
@@ -215,7 +216,7 @@ void routing_manager_impl::start() {
         std::scoped_lock its_lock{log_timer_mutex_};
         if (configuration_->get_version_log_interval(host_->get_name(), true) > 0) {
             version_log_timer_.expires_after(std::chrono::seconds(0));
-            version_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->version_log_timer_cbk(ec, 0); });
+            version_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->version_log_timer_cbk(ec); });
         }
 
         if (configuration_->get_status_log_interval(host_->get_name(), true) > 0) {
@@ -228,6 +229,8 @@ void routing_manager_impl::start() {
             statistics_log_timer_.async_wait(std::bind(&routing_manager_impl::print_event_statistics, this, std::placeholders::_1));
         }
     }
+
+    restart_network_state_log_timer();
 
     VSOMEIP_INFO << VSOMEIP_INTERNAL_ROUTING_READY_MESSAGE;
 }
@@ -245,6 +248,8 @@ void routing_manager_impl::stop() {
     {
         std::scoped_lock its_lock{log_timer_mutex_};
         version_log_timer_.cancel();
+        ++network_state_log_generation_;
+        network_state_log_timer_.cancel();
         status_log_timer_.cancel();
         statistics_log_timer_.cancel();
     }
@@ -2509,7 +2514,7 @@ std::chrono::steady_clock::time_point routing_manager_impl::expire_subscriptions
     return its_next_expiration;
 }
 
-void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const& _error, size_t _count) {
+void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const& _error) {
     if (!_error) {
         const uint32_t its_interval = configuration_->get_version_log_interval(host_->get_name(), true);
 
@@ -2527,22 +2532,66 @@ void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const
         ep_mgr_impl_->log_client_states();
         ep_mgr_impl_->log_server_states();
 
-        if (_count % 3) {
-            // log only external connections, UDP+TCP
-            utility::log_network_state(configuration_, false, true);
-            utility::log_network_state(configuration_, true, true);
-        } else {
-            // log all connections, UDP+TCP
-            utility::log_network_state(configuration_, false, false);
-            utility::log_network_state(configuration_, true, false);
-        }
-
         {
             std::scoped_lock its_lock(log_timer_mutex_);
             version_log_timer_.expires_after(std::chrono::milliseconds(its_interval));
-            version_log_timer_.async_wait(
-                    [this, count = _count + 1](boost::system::error_code const& ec) { this->version_log_timer_cbk(ec, count); });
+            version_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->version_log_timer_cbk(ec); });
         }
+    }
+}
+
+void routing_manager_impl::network_state_log_timer_cbk(boost::system::error_code const& _error, size_t _count, uint32_t _wait_interval,
+                                                       std::uint64_t _generation) {
+    if (_error) {
+        return;
+    }
+
+    {
+        std::scoped_lock its_lock(log_timer_mutex_);
+        if (_generation != network_state_log_generation_) {
+            // superseded by a newer start()/resume before this tick ran
+            return;
+        }
+    }
+
+    const uint32_t its_target_interval = configuration_->get_network_state_log_interval();
+
+    if (_count % 3) {
+        // log only external connections, UDP+TCP
+        utility::log_network_state(configuration_, false, true);
+        utility::log_network_state(configuration_, true, true);
+    } else {
+        // log all connections, UDP+TCP
+        utility::log_network_state(configuration_, false, false);
+        utility::log_network_state(configuration_, true, false);
+    }
+
+    // ramp the interval up exponentially after start/resume until it reaches the configured value
+    const auto its_next_wait_interval =
+            static_cast<uint32_t>(std::min<uint64_t>(its_target_interval, static_cast<uint64_t>(_wait_interval) * 2));
+
+    std::scoped_lock its_lock(log_timer_mutex_);
+    if (_generation != network_state_log_generation_) {
+        // superseded while logging; don't re-arm over a newer reset
+        return;
+    }
+    network_state_log_timer_.expires_after(std::chrono::milliseconds(_wait_interval));
+    network_state_log_timer_.async_wait(
+            [this, count = _count + 1, its_next_wait_interval, _generation](boost::system::error_code const& ec) {
+                this->network_state_log_timer_cbk(ec, count, its_next_wait_interval, _generation);
+            });
+}
+
+void routing_manager_impl::restart_network_state_log_timer() {
+    const uint32_t its_target_interval = configuration_->get_network_state_log_interval();
+    if (its_target_interval > 0) {
+        const uint32_t its_initial_interval = std::min<uint32_t>(VSOMEIP_DEFAULT_LOG_NETWORK_STATE_INITIAL_INTERVAL, its_target_interval);
+        std::scoped_lock its_lock{log_timer_mutex_};
+        const std::uint64_t its_generation = ++network_state_log_generation_;
+        network_state_log_timer_.expires_after(std::chrono::seconds(0));
+        network_state_log_timer_.async_wait([this, its_initial_interval, its_generation](boost::system::error_code const& ec) {
+            this->network_state_log_timer_cbk(ec, 0, its_initial_interval, its_generation);
+        });
     }
 }
 
@@ -2978,6 +3027,8 @@ void routing_manager_impl::set_routing_state_internal(std::unique_lock<std::mute
                 std::scoped_lock its_lock(last_resume_mutex_);
                 last_resume_ = std::chrono::steady_clock::now();
             }
+
+            restart_network_state_log_timer();
 
             if (routing_state_handler_) {
                 _lock.unlock();

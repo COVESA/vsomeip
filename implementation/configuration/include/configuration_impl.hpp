@@ -212,6 +212,8 @@ public:
      */
     uint32_t get_status_log_interval(const std::string& _name, bool _is_host) const;
 
+    uint32_t get_network_state_log_interval() const;
+
     ttl_map_t get_ttl_factor_offers() const;
     ttl_map_t get_ttl_factor_subscribes() const;
 
@@ -566,6 +568,7 @@ protected:
     uint32_t log_memory_interval_;
 
     uint32_t log_status_interval_;
+    uint32_t log_network_state_interval_;
 
     ttl_map_t ttl_factors_offers_;
     ttl_map_t ttl_factors_subscriptions_;

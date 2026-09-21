@@ -67,6 +67,7 @@
 
 #define VSOMEIP_DEFAULT_LOG_NETWORK             0 // milliseconds
 #define VSOMEIP_DEFAULT_LOG_NETWORK_HOST        10000 // milliseconds
+#define VSOMEIP_DEFAULT_LOG_NETWORK_STATE_INITIAL_INTERVAL 1000 // milliseconds
 #define VSOMEIP_DEFAULT_LOG_STATUS              0 // milliseconds
 #define VSOMEIP_DEFAULT_QUEUE_WARN_SIZE         32768
 

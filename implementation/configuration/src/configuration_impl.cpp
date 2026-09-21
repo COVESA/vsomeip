@@ -64,14 +64,14 @@ configuration_impl::configuration_impl(const std::string& _path) :
     buffer_shrink_threshold_{VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD}, trace_{std::make_shared<trace>()}, log_version_{true},
     log_version_interval_{VSOMEIP_DEFAULT_LOG_NETWORK_HOST}, permissions_uds_{VSOMEIP_DEFAULT_UDS_PERMISSIONS}, network_{"vsomeip"},
     e2e_enabled_{false}, log_memory_{false}, log_memory_interval_{0}, log_status_interval_{VSOMEIP_DEFAULT_LOG_STATUS},
-    endpoint_queue_limit_external_{QUEUE_SIZE_UNLIMITED}, endpoint_queue_limit_local_{QUEUE_SIZE_UNLIMITED},
-    local_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT}, local_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE},
-    local_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL}, local_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT},
-    external_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT}, external_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE},
-    external_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL}, external_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT},
-    tcp_restart_aborts_max_{VSOMEIP_MAX_TCP_RESTART_ABORTS}, tcp_connect_time_max_{VSOMEIP_MAX_TCP_CONNECT_TIME},
-    udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE}, npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
-    npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    log_network_state_interval_{VSOMEIP_DEFAULT_LOG_NETWORK}, endpoint_queue_limit_external_{QUEUE_SIZE_UNLIMITED},
+    endpoint_queue_limit_local_{QUEUE_SIZE_UNLIMITED}, local_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT},
+    local_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE}, local_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL},
+    local_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT}, external_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT},
+    external_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE}, external_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL},
+    external_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT}, tcp_restart_aborts_max_{VSOMEIP_MAX_TCP_RESTART_ABORTS},
+    tcp_connect_time_max_{VSOMEIP_MAX_TCP_CONNECT_TIME}, udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE},
+    npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO}, npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
     npdu_default_max_retention_requ_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO},
     npdu_default_max_retention_resp_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO}, log_statistics_{true},
     statistics_interval_{VSOMEIP_DEFAULT_STATISTICS_INTERVAL}, statistics_min_freq_{VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ},
@@ -644,6 +644,14 @@ bool configuration_impl::load_logging(const configuration_element& _element, std
                 // on the config in seconds, and here is converted to milliseconds
                 // for more precision, set it on application level
                 log_status_interval_ *= 1000;
+            } else if (its_key == "network_state_log_interval") {
+                std::stringstream its_converter;
+                its_converter << std::dec << i->second.data();
+                its_converter >> log_network_state_interval_;
+                // for compatibility reasons, this value has to be set
+                // on the config in seconds, and here is converted to milliseconds
+                // for more precision, set it on application level
+                log_network_state_interval_ *= 1000;
             } else if (its_key == "memory_log_interval") {
                 std::stringstream its_converter;
                 its_converter << std::dec << i->second.data();
@@ -2983,6 +2991,10 @@ uint32_t configuration_impl::get_version_log_interval(const std::string& _name, 
     } else {
         return VSOMEIP_DEFAULT_LOG_NETWORK;
     }
+}
+
+uint32_t configuration_impl::get_network_state_log_interval() const {
+    return log_network_state_interval_;
 }
 
 uint32_t configuration_impl::get_status_log_interval(const std::string& _name, bool _is_host) const {
