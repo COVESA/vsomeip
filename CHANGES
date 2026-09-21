@@ -21,6 +21,7 @@ v3.8.0
   - Cleanup ifdef ANDROID, again
   - Fix 0000.0000 service identity in event config warnings
   - Refactor and optimize trace logger; make hex output faster
+  - Fix Boost 1.90 compatibility
 
 - configuration
   - Cleanup configuration_impl
@@ -65,6 +66,7 @@ v3.8.0
   - Cleanup a couple of pointless logs
   - Drop the gid from the local peer identity check
   - Fill major version in rmc commands
+  - increase network state log frequency
 
 - endpoints
   - Avoid timers and trains for non-configured services
