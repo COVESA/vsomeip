@@ -680,6 +680,7 @@ TEST(configuration_test, default_values) {
 
     // check a few default values
     EXPECT_EQ(conf->get_diagnosis_address(), VSOMEIP_DIAGNOSIS_ADDRESS);
+    EXPECT_EQ(conf->get_network_state_log_interval(), VSOMEIP_DEFAULT_LOG_NETWORK);
 
     EXPECT_EQ(conf->get_local_tcp_user_timeout(), VSOMEIP_DEFAULT_TCP_USER_TIMEOUT);
     EXPECT_EQ(conf->get_local_tcp_keepidle(), VSOMEIP_DEFAULT_TCP_KEEPIDLE);
@@ -803,6 +804,26 @@ TEST(configuration_test, version_and_status) {
     // configured application with default values
     EXPECT_EQ(conf->get_status_log_interval("app2", false), VSOMEIP_DEFAULT_LOG_STATUS);
     EXPECT_EQ(conf->get_version_log_interval("app2", false), VSOMEIP_DEFAULT_LOG_NETWORK);
+}
+
+TEST(configuration_test, network_state_log_interval) {
+    /// check behavior of "network_state_log_interval": unlike "version_log_interval" and
+    /// "status_log_interval", it only ever applies to the routing manager (the host), so it has
+    /// no per-application override and no host/non-host distinction.
+
+    write_config("network_state_log_interval.json", R"(
+{
+    "logging":
+    {
+        "network_state_log_interval": "12"
+    }
+}
+    )");
+
+    std::shared_ptr<vsomeip::configuration> conf = load_config("network_state_log_interval", "network_state_log_interval.json");
+    ASSERT_TRUE(conf);
+
+    EXPECT_EQ(conf->get_network_state_log_interval(), 12'000);
 }
 
 TEST(configuration_test, eventgroup_multiple_events) {

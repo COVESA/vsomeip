@@ -55,6 +55,7 @@
     - **interval** - Configures interval in seconds to log the vsomeip version. The default value is `10` sec.
   - **memory_log_interval** - Configures interval in seconds in which the routing manager logs its used memory. Setting a value greater than zero enables the logging. The default value is `0` sec.
   - **status_log_interval** - Configures interval in seconds in which the routing manager logs its internal status. Setting a value greater than zero enables the logging. The default value is `0` sec.
+  - **network_state_log_interval** - Configures interval in seconds in which the routing manager logs the network state. Setting a value greater than zero enables the logging. The default value is `0` sec.
   - **statistics**
     - **interval** - How often to report statistics data (received messages/events) in ms. The minimum possible interval is `1000`, for configured values below, 1000 will be used. The default value is `10000` ms (10sec).
     - **min-frequency** - Minimum frequency of reported events. The default value is `50` Hz.

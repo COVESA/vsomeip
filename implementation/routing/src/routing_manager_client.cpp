@@ -174,7 +174,6 @@ void routing_manager_client::log_status() {
 
 void routing_manager_client::log_version() {
     VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << " (" << VSOMEIP_GIT_COMMIT << ") | ";
-    utility::log_network_state(configuration_, true, false);
 }
 
 async::hook routing_manager_client::stop() {

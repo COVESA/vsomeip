@@ -210,6 +210,8 @@ public:
 
     virtual uint32_t get_status_log_interval(const std::string& _name, bool _is_host) const = 0;
 
+    virtual uint32_t get_network_state_log_interval() const = 0;
+
     // TTL factor
     typedef uint32_t ttl_factor_t;
     typedef std::map<service_t, std::map<instance_t, ttl_factor_t>> ttl_map_t;

@@ -507,7 +507,9 @@ void utility::log_network_state(const std::shared_ptr<configuration>& _configura
             continue;
         }
 
-        if (_only_external && local_addr.substr(0, external_addr_hex.length()) != external_addr_hex) {
+        // sockets bound to 0.0.0.0 (e.g. multicast-receiving server endpoints) are always
+        // included, since they are not tied to a specific local/remote peer
+        if (_only_external && !local_addr.starts_with("00000000") && !local_addr.starts_with(external_addr_hex)) {
             continue;
         }
 

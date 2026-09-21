@@ -301,7 +301,12 @@ private:
 
     return_code_e check_error(const byte_t* _data, length_t _size, instance_t _instance) const;
 
-    void version_log_timer_cbk(boost::system::error_code const& _error, size_t _count);
+    void version_log_timer_cbk(boost::system::error_code const& _error);
+
+    void network_state_log_timer_cbk(boost::system::error_code const& _error, size_t _count, uint32_t _wait_interval,
+                                     std::uint64_t _generation);
+
+    void restart_network_state_log_timer();
 
     bool handle_local_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                     minor_version_t _minor);
@@ -427,6 +432,8 @@ private:
 
     std::mutex log_timer_mutex_;
     boost::asio::steady_timer version_log_timer_;
+    boost::asio::steady_timer network_state_log_timer_;
+    std::uint64_t network_state_log_generation_{0};
 
     std::atomic_bool if_state_running_;
     std::atomic_bool sd_route_set_;
