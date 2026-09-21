@@ -1458,8 +1458,7 @@ struct length_field_too_big : public base_fake_socket_fixture {
 
     boost::asio::ip::udp::endpoint src_ep_ = boost::asio::ip::udp::endpoint(ecu_one_.config().unicast_ip_, 30491);
     boost::asio::ip::udp::endpoint dst_ep_ = boost::asio::ip::udp::endpoint(ecu_two_.config().unicast_ip_, 30502);
-    boost::asio::ip::udp::endpoint multicast_ep_ =
-            boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string("224.224.224.0"), 30490);
+    boost::asio::ip::udp::endpoint multicast_ep_ = boost::asio::ip::udp::endpoint(boost::asio::ip::make_address("224.224.224.0"), 30490);
 
     [[nodiscard]] bool successfully_registered(app* _app) {
         return _app && _app->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED);
