@@ -163,8 +163,13 @@ void routing_manager_impl::init() {
         auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::SD_RUNTIME_PLUGIN, VSOMEIP_SD_LIBRARY);
         if (its_plugin) {
             VSOMEIP_INFO << "Service Discovery module loaded.";
-            discovery_ = std::dynamic_pointer_cast<sd::runtime>(its_plugin)->create_service_discovery(this, configuration_);
-            discovery_->init();
+            auto its_runtime = std::dynamic_pointer_cast<sd::runtime>(its_plugin);
+            if (!its_runtime) {
+                // Happens when the loaded module provides a different sd::runtime than this library expects
+                VSOMEIP_ERROR << "Service Discovery module does not provide a valid runtime!";
+                std::exit(EXIT_FAILURE);
+            }
+            discovery_ = its_runtime->create_service_discovery(this, configuration_);            discovery_->init();
             // Only enable stop offer graceful timer if SD is enabled.
             stop_offer_graceful_timer_.expires_after(std::chrono::milliseconds(configuration_->get_sd_cyclic_offer_delay()));
             stop_offer_graceful_timer_.async_wait(
