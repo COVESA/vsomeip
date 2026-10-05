@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 #include <thread>
 
@@ -30,7 +31,14 @@ private:
     std::mutex stop_mutex;
     bool received_message{false};
 
+    // Number of notifications the client has confirmed receiving (cumulative
+    // high-water mark reported via MEMORY_ACK_METHOD).
+    std::atomic<uint64_t> acked_count_{0};
+
     void on_start(const std::shared_ptr<vsomeip::message> /*&_message*/);
     void on_stop(const std::shared_ptr<vsomeip::message> /*&_message*/);
+    void on_ack(const std::shared_ptr<vsomeip::message>& _message);
+    // Blocks until fewer than FLOW_CONTROL_WINDOW messages are outstanding, or
+    // until the acknowledged count stalls (consumer gone).
+    void wait_for_flow_control(uint64_t sent_);
 };
-void check_memory(std::vector<std::uint64_t>& test_memory_);

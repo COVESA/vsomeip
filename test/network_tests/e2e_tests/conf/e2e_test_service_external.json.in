@@ -1,5 +1,6 @@
 {
     "unicast" : "@TEST_IP_SLAVE@",
+    "diagnosis" : "0x02",
     "netmask" : "255.255.255.0",
     "logging" :
     {
@@ -13,8 +14,7 @@
     "applications" :
     [
         {
-            "name" : "service-sample",
-            "id" : "0x1277"
+            "name" : "service-sample"
         }
     ],
     "services" :
@@ -62,7 +62,6 @@
         "repetitions_base_delay" : "200",
         "repetitions_max" : "3",
         "ttl" : "3",
-        "cyclic_offer_delay" : "2000",
-        "request_response_delay" : "1500"
+        "cyclic_offer_delay" : "2000"
     }
 }

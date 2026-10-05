@@ -588,6 +588,7 @@ The Trace Connector is used to forward the internal messages that are sent over 
 - **tracing** (optional)
     - **enable** - Specifies whether the tracing of the SOME/IP messages is enabled, valid values are `true`, `false`. The default value is `false`. If tracing is enabled, the messages will be forwarded to DLT by the Trace Connector. If DLT is not used, messages are written as an hexstream to console/file output.
     - **sd_enable** - Specifies whether the tracing of the SOME/IP service discovery messages is enabled, valid values are `true`, `false`. The default value is `false`.
+    - **full_logging_threshold** - Message size threshold (in bytes) for tracing. With the default filter (i.e. no explicit positive filter configured), messages larger than this are traced header-only instead of in full, to avoid logging large payloads (e.g. multi-kilobyte IPC frames) by default. The threshold is compared against the full message size (16-byte SOME/IP header + payload). The default value is `2048`. A value of `0` disables the threshold. Non-zero values below the 16-byte SOME/IP header size are raised to `16`, since header-only tracing always emits the full header. An explicit **positive filter** always traces the full message regardless of this threshold - this is how full logging of large messages can be intentionally enabled. Note that traced messages are in any case clipped to 65535 bytes, so payloads larger than ~64KB are never traced in full.
     - **channels** (array)(optional) - Contains the channels.
     **NOTE**: You can set up multiple channels in order to forward messages.
         - **name** - The name of the channel.
@@ -597,10 +598,11 @@ The Trace Connector is used to forward the internal messages that are sent over 
         - **channel** (optional) - The id of the channel over that the filtered messages are forwarded. If no channel is specified the default channel (`TC`) is used. If you want to use a filter in several different channels, you can provide an array of channel ids.
         **NOTE**: If you use a positive filter with multiple channels, the same message will be forwarded multiple times.
         - **matches** (optional) - Specification of the criteria to include/exclude a message into/from the trace. You can either specify lists (array) or ranges of matching elements. A list may contain single identifiers which match all messages from/to all instances of the corresponding service or tuples consisting of service, instance and method-identifier. 'any' may be used as a wildcard for matching all services, instances or methods. A range is specified by two tuples "from" and "to", each consisting of service-, instance-and method-identifier. All messages with service-, instance-and method-identifiers that are greater than or equal to "from" and less than or equal to "to" are matched.
-        - **type** (optional) - Specifies the filter type (valid values: `positive`, `negative`, `header-only`). The default value is `positive`.
-            - A **positive filter** is used and a message matches one of the filter rules, the message will be traced/forwarded.
+        - **type** (optional) - Specifies the filter type (valid values: `positive`, `negative`, `header-only`, `full-payload`). The default value is `positive`.
+            - A **positive filter** is used and a message matches one of the filter rules, the message will be traced/forwarded. Configuring any positive filter turns the channel into an allow-list: messages that do not match a positive filter are no longer forwarded.
             - A **negative filter** messages can be excluded. So when a message matches one of the filter rules, the message will not be traced/forwarded.
-            - A **header-only filter** is a positive filter that does not trace the message payload.
+            - A **header-only filter** traces matching messages without their payload. It does not turn the channel into an allow-list, so non-matching messages are still forwarded under the default filter.
+            - A **full-payload filter** is the mirror image of a header-only filter: it traces matching messages in full, bypassing the `full_logging_threshold`, without turning the channel into an allow-list. This is how a single large service/method can be exempted from the threshold while leaving all other traffic on the default path.
 
 <details><summary>Example 1 (Minimal Configuration)!</summary>
 This is the minimal configuration of the Trace Connector.
@@ -625,7 +627,9 @@ If it was specified as a negative filter, all messages except messages represent
 The general filter rules are:
 * The default filter is a positive filter for all messages.
 * The default filter is active on a channel as long as no other positive filter is specified.
-* Negative filters block matching messages. Negative filters overrule positive filters. Thus, as soon as a messages matches a negative filter it will not be forwarded.
+* The default filter traces messages in full only up to `full_logging_threshold` bytes; larger messages are traced header-only. An explicitly configured positive or full-payload filter is not subject to this threshold and always traces the full message.
+* A full-payload filter forces full tracing of matching messages past the `full_logging_threshold` without restricting the channel to an allow-list, so it can be combined with the default filter to exempt a single large message from truncation.
+* Negative filters block matching messages. Negative filters overrule positive, header-only and full-payload filters. Thus, as soon as a messages matches a negative filter it will not be forwarded.
 * The identifier '0xffff' is a wildcard that matches any service, instance or method. The keyword 'any' can be used as a replacement for '0xffff'.
 * Wildcards must not be used within range filters.
 
@@ -701,9 +705,9 @@ The general filter rules are:
     - **multicast** - The multicast address which the messages of the Service Discovery will be sent to. The default value is `224.224.224.0`.
     - **port** - The port of the Service Discovery. The default value is `30490`.
     - **protocol** The protocol that is used for sending the Service Discovery messages, valid values are `tcp`, `udp`. The default value is `udp`.
-    - **initial_delay_min** - Minimum delay before first offer message. The default value is `0` ms.
-    - **initial_delay_max** - Maximum delay before first offer message. The default value is `3000` ms.
-    - **repetitions_base_delay** - Base delay sending offer messages within the repetition phase. The default value is `10`.
+    - **initial_delay_min** - Minimum delay before first offer/find messages. The default value is `0` ms.
+    - **initial_delay_max** - Maximum delay before first offer/find messages. The default value is `0` ms.
+    - **repetitions_base_delay** - Base delay sending offer messages within the repetition phase. The default value is `10` ms.
     - **repetitions_max** - Maximum number of repetitions for provided services within the repetition phase. The default value is `3`.
     - **ttl** - Lifetime of entries for provided services as well as consumed services and eventgroups. The default value is `0xFFFFFF`, until next reboot.
     - **ttl_factor_offers** (optional array) - Array which holds correction factors for incoming remote offers. If a value greater than one is specified for a service instance, the TTL field of the corresponding service entry will be multiplied with the specified factor. **Example**: An offer of a service is received with a TTL of 3 sec and the TTL factor is set to 5. The remote node stops offering the service w/o sending a StopOffer message. The service will then expire (marked as unavailable) 15 seconds after the last offer has been received.
@@ -715,9 +719,8 @@ The general filter rules are:
         - **instance** - The id of the service instance.
         - **ttl_factor** - TTL correction factor
     - **cyclic_offer_delay** - Cycle of the OfferService messages in the main phase. The default value is `1000` ms.
-    - **request_response_delay** - Minimum delay of a unicast message to a multicast message for provided services and eventgroups. The default value is `2000` ms.
-    - **offer_debounce_time** - Time which the stack collects new service offers before they enter the repetition phase. This can be used to reduce the number of sent messages during startup. The default value is `500` ms.
-    - **find_debounce_time** - Time which the stack collects non local service requests before sending find messages. The default value is `500` ms.
+    - **offer_debounce_time** - Time which the stack collects new service offers before sending a multicast message. This can be used to reduce the number of sent multicast messages (especially at startup). The default value is `20` ms.
+    - **find_debounce_time** - Time which the stack collects new service requests before sending a multicast message. This can be used to reduce the number of sent multicast messages (especially at startup). The default value is `20` ms.
     - **max_remote_subscribers** - Maximum possible number of different remote subscribers. Additional remote subscribers will not be acknowledged. The default value is `3`.
     - **find_initial_debounce_reps** - Number of initial debounces using find_initial_debounce_time. This can be used to modify the number of sent messages during initial part of startup (valid values: `0 - 2^8-1`). The default setting is `0`.
     - **find_initial_debounce_time** - Time which the stack collects new service requests before they enter the repetition phase. This can be used to modify the number of sent messages during initial part of startup. The default setting is `200` ms.
@@ -734,8 +737,8 @@ The general filter rules are:
     "multicast" : "239.192.255.251",
     "port" : "30490",
     "protocol" : "udp",
-    "initial_delay_min" : "10",
-    "initial_delay_max" : "10",
+    "initial_delay_min" : "0",
+    "initial_delay_max" : "0",
     "repetitions_base_delay" : "30",
     "repetitions_max" : "3",
     "cyclic_offer_delay" : "1000",

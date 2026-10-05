@@ -120,7 +120,7 @@ public:
 
         std::scoped_lock its_lock(mutex_);
         auto its_payload = _message->get_payload();
-        std::uint32_t data = static_cast<std::uint32_t>(its_payload->get_data()[0]);
+        uint32_t data = static_cast<uint32_t>(its_payload->get_data()[0]);
 
         EXPECT_EQ(reply_received_, data);
 
@@ -213,7 +213,7 @@ public:
 
         VSOMEIP_DEBUG << "Client sending request messages";
 
-        for (std::uint32_t index = 0; index < second_address_test::number_of_messages_to_send; index++) {
+        for (uint32_t index = 0; index < second_address_test::number_of_messages_to_send; index++) {
             vsomeip::byte_t* msg_payload = reinterpret_cast<vsomeip::byte_t*>(&index);
             its_payload->set_data(msg_payload, sizeof(index));
             its_message->set_payload(its_payload);
@@ -276,10 +276,10 @@ private:
     std::condition_variable condition_;
 
     std::thread send_thread_;
-    std::uint32_t message_sent_ = 0;
-    std::uint32_t reply_received_ = 0;
-    std::uint32_t number_events_received_ = 0;
-    std::uint32_t number_selective_events_received_ = 0;
+    uint32_t message_sent_ = 0;
+    uint32_t reply_received_ = 0;
+    uint32_t number_events_received_ = 0;
+    uint32_t number_selective_events_received_ = 0;
 };
 
 static bool use_tcp = false;

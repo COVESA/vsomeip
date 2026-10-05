@@ -6,6 +6,14 @@
 #include "base_fake_socket_fixture.hpp"
 #include "test_logging.hpp"
 
+#include "../../../../implementation/configuration/include/configuration_plugin.hpp"
+
+#include <vsomeip/internal/plugin_manager.hpp>
+
+#include "internal.hpp"
+
+#include <memory>
+
 #define LOCAL_LOG TEST_LOG << "[fixture] "
 namespace vsomeip_v3::testing {
 std::shared_ptr<fake_socket_factory> base_fake_socket_fixture::factory_ = std::make_shared<fake_socket_factory>();
@@ -32,12 +40,23 @@ base_fake_socket_fixture::~base_fake_socket_fixture() {
         }
     }
     name_to_client_.clear();
+    reset_configuration_cache();
     factory_->set_manager(nullptr);
 }
 
 void base_fake_socket_fixture::reset_socket_manager() {
+    reset_configuration_cache();
     socket_manager_ = std::make_shared<socket_manager>();
     factory_->set_manager(socket_manager_);
+}
+
+void base_fake_socket_fixture::reset_configuration_cache() {
+    // The configuration plugin is loaded lazily by application_impl::init(), and get_plugin() does
+    // not load it: before the first application is created there is simply nothing to clear.
+    auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
+    if (auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin)) {
+        its_configuration_plugin->clear_configurations();
+    }
 }
 
 void base_fake_socket_fixture::use_configuration(std::string const& file_name) {
@@ -118,6 +137,10 @@ size_t base_fake_socket_fixture::connection_count(std::string const& _client, st
     return socket_manager_->count_established_connections(_client, _server);
 }
 
+std::optional<port_t> base_fake_socket_fixture::server_port(std::string const& _app) {
+    return socket_manager_->server_port(_app);
+}
+
 void base_fake_socket_fixture::report_on_connect(std::string const& _app_name, std::vector<boost::system::error_code> _next_errors) {
     socket_manager_->report_on_connect(_app_name, std::move(_next_errors));
 }
@@ -196,9 +219,9 @@ bool base_fake_socket_fixture::setup_data_pipe(boost::asio::ip::udp::endpoint co
     return socket_manager_->wait_for_last_command(_client, _server, _waiting, _id, _timeout);
 }
 
-[[nodiscard]] bool base_fake_socket_fixture::wait_for_connection_drop(std::string const& _client, std::string const& _server,
-                                                                      std::chrono::milliseconds _timeout) {
-    return socket_manager_->wait_for_connection_drop(_client, _server, _timeout);
+[[nodiscard]] connection_drop_watch base_fake_socket_fixture::watch_connection_drop(std::string const& _client,
+                                                                                    std::string const& _server) {
+    return socket_manager_->watch_connection_drop(_client, _server);
 }
 
 void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail) {

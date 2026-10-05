@@ -95,8 +95,8 @@ protected:
 protected:
     std::shared_ptr<configuration> configuration_;
     vsomeip::client_t client_id_routing_manager_;
-    std::uint16_t diagnosis_;
-    std::uint16_t diagnosis_mask_;
+    uint16_t diagnosis_;
+    uint16_t diagnosis_mask_;
     client_t client_id_base_;
     std::shared_ptr<vsomeip::application> app_;
     std::thread rm_impl_thread_;
@@ -182,7 +182,7 @@ TEST_F(client_id_utility_test, ensure_client_id_reuse) {
 
 TEST_F(client_id_utility_test, ensure_preconfigured_client_ids_not_used_for_autoconfig) {
     // request client ids until 10 over the preconfigured one
-    const std::uint16_t limit = static_cast<std::uint16_t>((APPLICATION_IN_CLIENT_ID & ~diagnosis_mask_) + std::uint16_t(10));
+    const uint16_t limit = static_cast<uint16_t>((APPLICATION_IN_CLIENT_ID & ~diagnosis_mask_) + uint16_t(10));
 
     std::vector<std::shared_ptr<app_wrapper>> its_apps;
     its_apps.reserve(limit);
@@ -268,16 +268,16 @@ TEST_F(client_id_utility_test, ensure_preconfigured_client_ids_in_diagnosis_rang
 
 TEST_F(client_id_utility_test, exhaust_client_id_range_sequential) {
     std::vector<vsomeip::client_t> its_clients;
-    std::uint16_t its_max_clients(0);
-    for (int var = 0; var < __builtin_popcount(static_cast<std::uint16_t>(~diagnosis_mask_)); ++var) {
-        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+    uint16_t its_max_clients(0);
+    for (int var = 0; var < __builtin_popcount(static_cast<uint16_t>(~diagnosis_mask_)); ++var) {
+        its_max_clients = static_cast<uint16_t>(its_max_clients | (1 << var));
     }
     // -2 as two predefined client IDs are present in the json file which
     // aren't assigned via autoconfiguration
-    const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(its_max_clients - 2u);
+    const uint16_t max_allowed_clients = static_cast<uint16_t>(its_max_clients - 2u);
 
     // acquire maximum amount of client IDs
-    for (std::uint16_t i = 0; i < max_allowed_clients; i++) {
+    for (uint16_t i = 0; i < max_allowed_clients; i++) {
         const vsomeip::client_t its_client = vsomeip::utility::request_client_id(
                 configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
         if (its_client != VSOMEIP_CLIENT_UNSET) {
@@ -286,7 +286,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_sequential) {
             }
             its_clients.push_back(its_client);
         } else {
-            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<uint32_t>(i);
         }
     }
     // check limit is reached
@@ -303,14 +303,14 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
 
     // -2 as two predefined client IDs are present in the json file which
     // aren't assigned via autoconfiguration
-    std::uint16_t its_max_clients(0);
-    for (int var = 0; var < __builtin_popcount(static_cast<std::uint16_t>(~diagnosis_mask_)); ++var) {
-        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+    uint16_t its_max_clients(0);
+    for (int var = 0; var < __builtin_popcount(static_cast<uint16_t>(~diagnosis_mask_)); ++var) {
+        its_max_clients = static_cast<uint16_t>(its_max_clients | (1 << var));
     }
-    const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(its_max_clients - 2u);
+    const uint16_t max_allowed_clients = static_cast<uint16_t>(its_max_clients - 2u);
 
     // acquire maximum amount of client IDs
-    for (std::uint16_t i = 0; i < max_allowed_clients; i++) {
+    for (uint16_t i = 0; i < max_allowed_clients; i++) {
         const vsomeip::client_t its_client = vsomeip::utility::request_client_id(
                 configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
         if (its_client != VSOMEIP_CLIENT_UNSET) {
@@ -319,7 +319,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
             }
             its_clients.push_back(its_client);
         } else {
-            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<uint32_t>(i);
         }
     }
 
@@ -346,7 +346,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
     }
 
     // acquire client IDs up to the maximum allowed amount again
-    for (std::uint16_t i = 0; i < its_released_client_ids.size(); i++) {
+    for (uint16_t i = 0; i < its_released_client_ids.size(); i++) {
         const vsomeip::client_t its_client = vsomeip::utility::request_client_id(
                 configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
         if (its_client != VSOMEIP_CLIENT_UNSET) {
@@ -355,7 +355,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
             }
             its_clients.push_back(its_client);
         } else {
-            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<uint32_t>(i);
         }
     }
 
@@ -379,22 +379,22 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
 
     // -1 for the routing manager, -2 as two predefined client IDs are present
     // in the json file which aren't assigned via autoconfiguration
-    std::uint16_t its_max_clients(0);
-    for (int var = 0; var < __builtin_popcount(static_cast<std::uint16_t>(~diagnosis_mask_)); ++var) {
-        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+    uint16_t its_max_clients(0);
+    for (int var = 0; var < __builtin_popcount(static_cast<uint16_t>(~diagnosis_mask_)); ++var) {
+        its_max_clients = static_cast<uint16_t>(its_max_clients | (1 << var));
     }
-    const std::uint16_t its_diagnosis_mask = configuration_->get_diagnosis_mask();
-    const std::uint16_t its_client_mask = static_cast<std::uint16_t>(~its_diagnosis_mask);
+    const uint16_t its_diagnosis_mask = configuration_->get_diagnosis_mask();
+    const uint16_t its_client_mask = static_cast<uint16_t>(~its_diagnosis_mask);
     const client_t its_masked_diagnosis_address =
             static_cast<client_t>((configuration_->get_diagnosis_address() << 8) & its_diagnosis_mask);
     const client_t its_biggest_client = its_masked_diagnosis_address | its_client_mask;
 
-    const std::uint16_t max_possible_clients = its_max_clients;
-    const std::uint16_t intermediate_release = 3;
-    const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(max_possible_clients - 2u);
+    const uint16_t max_possible_clients = its_max_clients;
+    const uint16_t intermediate_release = 3;
+    const uint16_t max_allowed_clients = static_cast<uint16_t>(max_possible_clients - 2u);
 
     // acquire (almost) maximum amount of client IDs
-    for (std::uint16_t i = 0; i < max_allowed_clients - intermediate_release; i++) {
+    for (uint16_t i = 0; i < max_allowed_clients - intermediate_release; i++) {
         client_t its_client_id =
                 utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
         EXPECT_NE(VSOMEIP_CLIENT_UNSET, its_client_id);
@@ -404,7 +404,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
             }
             its_client_ids.push_back(its_client_id);
         } else {
-            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<uint32_t>(i);
         }
     }
 
@@ -417,7 +417,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
     }
 
     // acquire some more client IDs, these should be smaller than the already acquired
-    for (std::uint16_t i = 0; i < intermediate_release; i++) {
+    for (uint16_t i = 0; i < intermediate_release; i++) {
         client_t its_client_id = utility::request_client_id(
                 configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i) + "intermediate", VSOMEIP_CLIENT_UNSET);
         EXPECT_NE(VSOMEIP_CLIENT_UNSET, its_client_id);
@@ -429,12 +429,12 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
             }
             its_client_ids.push_back(its_client_id);
         } else {
-            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<uint32_t>(i);
         }
     }
 
     // check correct wrap around of client IDs
-    for (std::uint16_t i = 0; i < intermediate_release; i++) {
+    for (uint16_t i = 0; i < intermediate_release; i++) {
         client_t its_client_id =
                 utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
         EXPECT_NE(VSOMEIP_CLIENT_UNSET, its_client_id);
@@ -446,7 +446,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
             }
             its_client_ids.push_back(its_client_id);
         } else {
-            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<uint32_t>(i);
         }
     }
 
@@ -473,7 +473,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
     }
 
     // acquire client IDs up to the maximum allowed amount again
-    for (std::uint16_t i = 0; i < its_released_client_ids.size(); i++) {
+    for (uint16_t i = 0; i < its_released_client_ids.size(); i++) {
         client_t its_client_id =
                 utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
         EXPECT_NE(VSOMEIP_CLIENT_UNSET, its_client_id);
@@ -483,7 +483,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
             }
             its_client_ids.push_back(its_client_id);
         } else {
-            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<uint32_t>(i);
         }
     }
 
@@ -500,17 +500,17 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
 
 TEST_F(client_id_utility_test, request_released_client_id_after_maximum_client_id_is_assigned) {
     std::vector<client_t> its_client_ids;
-    std::uint16_t its_max_clients(0);
-    for (int var = 0; var < __builtin_popcount(static_cast<std::uint16_t>(~diagnosis_mask_)); ++var) {
-        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+    uint16_t its_max_clients(0);
+    for (int var = 0; var < __builtin_popcount(static_cast<uint16_t>(~diagnosis_mask_)); ++var) {
+        its_max_clients = static_cast<uint16_t>(its_max_clients | (1 << var));
     }
-    const std::uint16_t max_possible_clients = its_max_clients;
+    const uint16_t max_possible_clients = its_max_clients;
     // -1 for the routing manager, -2 as two predefined client IDs are present
     // in the json file which aren't assigned via autoconfiguration
-    const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(max_possible_clients - 2u);
+    const uint16_t max_allowed_clients = static_cast<uint16_t>(max_possible_clients - 2u);
 
     // acquire (almost) maximum amount of client IDs
-    for (std::uint16_t i = 0; i < max_allowed_clients - 1; i++) {
+    for (uint16_t i = 0; i < max_allowed_clients - 1; i++) {
         client_t its_client_id = utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED, VSOMEIP_CLIENT_UNSET);
         EXPECT_NE(VSOMEIP_CLIENT_UNSET, its_client_id);
         if (its_client_id != VSOMEIP_CLIENT_UNSET) {
@@ -519,7 +519,7 @@ TEST_F(client_id_utility_test, request_released_client_id_after_maximum_client_i
             }
             its_client_ids.push_back(its_client_id);
         } else {
-            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<uint32_t>(i);
         }
     }
 

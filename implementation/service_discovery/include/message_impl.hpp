@@ -114,7 +114,7 @@ private:
 
     std::mutex message_mutex_;
 
-    std::uint32_t current_message_size_;
+    uint32_t current_message_size_;
 };
 
 } // namespace sd

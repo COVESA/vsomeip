@@ -23,7 +23,7 @@ public:
     virtual bool is_protected(e2exf::data_identifier_t id) const = 0;
     virtual bool is_checked(e2exf::data_identifier_t id) const = 0;
 
-    virtual std::size_t get_protection_base(e2exf::data_identifier_t _id) const = 0;
+    virtual size_t get_protection_base(e2exf::data_identifier_t _id) const = 0;
 
     virtual void protect(e2exf::data_identifier_t id, e2e_buffer& _buffer, instance_t _instance) = 0;
     virtual void check(e2exf::data_identifier_t id, const e2e_buffer& _buffer, instance_t _instance,

@@ -96,17 +96,17 @@ public:
         VSOMEIP_INFO << std::hex << std::setfill('0') << std::setw(8) << _response->get_length() << " # length";
         VSOMEIP_INFO << std::hex << std::setfill('0') << std::setw(4) << _response->get_client() << std::setw(4) << _response->get_session()
                      << " # client id / session id";
-        VSOMEIP_INFO << std::hex << std::setfill('0') << std::setw(2) << static_cast<std::uint16_t>(_response->get_protocol_version())
-                     << std::setw(2) << static_cast<std::uint16_t>(_response->get_interface_version()) << std::setw(2)
-                     << static_cast<std::uint16_t>(_response->get_message_type()) << std::setw(2)
-                     << static_cast<std::uint16_t>(_response->get_return_code()) << " # protocol version / interface version / "
+        VSOMEIP_INFO << std::hex << std::setfill('0') << std::setw(2) << static_cast<uint16_t>(_response->get_protocol_version())
+                     << std::setw(2) << static_cast<uint16_t>(_response->get_interface_version()) << std::setw(2)
+                     << static_cast<uint16_t>(_response->get_message_type()) << std::setw(2)
+                     << static_cast<uint16_t>(_response->get_return_code()) << " # protocol version / interface version / "
                      << "message type / return code";
 
         std::stringstream stream;
         std::string str;
         stream << std::hex << std::setfill('0');
         for (unsigned int i = 0; i < _response->get_payload()->get_length(); i++) {
-            stream << std::setw(2) << static_cast<std::uint32_t>((_response->get_payload()->get_data())[i]);
+            stream << std::setw(2) << static_cast<uint32_t>((_response->get_payload()->get_data())[i]);
             str.append(stream.str());
             stream.str("");
             stream.clear();
@@ -168,13 +168,13 @@ private:
     bool validate_message() {
         if (!check_message_type()) {
             VSOMEIP_ERROR << "Invalid message type 0x" << std::setw(2) << std::hex << std::setfill('0')
-                          << static_cast<std::uint8_t>(message_type_) << ", exiting.";
+                          << static_cast<uint8_t>(message_type_) << ", exiting.";
             stop(EXIT_FAILURE);
         }
 
         if (!check_return_code()) {
-            VSOMEIP_ERROR << "Invalid return code 0x" << std::setw(2) << std::hex << std::setfill('0')
-                          << static_cast<std::uint8_t>(return_code_) << ", exiting.";
+            VSOMEIP_ERROR << "Invalid return code 0x" << std::setw(2) << std::hex << std::setfill('0') << static_cast<uint8_t>(return_code_)
+                          << ", exiting.";
             stop(EXIT_FAILURE);
         }
 
@@ -226,15 +226,15 @@ private:
     }
 
     bool check_return_code() {
-        if (static_cast<std::uint8_t>(return_code_) > 0x3F) {
+        if (static_cast<uint8_t>(return_code_) > 0x3F) {
             VSOMEIP_ERROR << "Provided return code 0x" << std::setw(2) << std::hex << std::setfill('0')
-                          << static_cast<std::uint8_t>(return_code_) << " is out of range.";
+                          << static_cast<uint8_t>(return_code_) << " is out of range.";
             return false;
         }
-        if (static_cast<std::uint8_t>(return_code_) > static_cast<std::uint8_t>(vsomeip::return_code_e::E_WRONG_MESSAGE_TYPE)
-            && static_cast<std::uint8_t>(return_code_) <= 0x3f) {
+        if (static_cast<uint8_t>(return_code_) > static_cast<uint8_t>(vsomeip::return_code_e::E_WRONG_MESSAGE_TYPE)
+            && static_cast<uint8_t>(return_code_) <= 0x3f) {
             VSOMEIP_ERROR << "Provided return code 0x" << std::hex << std::setfill('0') << std::setw(2)
-                          << static_cast<std::uint8_t>(return_code_) << "is reserved.";
+                          << static_cast<uint8_t>(return_code_) << "is reserved.";
             return false;
         }
         switch (message_type_) {
@@ -243,8 +243,8 @@ private:
         case vsomeip::message_type_e::MT_NOTIFICATION:
             if (return_code_ != vsomeip::return_code_e::E_OK) {
                 VSOMEIP_ERROR << "Provided return code 0x" << std::hex << std::setfill('0') << std::setw(2)
-                              << static_cast<std::uint8_t>(return_code_) << "is invalid in combination with message type 0x" << std::setw(2)
-                              << static_cast<std::uint8_t>(message_type_) << " use 0x00 (E_OK).";
+                              << static_cast<uint8_t>(return_code_) << "is invalid in combination with message type 0x" << std::setw(2)
+                              << static_cast<uint8_t>(message_type_) << " use 0x00 (E_OK).";
                 return false;
             }
             return true;
@@ -266,7 +266,7 @@ private:
     std::thread send_thread_;
     vsomeip::service_t service_id_;
     vsomeip::method_t method_id_;
-    std::uint32_t length_;
+    uint32_t length_;
     vsomeip::client_t client_id_;
     vsomeip::interface_version_t interface_version_;
     vsomeip::message_type_e message_type_;
@@ -277,8 +277,7 @@ private:
 
 static void print_help(char* binary_name) {
     std::cout << "Usage example:" << std::endl;
-    std::cout << binary_name << " --instance 5678 "
-              << "--message 123480e800000015134300030100000000000009efbbbf576f726c6400\n"
+    std::cout << binary_name << " --instance 5678 " << "--message 123480e800000015134300030100000000000009efbbbf576f726c6400\n"
               << "This will send a message to service with service id 1234 and instance 5678." << std::endl
               << std::endl;
     std::cout << "Available options:\n"
@@ -314,8 +313,8 @@ int main(int argc, char** argv) {
             for (unsigned int i = 0; i < message.length(); i += 2) {
                 vsomeip::byte_t its_byte;
                 try {
-                    std::uint64_t tmp = std::stoul(message.substr(i, 2), 0, 16);
-                    tmp = (tmp > (std::numeric_limits<std::uint8_t>::max)()) ? (std::numeric_limits<std::uint8_t>::max)() : tmp;
+                    uint64_t tmp = std::stoul(message.substr(i, 2), 0, 16);
+                    tmp = (tmp > (std::numeric_limits<uint8_t>::max)()) ? (std::numeric_limits<uint8_t>::max)() : tmp;
                     its_byte = static_cast<vsomeip::byte_t>(tmp);
                 } catch (std::invalid_argument& e) {
                     std::cerr << e.what() << ": Couldn't convert '" << message.substr(i, 2) << "' to hex, exiting: " << std::endl;
@@ -342,8 +341,8 @@ int main(int argc, char** argv) {
             std::cout << "Instance: " << instance_str << std::endl;
             for (unsigned int i = 0; i < instance_str.length(); i += 2) {
                 try {
-                    std::uint64_t tmp = std::stoul(instance_str.substr(i, 2), 0, 16);
-                    tmp = (tmp > (std::numeric_limits<std::uint8_t>::max)()) ? (std::numeric_limits<std::uint8_t>::max)() : tmp;
+                    uint64_t tmp = std::stoul(instance_str.substr(i, 2), 0, 16);
+                    tmp = (tmp > (std::numeric_limits<uint8_t>::max)()) ? (std::numeric_limits<uint8_t>::max)() : tmp;
 
                     vsomeip::byte_t its_byte = static_cast<vsomeip::byte_t>(tmp);
                     if (i == 0) {

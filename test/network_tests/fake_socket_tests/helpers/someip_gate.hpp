@@ -8,6 +8,7 @@
 #include "data_pipe.hpp"
 #include "someip_message.hpp"
 #include "attribute_recorder.hpp"
+#include "common/timeout_scale.hpp"
 
 #include <memory>
 #include <mutex>
@@ -91,7 +92,7 @@ public:
     void block(bool _block = false);
 
     /// Waits until the gate transitions to the BLOCKED state.
-    [[nodiscard]] bool wait_for_blocked(std::chrono::milliseconds _timeout = std::chrono::seconds(2)) const;
+    [[nodiscard]] bool wait_for_blocked(std::chrono::milliseconds _timeout = common::scaled_timeout(std::chrono::seconds(2))) const;
 
     /// Records every forwarded regular SOME/IP message. The message that triggers a
     /// block is blocked (not forwarded), so it is recorded only if it is later let

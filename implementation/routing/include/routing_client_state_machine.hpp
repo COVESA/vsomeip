@@ -7,12 +7,8 @@
 
 #include <vsomeip/primitive_types.hpp>
 
-#include "../../endpoints/include/timer.hpp"
-
 #include "internal.hpp"
 
-#include <memory>
-#include <mutex>
 #include <ostream>
 
 namespace vsomeip_v3 {
@@ -25,7 +21,7 @@ namespace vsomeip_v3 {
  * Normal registration flow:
  *   ST_DEREGISTERED -> ST_REGISTERING -> ST_REGISTERED
  *
- * Error/timeout recovery:
+ * Error recovery:
  *   Any state -> ST_DEREGISTERED (via deregistered())
  */
 enum class routing_client_state_e : uint8_t {
@@ -44,32 +40,19 @@ std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
  * application registration with the routing manager.
  *
  * **Thread Safety:**
- * All methods are thread-safe and can be called from multiple threads
- * concurrently. Internal state is protected by a mutex.
+ * Not thread safe. Any usage has to be synchronized externally.
  *
  * **State Transitions:**
  * The state machine enforces strict state transition rules. Attempts to
  * transition from invalid states will fail and return false.
  *
- * **Error Handler Invocation:**
- * The error handler is called synchronously (on the io_context thread) when:
- * - deregistered() is called manually while shall_run_ = true
- *
- * The error handler is NOT called when:
- * - target_shutdown() was called (graceful shutdown, shall_run_ = false)
- * - The state machine is being destroyed
- *
- * **Important:** The error handler must not block indefinitely, as it runs
- * on the io_context thread that processes timers and other async operations.
- *
  * **Lifecycle Control:**
  * The state machine can be paused (target_shutdown()) and resumed
- * (target_running()). When shut down, no new transitions are allowed and
- * error handlers are suppressed (indicating graceful shutdown).
+ * (target_running()). When shut down, no new transitions are allowed.
  *
  * **Usage Example:**
  * @code
- * auto sm = routing_client_state_machine([this] { on_registration_error(); });
+ * auto sm = routing_client_state_machine();
  *
  * sm.target_running();
  *
@@ -88,30 +71,9 @@ std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
 class routing_client_state_machine {
 public:
     /**
-     * @brief Callback invoked when the state machine autonomously transitions
-     *        to ST_DEREGISTERED due to timeout or unexpected error.
-     *
-     * **Invocation Semantics:**
-     * This handler is called synchronously on the io_context thread (the same
-     * thread that processes timer callbacks) when an unexpected deregistration
-     * occurs (shall_run_ = true).
-     *
-     * The handler is NOT invoked if:
-     * - target_shutdown() was called (graceful shutdown, shall_run_ = false)
-     * - The state machine is being destroyed
-     *
-     * **Thread Safety:**
-     * The handler is called WITHOUT the state machine's internal mutex held,
-     * so it can safely call state machine methods without deadlock risk.
-     */
-    using error_handler = std::function<void()>;
-
-    /**
      * @brief Constructor
-     *
-     * @param _handler Callback invoked on deregistration (may be null)
      */
-    explicit routing_client_state_machine(error_handler _handler);
+    explicit routing_client_state_machine() = default;
 
     /**
      * @brief Get the current state.
@@ -123,8 +85,7 @@ public:
     /**
      * @brief Signal that the state machine should stop accepting new transitions.
      *
-     * After calling this, start_connecting(), start_assignment(), and
-     * start_registration() will fail. Existing timers are NOT cancelled.
+     * After calling this, start_registration() will fail.
      */
     void target_shutdown();
 
@@ -162,49 +123,20 @@ public:
      * @brief Mark deregistration as complete.
      *
      * Valid transition: Any state -> ST_DEREGISTERED
-     * This is the only transition allowed from any state. It:
-     * - Cancels all active timers
-     * - Posts error_handler to io_context (asynchronously)
-     *
-     * This method is also called internally on timeouts.
+     * This is the only transition allowed from any state
      */
     void deregistered();
 
 private:
     /**
-     * @brief Internal method to perform deregistration.
-     *
-     * Must be called with _acquired_lock holding mtx_.
-     *
-     * This method:
-     * 1. Transitions to ST_DEREGISTERED
-     * 2. Stops all active timers
-     * 3. Checks shall_run_:
-     *    - If true: Invokes error_handler synchronously (after unlocking)
-     *    - If false: Returns without calling error_handler (graceful shutdown)
-     *
-     * **Lock Management:**
-     * @warning This method takes over the ownership over _acquired_lock
-     *          to unlock it before invoking the error
-     *          handler.
-     *
-     * The lock is released to prevent deadlock if the error handler calls
-     * back into the state machine.
-     *
-     * @param _acquired_lock Must be locked on entry.
-     */
-    void deregister_unlocked(std::unique_lock<std::mutex> _acquired_lock);
-
-    /**
      * @brief Internal method to change state.
      *
-     * Must be called with mtx_ held. Logs the state transition and
-     * notifies the condition variable when reaching ST_REGISTERED or
-     * ST_DEREGISTERED.
+     * Must be called with rmc mutex_ held. Logs the state transition
+     * when reaching ST_REGISTERED or ST_DEREGISTERED.
      *
      * @param _state The new state to transition to
      */
-    void change_state_unlocked(routing_client_state_e _state);
+    void change_state(routing_client_state_e _state);
 
     /// Controls whether new transitions are allowed
     bool shall_run_{true};
@@ -212,17 +144,11 @@ private:
     /// Current registration state
     routing_client_state_e state_{routing_client_state_e::ST_DEREGISTERED};
 
-    /// Callback for autonomous deregistration
-    error_handler error_handler_;
-
     /// Client-id for logging
     client_t client_ = VSOMEIP_CLIENT_UNSET;
 
     /// Former Client-id for logging
     client_t former_client_ = VSOMEIP_CLIENT_UNSET;
-
-    /// Protects all state and timers
-    mutable std::mutex mtx_;
 };
 
 } // namespace vsomeip_v3

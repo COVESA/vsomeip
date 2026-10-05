@@ -137,14 +137,13 @@ public:
     void on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver, const boost::asio::ip::address& _remote_address,
                     port_t _remote_port, bool _is_multicast) override;
     // as routing_manager_stub_host
-    void on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable, client_t _bound_client,
+    bool on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable, client_t _bound_client,
                     const vsomeip_sec_client_t* _sec_client, uint8_t _check_status = 0, bool _is_from_remote = false) override;
 
     void on_notification(client_t _client, service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _notify_one);
 
-    bool offer_service_remotely(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable, bool _magic_cookies_enabled);
-    bool stop_offer_service_remotely(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
-                                     bool _magic_cookies_enabled);
+    bool offer_service_remotely(service_t _service, instance_t _instance, uint16_t _port, bool _reliable, bool _magic_cookies_enabled);
+    bool stop_offer_service_remotely(service_t _service, instance_t _instance, uint16_t _port, bool _reliable, bool _magic_cookies_enabled);
 
     // interface "service_discovery_host"
     services_t get_offered_services() const;
@@ -155,19 +154,24 @@ public:
     void init_routing_info();
     void add_routing_info(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl,
                           const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
-                          const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port);
+                          const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port, bool _is_reliable_known,
+                          bool _is_unreliable_known);
     void del_routing_info(service_t _service, instance_t _instance, bool _has_reliable, bool _has_unreliable, bool _trigger_availability);
     void update_routing_info(std::chrono::milliseconds _elapsed);
+    void is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
+                                 const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port, bool& _reliable_known,
+                                 const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port, bool& _unreliable_known,
+                                 bool& _drop_offer);
 
     // Handle remote subscriptions / subscription acks
     void on_remote_subscribe(std::shared_ptr<remote_subscription>& _subscription, const remote_subscription_callback_t& _callback);
     void on_remote_unsubscribe(std::shared_ptr<remote_subscription>& _subscription);
 
     void expire_subscriptions(const boost::asio::ip::address& _address);
-    void expire_subscriptions(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable);
+    void expire_subscriptions(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable);
     void expire_subscriptions(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable);
     void expire_services(const boost::asio::ip::address& _address);
-    void expire_services(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable);
+    void expire_services(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable);
     void expire_services(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable);
 
     std::chrono::steady_clock::time_point expire_subscriptions(bool _force);
@@ -188,7 +192,7 @@ public:
                              const std::shared_ptr<endpoint_definition>& _subscriber);
 
     void send_error(return_code_e _return_code, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
-                    boardnet_endpoint* const _receiver, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
+                    boardnet_endpoint* const _receiver, const boost::asio::ip::address& _remote_address, uint16_t _remote_port);
     void service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                     const std::shared_ptr<boardnet_endpoint>& _endpoint);
     void service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
@@ -219,12 +223,19 @@ public:
 
     std::vector<protocol::service> get_requested_services(client_t _client) const;
 
+    bool has_client_requested(client_t _client, service_t _service, instance_t _instance);
+
+    std::set<client_t> collect_requesters(service_t _service, instance_t _instance, major_version_t _major);
+
     bool is_external_routing_ready() const;
 
     bool handle_service_rerequest(client_t _client, service_t _service, instance_t _instance, major_version_t _major);
 
     void remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,
                                  instance_t _instance = ANY_INSTANCE);
+
+    std::shared_ptr<policy_manager_impl> get_policy_manager() const override;
+    std::shared_ptr<security> get_security() const override;
 
     // endpoint_manager_impl requires this to be accessible
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance, major_version_t _major) const;
@@ -256,7 +267,9 @@ private:
 
     [[nodiscard]] bool is_local_client(client_t _client) const;
 
-    void deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length, bool _reliable,
+    [[nodiscard]] std::string get_client_info(client_t _client) const;
+
+    bool deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length, bool _reliable,
                               client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _status_check = 0,
                               bool _is_from_remote = false);
 
@@ -340,8 +353,6 @@ private:
     void statistics_log_timer_cbk(boost::system::error_code const& _error);
 
     bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const;
-
-    void send_suspend() const;
 
     bool is_acl_message_allowed(boardnet_endpoint* _receiver, service_t _service, instance_t _instance,
                                 const boost::asio::ip::address& _remote_address) const;

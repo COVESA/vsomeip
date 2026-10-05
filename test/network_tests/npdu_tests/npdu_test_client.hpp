@@ -44,7 +44,7 @@ private:
     std::thread start_send_thread_sync();
     template<int service_idx>
     void send_messages_and_dont_wait_for_reply();
-    std::uint32_t get_max_allowed_payload();
+    uint32_t get_max_allowed_payload();
     template<int service_idx>
     void register_availability_handler();
     template<int service_idx>
@@ -63,12 +63,12 @@ private:
     std::array<std::condition_variable, npdu_test::service_ids.size()> conditions_;
     std::array<bool, npdu_test::service_ids.size()> blocked_;
     std::array<bool, npdu_test::service_ids.size()> is_available_;
-    const std::uint32_t number_of_messages_to_send_;
-    std::array<std::array<std::uint32_t, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()> number_of_acknowledged_messages_;
+    const uint32_t number_of_messages_to_send_;
+    std::array<std::array<uint32_t, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()> number_of_acknowledged_messages_;
     std::array<std::array<std::mutex, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()>
             number_of_acknowledged_messages_mutexes_;
 
-    std::array<std::uint32_t, npdu_test::service_ids.size()> current_payload_size_;
+    std::array<uint32_t, npdu_test::service_ids.size()> current_payload_size_;
 
     std::array<std::array<bool, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()> all_msg_acknowledged_;
     std::array<std::array<std::mutex, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()> all_msg_acknowledged_mutexes_;

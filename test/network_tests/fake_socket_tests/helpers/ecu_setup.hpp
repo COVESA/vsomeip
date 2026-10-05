@@ -23,7 +23,7 @@ namespace vsomeip_v3::testing {
 /// Usage:
 ///   ecu_setup ecu{"ecu", my_ecu_config, *socket_manager_};
 ///   ecu.add_app("extra_app");   // optional: add app not in ecu_config.apps_
-///   ecu.prepare();              // writes $VSOMEIP_BASE_PATH/<name>.json, sets VSOMEIP_CONFIGURATION_<name>
+///   ecu.prepare();              // writes $VSOMEIP_BASE_PATH/<name>_<unique>.json, sets VSOMEIP_CONFIGURATION_<name>
 ///   ecu.start_router();         // or ecu.start_apps() for all at once
 ///   auto* a = ecu.start_one("extra_app");
 ///   // destructor unsets env vars and removes config file
@@ -45,8 +45,9 @@ struct ecu_setup {
     /// uds_preferred: whether the guest's config has UDS-preferred mode enabled (default false).
     void add_guest(application_config app, bool uds_preferred = false);
 
-    /// Write the config to $VSOMEIP_BASE_PATH/<name>.json (falling back to the system
-    /// temp directory if VSOMEIP_BASE_PATH is unset) and set VSOMEIP_CONFIGURATION_<name>
+    /// Write the config to $VSOMEIP_BASE_PATH/<name>_<pid>_<counter>.json (falling back
+    /// to the system temp directory if VSOMEIP_BASE_PATH is unset) and set
+    /// VSOMEIP_CONFIGURATION_<name>
     /// for every app in ecu_config.apps_, add_app() registrations, and guest apps
     /// added via add_guest().
     void prepare();
@@ -117,7 +118,6 @@ private:
     /// io_context is registered transparently on the first TCP service offer.
     void setup_offer_hook(app* a);
 
-    fake_netlink_connector::state_e routing_state_ = fake_netlink_connector::state_e::UP;
     std::optional<ecu_config> guest_config_;
     std::string guest_config_name_;
     std::filesystem::path guest_config_file_;

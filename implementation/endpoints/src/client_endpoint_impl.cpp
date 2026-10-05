@@ -35,8 +35,9 @@ client_endpoint_impl<Protocol>::client_endpoint_impl(const std::shared_ptr<board
                                                      boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration) :
     endpoint_impl<Protocol>(_boardnet_endpoint_host, _routing_host, _io, _configuration), remote_{_remote}, flush_timer_{_io},
     connect_timer_{_io}, connect_timeout_{VSOMEIP_DEFAULT_CONNECT_TIMEOUT}, state_{cei_state_e::CLOSED}, reconnect_counter_{0},
-    connecting_timer_{_io}, connecting_timeout_{VSOMEIP_DEFAULT_CONNECTING_TIMEOUT}, train_{std::make_shared<train>()},
-    dispatch_timer_{_io}, has_last_departure_{false}, queue_size_{0}, was_not_connected_{false}, is_sending_{false}, strand_(_io) {
+    reconnect_start_time_{}, connecting_timer_{_io}, connecting_timeout_{VSOMEIP_DEFAULT_CONNECTING_TIMEOUT},
+    train_{std::make_shared<train>()}, dispatch_timer_{_io}, has_last_departure_{false}, queue_size_{0}, was_not_connected_{false},
+    is_sending_{false}, strand_(_io) {
     this->local_ = _local;
     recreate_socket();
 }
@@ -152,8 +153,9 @@ template<typename Protocol>
 std::pair<message_buffer_ptr_t, uint32_t> client_endpoint_impl<Protocol>::get_front() {
 
     std::pair<message_buffer_ptr_t, uint32_t> its_entry;
-    if (queue_.size())
+    if (queue_.size()) {
         its_entry = queue_.front();
+    }
 
     return its_entry;
 }
@@ -278,7 +280,7 @@ bool client_endpoint_impl<Protocol>::tp_segmentation_enabled(service_instance_t 
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::send_segments(const tp::tp_split_messages_t& _segments, std::uint32_t _separation_time) {
+void client_endpoint_impl<Protocol>::send_segments(const tp::tp_split_messages_t& _segments, uint32_t _separation_time) {
 
     auto its_now(std::chrono::steady_clock::now());
 
@@ -399,16 +401,34 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
     }
     std::shared_ptr<boardnet_endpoint_host> its_host = this->endpoint_host_.lock();
     if (its_host) {
+        if (reconnect_counter_ == 0) {
+            reconnect_start_time_ = std::chrono::steady_clock::now();
+        }
+
         if (_error && _error != boost::asio::error::already_connected) {
-            VSOMEIP_WARNING_P << "Restarting socket due to " << _error.message() << " (" << _error.value()
-                              << "), remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
-                              << to_string(state_.load());
+
+            if (bool reconnect_timeout_exceeded =
+                        std::chrono::steady_clock::now() - reconnect_start_time_ >= std::chrono::milliseconds(VSOMEIP_RECONNECT_TIMEOUT);
+                reconnect_timeout_exceeded) {
+                VSOMEIP_ERROR_P << "Restarting socket due to " << _error.message() << " (" << _error.value()
+                                << "), remote: " << get_remote_information() << ", local: " << this->local_.address().to_string() << ":"
+                                << get_local_port() << ", protocol: " << (is_reliable() ? "TCP" : "UDP") << ", endpoint > " << this
+                                << " socket state > " << to_string(state_.load()) << " - unreachable for more than "
+                                << (VSOMEIP_RECONNECT_TIMEOUT / 1000) << "s (" << reconnect_counter_.load() << " attempts, retry interval "
+                                << connect_timeout_.load() << "ms)";
+            } else {
+                VSOMEIP_WARNING_P << "Restarting socket due to " << _error.message() << " (" << _error.value()
+                                  << "), remote: " << get_remote_information() << ", local: " << this->local_.address().to_string() << ":"
+                                  << get_local_port() << ", protocol: " << (is_reliable() ? "TCP" : "UDP") << ", endpoint > " << this
+                                  << " socket state > " << to_string(state_.load());
+            }
 
             close_socket(true, true);
 
             notify_disconnect();
 
-            if (get_max_allowed_reconnects() == MAX_RECONNECTS_UNLIMITED || get_max_allowed_reconnects() >= ++reconnect_counter_) {
+            if (get_max_allowed_reconnects() >= ++reconnect_counter_ || get_max_allowed_reconnects() == MAX_RECONNECTS_UNLIMITED) {
+                VSOMEIP_INFO_P << "Reconnect attempt: " << reconnect_counter_.load();
                 is_sending_ = false;
                 was_not_connected_ = true;
                 start_connect_timer();
@@ -417,8 +437,9 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
             }
             // After 30 attempts of 100ms (3s) increase the timer exponential
             // Double the timeout as long as the maximum allowed is larger
-            if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT && reconnect_counter_ > 30)
+            if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT && reconnect_counter_ > 30) {
                 connect_timeout_ = (connect_timeout_ << 1);
+            }
         } else {
             if (_error) {
                 VSOMEIP_WARNING_P << "connect_cbk attempt (" << _error.value() << "):" << _error.message()
@@ -454,7 +475,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
 
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(boost::system::error_code const& _error) {
-    std::size_t operations_cancelled;
+    size_t operations_cancelled;
     {
         /* Need this for TCP endpoints for now because we have no
          direct control about the point in time the connect has finished */
@@ -503,7 +524,7 @@ void client_endpoint_impl<Protocol>::wait_connecting_cbk(boost::system::error_co
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _error, std::size_t _bytes,
+void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _error, size_t _bytes,
                                               const message_buffer_ptr_t& _sent_msg) {
 
     (void)_bytes;
@@ -516,9 +537,9 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
 
             update_last_departure();
 
-            if (queue_.empty())
+            if (queue_.empty()) {
                 is_sending_ = false;
-            else {
+            } else {
                 auto its_entry = get_front();
                 if (its_entry.first) {
                     send_queued(its_entry);
@@ -634,9 +655,9 @@ void client_endpoint_impl<Protocol>::close_socket(bool _recreate_socket, bool _d
 #if defined(__linux__) || defined(__QNX__)
     boost::system::error_code its_error;
     if constexpr (std::is_same_v<Protocol, boost::asio::ip::tcp>) {
-        io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
+        io_control_operation<size_t> send_buffer_size_cmd(TIOCOUTQ);
 
-        std::uint32_t retry_count(0);
+        uint32_t retry_count(0);
         while (true) {
             {
                 std::scoped_lock its_lock(socket_mutex_); // Do not block this mutex while waiting, to let other operations finish
@@ -726,13 +747,13 @@ bool client_endpoint_impl<Protocol>::get_remote_address(boost::asio::ip::address
 }
 
 template<typename Protocol>
-std::uint16_t client_endpoint_impl<Protocol>::get_remote_port() const {
+uint16_t client_endpoint_impl<Protocol>::get_remote_port() const {
 
     return 0;
 }
 
 template<typename Protocol>
-std::uint16_t client_endpoint_impl<Protocol>::get_local_port() const {
+uint16_t client_endpoint_impl<Protocol>::get_local_port() const {
 
     return 0;
 }
@@ -756,13 +777,12 @@ void client_endpoint_impl<Protocol>::start_connecting_timer() {
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::check_message_size(std::uint32_t _size) const {
+bool client_endpoint_impl<Protocol>::check_message_size(uint32_t _size) const {
     return !(_size > endpoint_impl<Protocol>::max_message_size_);
 }
 
 template<typename Protocol>
-typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segment_message(const std::uint8_t* const _data,
-                                                                                            std::uint32_t _size) {
+typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segment_message(const uint8_t* const _data, uint32_t _size) {
 
     if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
         const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
@@ -771,8 +791,8 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segm
 
         if (its_instance != ANY_INSTANCE) {
             if (tp_segmentation_enabled({its_service, its_instance}, its_method)) {
-                std::uint16_t its_max_segment_length;
-                std::uint32_t its_separation_time;
+                uint16_t its_max_segment_length;
+                uint32_t its_separation_time;
                 this->configuration_->get_tp_configuration(its_service, its_instance, its_method, true, its_max_segment_length,
                                                            its_separation_time);
                 send_segments(tp::tp::tp_split_message(_data, _size, its_max_segment_length), its_separation_time);
@@ -786,10 +806,14 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segm
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std::uint32_t _size) const {
+bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, uint32_t _size) const {
 
-    if (endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
-        && (queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_ || queue_size_ + _size < _size)) { // overflow protection
+    // Account for the memory already committed to outgoing traffic: both the
+    // flushed output queue (queue_size_) and the batching stage still waiting to
+    // be flushed (get_pending_train_size()).
+    const size_t its_pending_train_size = get_pending_train_size();
+    if (const size_t its_used_size = queue_size_ + its_pending_train_size; endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
+        && (its_used_size + _size > endpoint_impl<Protocol>::queue_limit_ || its_used_size + _size < _size)) { // overflow protection
         service_t its_service(0);
         method_t its_method(0);
         client_t its_client(0);
@@ -809,7 +833,7 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
         }
         VSOMEIP_ERROR_P << "Queue size limit (" << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
                         << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "] "
-                        << "queue_size: " << queue_size_ << " data size: " << _size;
+                        << "queue_size: " << queue_size_ << " pending_train_size: " << its_pending_train_size << " data size: " << _size;
         return false;
     }
     return true;
@@ -831,10 +855,26 @@ void client_endpoint_impl<Protocol>::queue_train(const std::shared_ptr<train>& _
 }
 
 template<typename Protocol>
+size_t client_endpoint_impl<Protocol>::get_pending_train_size() const {
+
+    size_t its_size = (train_ && train_->buffer_) ? train_->buffer_->size() : 0;
+    for (const auto& [its_tp, its_trains] : dispatched_trains_) {
+        for (const auto& its_train : its_trains) {
+            if (its_train && its_train->buffer_) {
+                its_size += its_train->buffer_->size();
+            }
+        }
+    }
+    return its_size;
+}
+
+template<typename Protocol>
 size_t client_endpoint_impl<Protocol>::get_queue_size() const {
 
     std::scoped_lock its_lock(mutex_);
-    return queue_size_;
+    // Report the total committed memory: the flushed output queue plus the
+    // batching stage still waiting to be flushed.
+    return queue_size_ + get_pending_train_size();
 }
 
 template<typename Protocol>

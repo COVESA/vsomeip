@@ -86,7 +86,6 @@ private:
 
     bool send_queued_unlocked(const target_data_iterator_type _it);
     void leave_unlocked(const std::string& _address);
-    void set_broadcast();
     void receive_unicast_unlocked(std::shared_ptr<message_buffer_t> _unicast_recv_buffer);
     void receive_multicast_unlocked(std::shared_ptr<message_buffer_t> _multicast_recv_buffer,
                                     std::shared_ptr<endpoint_type> _multicast_sender);
@@ -98,12 +97,12 @@ private:
     std::string get_address_port_local_unlocked(bool _is_multicast) const;
     bool tp_segmentation_enabled(service_instance_t _si, method_t _method) const override;
 
-    void on_unicast_received(const boost::system::error_code& _error, std::size_t _bytes, const message_buffer_t& _unicast_recv_buffer);
+    void on_unicast_received(const boost::system::error_code& _error, size_t _bytes, const message_buffer_t& _unicast_recv_buffer);
 
-    void on_multicast_received(const boost::system::error_code& _error, std::size_t _bytes, const message_buffer_t& _multicast_recv_buffer,
+    void on_multicast_received(const boost::system::error_code& _error, size_t _bytes, const message_buffer_t& _multicast_recv_buffer,
                                const endpoint_type& _multicast_sender);
 
-    void on_message_received_unlocked(const boost::system::error_code& _error, std::size_t _bytes, bool _is_multicast,
+    void on_message_received_unlocked(const boost::system::error_code& _error, size_t _bytes, bool _is_multicast,
                                       const endpoint_type& _remote, const message_buffer_t& _buffer);
 
     bool is_same_subnet_unlocked(const boost::asio::ip::address& _address) const;

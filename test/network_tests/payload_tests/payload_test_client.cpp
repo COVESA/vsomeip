@@ -9,18 +9,18 @@
 
 #include "payload_test_client.hpp"
 
-enum class payloadsize : std::uint8_t { UDS, TCP, UDP, USER_SPECIFIED };
+enum class payloadsize : uint8_t { UDS, TCP, UDP, USER_SPECIFIED };
 
 // this variables are changed via cmdline parameters
 static bool use_tcp = false;
 static bool call_service_sync = true;
-static std::uint32_t sliding_window_size = vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS;
+static uint32_t sliding_window_size = vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS;
 static payloadsize max_payload_size = payloadsize::UDS;
 static bool shutdown_service_at_end = true;
-static std::uint32_t user_defined_max_payload;
-static std::uint32_t number_of_messages_to_send = 0;
+static uint32_t user_defined_max_payload;
+static uint32_t number_of_messages_to_send = 0;
 
-payload_test_client::payload_test_client(bool _use_tcp, bool _call_service_sync, std::uint32_t _sliding_window_size) :
+payload_test_client::payload_test_client(bool _use_tcp, bool _call_service_sync, uint32_t _sliding_window_size) :
     app_(vsomeip::runtime::get()->create_application()), request_(vsomeip::runtime::get()->create_request(_use_tcp)),
     call_service_sync_(_call_service_sync), sliding_window_size_(_sliding_window_size), blocked_(false), is_available_(false),
     number_of_messages_to_send_(number_of_messages_to_send ? number_of_messages_to_send
@@ -133,7 +133,7 @@ void payload_test_client::run() {
     // lock the mutex
     std::unique_lock lk(all_msg_acknowledged_mutex_);
 
-    std::uint32_t max_allowed_payload = get_max_allowed_payload();
+    uint32_t max_allowed_payload = get_max_allowed_payload();
 
     std::shared_ptr<vsomeip::payload> payload = vsomeip::runtime::get()->create_payload();
     std::vector<vsomeip::byte_t> payload_data;
@@ -181,8 +181,8 @@ void payload_test_client::run() {
     app_->stop();
 }
 
-std::uint32_t payload_test_client::get_max_allowed_payload() {
-    std::uint32_t payload;
+uint32_t payload_test_client::get_max_allowed_payload() {
+    uint32_t payload;
     switch (max_payload_size) {
     case payloadsize::UDS:
         // TODO
@@ -234,7 +234,7 @@ void payload_test_client::send_messages_async(std::unique_lock<std::mutex>& lk) 
 }
 
 void payload_test_client::print_throughput() {
-    constexpr std::uint32_t usec_per_sec = 1000000;
+    constexpr uint32_t usec_per_sec = 1000000;
     stop_watch::usec_t time_needed = watch_.get_total_elapsed_microseconds();
     stop_watch::usec_t time_per_message = time_needed / number_of_sent_messages_;
     std::double_t calls_per_sec = number_of_sent_messages_ * (usec_per_sec / static_cast<double>(time_needed));

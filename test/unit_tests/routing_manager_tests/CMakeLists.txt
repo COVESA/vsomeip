@@ -32,3 +32,27 @@ add_test(
     NAME unit_tests_routing_client_state_machine
     COMMAND unit_tests_routing_client_state_machine
 )
+
+# provider_event lives in its own binary: its fixtures install a global abstract_socket_factory
+# (fake clock + controllable timer), which must not leak into the other suites above.
+add_executable(
+    unit_tests_provider_event
+    ../main.cpp
+    ut_provider_event.cpp
+)
+
+target_link_libraries(
+    unit_tests_provider_event
+    gtest
+    gmock
+    ${VSOMEIP_NAME}-test
+    ${Boost_LIBRARIES}
+    vsomeip_utilities
+)
+
+add_dependencies(build_unit_tests unit_tests_provider_event)
+
+add_test(
+    NAME unit_tests_provider_event
+    COMMAND unit_tests_provider_event
+)

@@ -159,7 +159,7 @@ void netlink_connector::set_state(state_e _state) {
     current_state_ = _state;
 }
 
-void netlink_connector::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes) {
+void netlink_connector::receive_cbk(boost::system::error_code const& _error, size_t _bytes) {
     bool error_detected = false;
 
     if (!_error) {
@@ -269,7 +269,7 @@ void netlink_connector::receive_cbk(boost::system::error_code const& _error, std
     }
 }
 
-void netlink_connector::send_cbk(boost::system::error_code const& _error, std::size_t _bytes) {
+void netlink_connector::send_cbk(boost::system::error_code const& _error, size_t _bytes) {
     // TODO: fix thread safety and then handle send errors, or
     // replace asynchronous send by synchronous send
 
@@ -283,7 +283,7 @@ void netlink_connector::send_cbk(boost::system::error_code const& _error, std::s
     }
 }
 
-void netlink_connector::send_ifa_request(std::uint32_t _retry) {
+void netlink_connector::send_ifa_request(uint32_t _retry) {
     typedef struct {
         struct nlmsghdr nlhdr;
         struct ifaddrmsg addrmsg;
@@ -314,7 +314,7 @@ void netlink_connector::send_ifa_request(std::uint32_t _retry) {
     }
 }
 
-void netlink_connector::send_ifi_request(std::uint32_t _retry) {
+void netlink_connector::send_ifi_request(uint32_t _retry) {
     typedef struct {
         struct nlmsghdr nlhdr;
         alignas(NLMSG_ALIGNTO) struct ifinfomsg infomsg;
@@ -348,7 +348,7 @@ void netlink_connector::send_ifi_request(std::uint32_t _retry) {
     }
 }
 
-void netlink_connector::send_rt_request(std::uint32_t _retry) {
+void netlink_connector::send_rt_request(uint32_t _retry) {
     typedef struct {
         struct nlmsghdr nlhdr;
         struct rtgenmsg routemsg;
@@ -381,19 +381,18 @@ void netlink_connector::send_rt_request(std::uint32_t _retry) {
 
 bool netlink_connector::has_address(const struct ifaddrmsg* ifa_struct, size_t length) const {
     auto retrta = static_cast<const struct rtattr*>(IFA_RTA(ifa_struct));
-    while
-        RTA_OK(retrta, length) {
-            if (retrta->rta_type == IFA_ADDRESS) {
-                if (address_.is_v4() && RTA_PAYLOAD(retrta) == sizeof(struct in_addr)
-                    && ::memcmp(RTA_DATA(retrta), address_.to_v4().to_bytes().data(), sizeof(struct in_addr)) == 0) {
-                    return true;
-                } else if (address_.is_v6() && RTA_PAYLOAD(retrta) == sizeof(struct in6_addr)
-                           && ::memcmp(RTA_DATA(retrta), address_.to_v6().to_bytes().data(), sizeof(struct in6_addr)) == 0) {
-                    return true;
-                }
+    while (RTA_OK(retrta, length)) {
+        if (retrta->rta_type == IFA_ADDRESS) {
+            if (address_.is_v4() && RTA_PAYLOAD(retrta) == sizeof(struct in_addr)
+                && ::memcmp(RTA_DATA(retrta), address_.to_v4().to_bytes().data(), sizeof(struct in_addr)) == 0) {
+                return true;
+            } else if (address_.is_v6() && RTA_PAYLOAD(retrta) == sizeof(struct in6_addr)
+                       && ::memcmp(RTA_DATA(retrta), address_.to_v6().to_bytes().data(), sizeof(struct in6_addr)) == 0) {
+                return true;
             }
-            retrta = RTA_NEXT(retrta, length);
         }
+        retrta = RTA_NEXT(retrta, length);
+    }
 
     return false;
 }
@@ -412,39 +411,39 @@ bool netlink_connector::check_sd_multicast_route_match(const struct rtmsg* _rout
             size_t rtattr_length = RTA_PAYLOAD(retrta);
             if (rtattr_length == 4 && multicast_address_.is_v4()) { // IPv4 route
                 inet_ntop(AF_INET, RTA_DATA(retrta), address, sizeof(address));
-                std::uint32_t netmask(0);
+                uint32_t netmask(0);
                 for (int i = 31; i > 31 - _routemsg->rtm_dst_len; i--) {
-                    netmask |= static_cast<std::uint32_t>(1 << i);
+                    netmask |= static_cast<uint32_t>(1 << i);
                 }
-                const std::uint32_t dst_addr = ntohl(*((std::uint32_t*)RTA_DATA(retrta)));
-                const std::uint32_t dst_net = (dst_addr & netmask);
+                const uint32_t dst_addr = ntohl(*((uint32_t*)RTA_DATA(retrta)));
+                const uint32_t dst_net = (dst_addr & netmask);
                 const auto sd_addr = multicast_address_.to_v4().to_uint();
-                const std::uint32_t sd_net = (sd_addr & netmask);
+                const uint32_t sd_net = (sd_addr & netmask);
                 matches_sd_multicast = !(dst_net ^ sd_net);
             } else if (rtattr_length == 16 && multicast_address_.is_v6()) { // IPv6 route
                 inet_ntop(AF_INET6, RTA_DATA(retrta), address, sizeof(address));
-                std::uint32_t netmask2[4] = {0, 0, 0, 0};
+                uint32_t netmask2[4] = {0, 0, 0, 0};
                 for (int i = 127; i > 127 - _routemsg->rtm_dst_len; i--) {
                     if (i > 95) {
-                        netmask2[0] |= static_cast<std::uint32_t>(1 << (i - 96));
+                        netmask2[0] |= static_cast<uint32_t>(1 << (i - 96));
                     } else if (i > 63) {
-                        netmask2[1] |= static_cast<std::uint32_t>(1 << (i - 64));
+                        netmask2[1] |= static_cast<uint32_t>(1 << (i - 64));
                     } else if (i > 31) {
-                        netmask2[2] |= static_cast<std::uint32_t>(1 << (i - 32));
+                        netmask2[2] |= static_cast<uint32_t>(1 << (i - 32));
                     } else {
-                        netmask2[3] |= static_cast<std::uint32_t>(1 << i);
+                        netmask2[3] |= static_cast<uint32_t>(1 << i);
                     }
                 }
 
                 for (int i = 0; i < 4; i++) {
 #ifndef ANDROID
-                    const std::uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).__in6_u.__u6_addr32[i]);
+                    const uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).__in6_u.__u6_addr32[i]);
 #else
-                    const std::uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).in6_u.u6_addr32[i]);
+                    const uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).in6_u.u6_addr32[i]);
 #endif
-                    const std::uint32_t sd = ntohl(reinterpret_cast<std::uint32_t*>(multicast_address_.to_v6().to_bytes().data())[i]);
-                    const std::uint32_t dst_net = dst & netmask2[i];
-                    const std::uint32_t sd_net = sd & netmask2[i];
+                    const uint32_t sd = ntohl(reinterpret_cast<uint32_t*>(multicast_address_.to_v6().to_bytes().data())[i]);
+                    const uint32_t dst_net = dst & netmask2[i];
+                    const uint32_t sd_net = sd & netmask2[i];
                     matches_sd_multicast = !(dst_net ^ sd_net);
                     if (!matches_sd_multicast) {
                         break;

@@ -17,8 +17,6 @@
 #include "../../../implementation/utility/include/bithelper.hpp"
 #include "../../../implementation/utility/include/utility.hpp"
 
-#include "policy_manager_impl_unit_test_macro.hpp"
-
 namespace {
 // Lazy load.
 bool lazy_load = true;
@@ -33,7 +31,7 @@ const vsomeip_v3::instance_t offer_instance_number = 0x7080;
 const vsomeip_v3::method_t method_number = 0x0202;
 
 // Arbitrary array size, will depends on the policy itself.
-const std::uint32_t array_size = 82;
+const uint32_t array_size = 82;
 
 // Credentials.
 const vsomeip_v3::byte_t uid_byte1 = 0x01;
@@ -144,8 +142,8 @@ std::array<vsomeip_v3::byte_t, 4> uint32_array_uid_{uid_byte1, uid_byte2, uid_by
 std::array<vsomeip_v3::byte_t, 4> uint32_array_gid_{gid_byte1, gid_byte2, gid_byte3, gid_byte4};
 
 // Create uint32_t from bytes.
-const std::uint32_t uid = vsomeip_v3::bithelper::read_uint32_be(uint32_array_uid_.data());
-const std::uint32_t gid = vsomeip_v3::bithelper::read_uint32_be(uint32_array_gid_.data());
+const uint32_t uid = vsomeip_v3::bithelper::read_uint32_be(uint32_array_uid_.data());
+const uint32_t gid = vsomeip_v3::bithelper::read_uint32_be(uint32_array_gid_.data());
 }
 
 TEST(security_policy_manager_test, load) {
@@ -289,7 +287,7 @@ TEST(security_policy_manager_test, check_credentials) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     // Filling in the policy.
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
@@ -442,7 +440,7 @@ TEST(security_policy_manager_test, check_routing_credentials) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     // Filling in the policy.
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
@@ -635,7 +633,7 @@ TEST(security_policy_manager_test, is_client_allowed) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     // Filling in the policy.
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
@@ -799,7 +797,7 @@ TEST(security_policy_manager_test, is_offer_allowed) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     // Filling in the policy.
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
@@ -1037,9 +1035,9 @@ TEST(security_policy_manager_test, parse_policy) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
-    std::uint32_t deserialized_uid, deserialized_gid;
+    uint32_t deserialized_uid, deserialized_gid;
 
 // Test method.
 #ifndef __QNX__
@@ -1053,7 +1051,7 @@ TEST(security_policy_manager_test, parse_policy) {
     vsomeip_v3::byte_t byte_array_too_short[4]{uid_byte1, uid_byte2, uid_byte3, uid_byte4};
 
     const vsomeip_v3::byte_t* data_ptr2_ = byte_array_too_short;
-    std::uint32_t data_size2_ = 4;
+    uint32_t data_size2_ = 4;
 
 // Test Method, expect false.
 #ifndef __QNX__
@@ -1150,9 +1148,9 @@ TEST(security_policy_manager_test, parse_uid_gid) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
-    std::uint32_t deserialized_uid, deserialized_gid;
+    uint32_t deserialized_uid, deserialized_gid;
 
 // Test method.
 #ifndef __QNX__
@@ -1166,7 +1164,7 @@ TEST(security_policy_manager_test, parse_uid_gid) {
     vsomeip_v3::byte_t byte_array_too_short[4]{uid_byte1, uid_byte2, uid_byte3, uid_byte4};
 
     const vsomeip_v3::byte_t* data_ptr2_ = byte_array_too_short;
-    std::uint32_t data_size2_ = 4;
+    uint32_t data_size2_ = 4;
 
 // Test Method, expect false.
 #ifndef __QNX__
@@ -1270,7 +1268,7 @@ TEST(security_policy_manager_test, remove_security_policy) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     // Filling in the policy.
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
@@ -1375,7 +1373,7 @@ TEST(security_policy_manager_test, add_security_credentials) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     // Filling in the policy.
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
@@ -1482,7 +1480,7 @@ TEST(security_policy_manager_test, get_requester_policies) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     std::set<std::shared_ptr<vsomeip_v3::policy>> its_policy_set = {};
 
@@ -1624,7 +1622,7 @@ TEST(security_policy_manager_test, get_clients) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     std::unordered_set<vsomeip_v3::client_t> its_client_set = {};
 
@@ -1828,7 +1826,7 @@ TEST(security_policy_manager_test, is_policy_update_allowed) {
                                                instance2_id_low_byte2};
 
     const vsomeip_v3::byte_t* data_ptr_ = byte_array_;
-    std::uint32_t data_size_ = array_size;
+    uint32_t data_size_ = array_size;
 
     // Filling in the policy.
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
@@ -1875,7 +1873,7 @@ TEST(security_policy_manager_test, get_security_config_folder) {
     std::stringstream final_path;
 
     // Create a string to the path to the current unit test folder.
-    const std::string folder_path = UNIT_TEST_BUILD_DIR_PATH "/security_policy_manager_impl_tests";
+    const std::string folder_path = UNIT_TEST_BUILD_DIR_PATH;
 
     const std::string fake_path = "fake_path";
 
@@ -1932,7 +1930,7 @@ TEST(security_policy_manager_test, is_policy_extension_loaded) {
 #endif
 
     // Add a way to move out of the /etc folder we will be forced in.
-    final_path2 << "../.." << UNIT_TEST_BUILD_DIR_PATH << "/security_policy_manager_impl_tests";
+    final_path2 << "../.." << UNIT_TEST_BUILD_DIR_PATH;
 
     // Convert stringstream to char*
     const std::string tmp = final_path.str();

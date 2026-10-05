@@ -33,7 +33,7 @@ TEST(HostnameTest, ServiceOffersService) {
     // Register subscription handler
     application->register_subscription_handler(
             SERVICE_ID, INSTANCE_ID, EVENTGROUP_ID,
-            [&](vsomeip::client_t _client, std::uint32_t, std::uint32_t, const std::string& _env, bool _subscribed) {
+            [&](vsomeip::client_t _client, uint32_t, uint32_t, const std::string& _env, bool _subscribed) {
                 VSOMEIP_INFO << "Client: 0x" << std::hex << _client << ((_subscribed) ? " subscribed" : " unsubscribed")
                              << ", client hostname:" << _env;
                 if (_subscribed) {

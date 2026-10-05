@@ -22,6 +22,7 @@
 #include <boost/property_tree/json_parser.hpp>
 
 #include <vsomeip/constants.hpp>
+#include <vsomeip/defines.hpp>
 #include <vsomeip/plugins/application_plugin.hpp>
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
 #include <vsomeip/structured_types.hpp>
@@ -54,8 +55,8 @@ configuration_impl::configuration_impl(const std::string& _path) :
     sd_initial_delay_min_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN}, sd_initial_delay_max_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX},
     sd_repetitions_base_delay_{VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY}, sd_repetitions_max_{VSOMEIP_SD_DEFAULT_REPETITIONS_MAX},
     sd_ttl_{VSOMEIP_SD_DEFAULT_TTL}, sd_cyclic_offer_delay_{VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY},
-    sd_request_response_delay_{VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY}, sd_offer_debounce_time_{VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME},
-    sd_find_debounce_time_{VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME}, sd_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
+    sd_offer_debounce_time_{VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME}, sd_find_debounce_time_{VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME},
+    sd_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
     sd_find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
     sd_wait_route_netlink_notification_{VSOMEIP_SD_WAIT_ROUTE_NETLINK_NOTIFICATION},
     sd_stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME}, sd_offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME},
@@ -79,12 +80,11 @@ configuration_impl::configuration_impl(const std::string& _path) :
     initial_routing_state_{routing_state_e::RS_UNKNOWN}, request_debounce_time_{VSOMEIP_REQUEST_DEBOUNCE_TIME},
     default_max_dispatch_time_{VSOMEIP_DEFAULT_MAX_DISPATCH_TIME}, default_max_dispatchers_{VSOMEIP_DEFAULT_MAX_DISPATCHERS} {
 
-    policy_manager_ = std::make_shared<policy_manager_impl>();
-    security_ = std::make_shared<security>(policy_manager_);
     unicast_ = boost::asio::ip::make_address(VSOMEIP_UNICAST_ADDRESS);
     netmask_ = boost::asio::ip::make_address(VSOMEIP_NETMASK);
-    for (auto i = 0; i < ET_MAX; i++)
+    for (auto i = 0; i < ET_MAX; i++) {
         is_configured_[i] = false;
+    }
 
 #ifdef _WIN32
     routing_.host_.unicast_ = boost::asio::ip::make_address("127.0.0.1");
@@ -140,7 +140,6 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     sd_repetitions_max_ = _other.sd_repetitions_max_;
     sd_ttl_ = _other.sd_ttl_;
     sd_cyclic_offer_delay_ = _other.sd_cyclic_offer_delay_;
-    sd_request_response_delay_ = _other.sd_request_response_delay_;
     sd_find_initial_debounce_reps_ = _other.sd_find_initial_debounce_reps_;
     sd_find_initial_debounce_time_ = _other.sd_find_initial_debounce_time_;
     sd_offer_debounce_time_ = _other.sd_offer_debounce_time_;
@@ -156,8 +155,9 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     magic_cookies_.insert(_other.magic_cookies_.begin(), _other.magic_cookies_.end());
     message_sizes_ = _other.message_sizes_;
 
-    for (auto i = 0; i < ET_MAX; i++)
+    for (auto i = 0; i < ET_MAX; i++) {
         is_configured_[i] = _other.is_configured_[i];
+    }
 
     network_ = _other.network_;
     configuration_path_ = _other.configuration_path_;
@@ -196,8 +196,9 @@ configuration_impl::~configuration_impl() { }
 
 bool configuration_impl::load(const std::string& _name) {
     std::scoped_lock its_lock(mutex_);
-    if (is_loaded_)
+    if (is_loaded_) {
         return true;
+    }
 
     // Environment
     char* its_env;
@@ -232,8 +233,9 @@ bool configuration_impl::load(const std::string& _name) {
     its_named_configuration += "_" + _name;
 
     its_env = VSOMEIP_GETENV(its_named_configuration.c_str());
-    if (nullptr == its_env)
+    if (nullptr == its_env) {
         its_env = VSOMEIP_GETENV(VSOMEIP_ENV_CONFIGURATION);
+    }
     if (nullptr != its_env) {
         if (utility::is_file(its_env)) {
             its_file = its_env;
@@ -274,19 +276,16 @@ bool configuration_impl::load(const std::string& _name) {
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     std::vector<configuration_element> its_mandatory_elements;
-    std::vector<configuration_element> its_optional_elements;
 
-    // Look for the standard configuration file
+    // Look for the standard configuration file.
     read_data(its_input, its_mandatory_elements, its_failed, true);
     load_data(its_mandatory_elements, true, false);
 
-    // If the configuration is incomplete, this is the routing manager configuration or
-    // the routing is yet unknown, read the full set of configuration files
-    if (its_mandatory_elements.empty() || _name == get_routing_host_name() || "" == get_routing_host_name()) {
-        read_data(its_input, its_optional_elements, its_failed, false);
-        load_data(its_mandatory_elements, false, true);
-        load_data(its_optional_elements, true, true);
-    }
+    // Retain the inputs so the optional configuration can be loaded later, once
+    // we know whether this (or a subsequent) application is the routing host.
+    // The mandatory elements themselves are not retained; load_optional()
+    // re-reads them from input_ when it needs them.
+    input_ = its_input;
 
     // Dummy initialization; if logger configs were not found use default
     if (!is_logging_loaded_) {
@@ -295,40 +294,121 @@ bool configuration_impl::load(const std::string& _name) {
 
     // Log about reading of configuration file(s) that failed.
     // (This may fail if the logger configuration is incomplete/missing).
-    for (const auto& f : its_failed)
-        VSOMEIP_WARNING << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
-
-    // set global unicast address for all services with magic cookies enabled
-    set_magic_cookies_unicast_address();
+    for (const auto& f : its_failed) {
+        VSOMEIP_ERROR_P << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
+    }
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
     for (const auto& i : its_input) {
-        if (utility::is_file(i))
+        if (utility::is_file(i)) {
             VSOMEIP_INFO << "Using configuration file: \"" << i << "\".";
+        }
 
-        if (utility::is_folder(i))
+        if (utility::is_folder(i)) {
             VSOMEIP_INFO << "Using configuration folder: \"" << i << "\".";
+        }
     }
 
     VSOMEIP_INFO << "Parsed vsomeip configuration in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
                  << "ms";
 
+#ifndef VSOMEIP_DISABLE_SECURITY
+    // Compile all security policies into a single shared base.  Each per-app
+    // policy_manager_impl will copy the compiled state via init_from_base()
+    policy_base_ = std::make_shared<policy_manager_impl>();
+    for (const auto& path : input_) {
+        if (policy_base_->is_policy_extension(path)) {
+            policy_base_->set_policy_extension_base_path(path);
+        }
+    }
+    if (routing_credentials_ && !strict_routing_credentials_) {
+        const auto& [uid, gid, name] = *routing_credentials_;
+        policy_base_->set_routing_credentials(uid, gid, name);
+    }
+    if (!is_security_external()) {
+        for (const auto& e : its_mandatory_elements) {
+            policy_base_->load(e);
+        }
+    }
+#endif // !VSOMEIP_DISABLE_SECURITY
+
     is_loaded_ = true;
+
+    // Parse everything now if the mandatory pass couldn't tell us who the
+    // routing host is: either it loaded nothing (single-file setup) or the
+    // routing block lives in a non-mandatory file. The caller needs a host
+    // answer to run the routing-host election.
+    if (its_mandatory_elements.empty() || !is_configured_[ET_ROUTING]) {
+        load_optional();
+    } else {
+        // set global unicast address for all services with magic cookies enabled
+        set_magic_cookies_unicast_address();
+    }
+
     return is_loaded_;
 }
 
-#ifndef VSOMEIP_DISABLE_SECURITY
-void configuration_impl::lazy_load_security(const std::string& _client_host) {
+// Loads the routing-manager exclusive part of the configuration: the optional
+// sections of the mandatory files plus every non-mandatory file. Who is
+// entitled to it is decided by the caller, see
+// application_impl::determine_routing_host().
+void configuration_impl::load_optional() {
+    // Already loaded for this process — nothing to do.
+    if (optional_loaded_) {
+        return;
+    }
 
-    std::string const its_client_host{_client_host};
-    std::string its_folder = policy_manager_->get_policy_extension_path(its_client_host);
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+    std::set<std::string> its_failed;
+    std::vector<configuration_element> its_optional_elements;
+
+    // Re-read the mandatory files' own elements: the mandatory load in load()
+    // only kept them locally, so this needs to parse them again here to pick
+    // up their optional sections below.
+    std::vector<configuration_element> its_mandatory_elements;
+    read_data(input_, its_mandatory_elements, its_failed, true);
+    read_data(input_, its_optional_elements, its_failed, false);
+    load_data(its_mandatory_elements, false, true);
+    load_data(its_optional_elements, true, true);
+
+    for (const auto& f : its_failed) {
+        VSOMEIP_WARNING << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
+    }
+
+#ifndef VSOMEIP_DISABLE_SECURITY
+    // Append the optional security policies to the shared base.
+    if (policy_base_ && !is_security_external()) {
+        for (const auto& e : its_optional_elements) {
+            policy_base_->load(e);
+        }
+    }
+#endif // !VSOMEIP_DISABLE_SECURITY
+
+    optional_loaded_ = true;
+
+    // New service data arrived — refresh the magic-cookie unicast addresses.
+    set_magic_cookies_unicast_address();
+
+    // The retained inputs are no longer needed once the full configuration has
+    // been parsed; release them to keep the shared object small.
+    input_.clear();
+
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    VSOMEIP_INFO << "Parsed optional vsomeip configuration in "
+                 << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms";
+}
+
+#ifndef VSOMEIP_DISABLE_SECURITY
+void configuration_impl::lazy_load_security(const std::string& _client_host, policy_manager_impl& _pm) const {
+
+    std::string its_folder = _pm.get_policy_extension_path(_client_host);
     if (its_folder.empty()) {
         return; // nothing to do, host does not exist
     }
 
-    if (policy_manager_->is_policy_extension_loaded(its_client_host)
-        == policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_LOADED) {
+    if (_pm.is_policy_extension_loaded(_client_host) == policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_LOADED) {
         return; // nothing to do, host already loaded
     }
 
@@ -339,21 +419,21 @@ void configuration_impl::lazy_load_security(const std::string& _client_host) {
     std::vector<configuration_element> its_mandatory_elements;
 
     // load security configuration files from UID_GID sub folder if existing
-    std::string its_security_config_folder = policy_manager_->get_security_config_folder(its_folder);
-    if (!its_security_config_folder.empty())
+    if (std::string its_security_config_folder = _pm.get_security_config_folder(its_folder); !its_security_config_folder.empty()) {
         its_input.insert(its_security_config_folder);
+    }
 
     read_data(its_input, its_mandatory_elements, its_failed, true, true);
 
     for (const auto& e : its_mandatory_elements) {
-        policy_manager_->load(e, true);
+        _pm.load(e, true);
     }
 
     for (auto f : its_failed) {
-        VSOMEIP_WARNING_P << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete";
+        VSOMEIP_ERROR_P << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete";
     }
 
-    policy_manager_->set_is_policy_extension_loaded(its_client_host, true);
+    _pm.set_is_policy_extension_loaded(_client_host, true);
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
@@ -368,14 +448,27 @@ void configuration_impl::lazy_load_security(const std::string& _client_host) {
     VSOMEIP_INFO << "vSomeIP Security: Loaded security policies for host: " << _client_host << " at UID/GID: " << uid << "/" << gid
                  << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms";
 }
+
+void configuration_impl::load_security_policies(policy_manager_impl& _pm) const {
+    _pm.init_from_base(*policy_base_);
+}
 #endif // !VSOMEIP_DISABLE_SECURITY
 
-bool configuration_impl::check_routing_credentials(client_t _client, const vsomeip_sec_client_t* _sec_client) const {
-
-    return (_client != get_id(routing_.host_.name_) || VSOMEIP_SEC_OK == security_->authenticate_router(_sec_client));
+bool configuration_impl::check_routing_credentials(client_t _client, const vsomeip_sec_client_t& _sec_client) const {
+    if (_client != get_id(routing_.host_.name_)) {
+        return true; // not the routing host — always permitted
+    }
+    if (_sec_client.port != VSOMEIP_SEC_PORT_UNUSED) {
+        return true; // TCP socket — no UDS credential to verify
+    }
+    if (!routing_credentials_) {
+        return true; // no credentials configured — permissive, preserves pre-existing audit-mode semantics
+    }
+    auto& [uid, gid, name] = *routing_credentials_;
+    return (_sec_client.user == uid && _sec_client.group == gid) || !strict_routing_credentials_;
 }
 
-bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                bool _magic_cookies_enabled) {
     bool ret = false;
     if (!is_loaded_) {
@@ -413,7 +506,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
     return ret;
 }
 
-bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                   bool _magic_cookies_enabled, bool* _still_offered_remote) {
     (void)_port;
     (void)_magic_cookies_enabled;
@@ -440,7 +533,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t
 }
 
 void configuration_impl::read_data(const std::set<std::string>& _input, std::vector<configuration_element>& _elements,
-                                   std::set<std::string>& _failed, bool _mandatory_only, bool _read_second_level) {
+                                   std::set<std::string>& _failed, bool _mandatory_only, bool _read_second_level) const {
     for (auto i : _input) {
         if (utility::is_file(i)) {
             load_policy_data(i, _elements, _failed, _mandatory_only);
@@ -465,30 +558,29 @@ void configuration_impl::read_data(const std::set<std::string>& _input, std::vec
                     //_read_second_level to read the second level folders only after
                     // the start, without this the ECU block
                     std::string name = j->path().string() + "/vsomeip_security.json";
-                    if (utility::is_file(name))
+                    if (utility::is_file(name)) {
                         its_names[name] = true;
+                    }
                 }
             }
 
-            for (const auto& n : its_names)
+            for (const auto& n : its_names) {
                 load_policy_data(n.first, _elements, _failed, n.second);
+            }
         }
     }
 }
 
 void configuration_impl::load_policy_data(const std::string& _input, std::vector<configuration_element>& _elements,
-                                          std::set<std::string>& _failed, bool _mandatory_only) {
+                                          std::set<std::string>& _failed, bool _mandatory_only) const {
     if (is_mandatory(_input) == _mandatory_only) {
-#ifndef VSOMEIP_DISABLE_SECURITY
-        if (policy_manager_->is_policy_extension(_input)) {
-            policy_manager_->set_policy_extension_base_path(_input);
-        }
-#endif
         boost::property_tree::ptree its_tree;
         try {
             boost::property_tree::json_parser::read_json(_input, its_tree);
-            _elements.push_back({_input, its_tree});
-        } catch (boost::property_tree::json_parser_error&) {
+            _elements.push_back({_input, std::move(its_tree)});
+        } catch (boost::property_tree::json_parser_error& ex) {
+            VSOMEIP_ERROR_P << "Could not parse JSON file '" << _input << "', ex: " << ex.what();
+
             _failed.insert(_input);
         }
     }
@@ -499,13 +591,15 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
     std::set<std::string> its_warnings;
 
     if (!is_logging_loaded_) {
-        for (const auto& e : _elements)
+        for (const auto& e : _elements) {
             is_logging_loaded_ = load_logging(e, its_warnings) || is_logging_loaded_;
+        }
 
         if (is_logging_loaded_) {
             logger::logger_impl::init(shared_from_this());
-            for (const auto& w : its_warnings)
+            for (const auto& w : its_warnings) {
                 VSOMEIP_WARNING << w;
+            }
         }
     }
 
@@ -515,6 +609,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
         // Load mandatory configuration data
         for (const auto& e : _elements) {
             has_routing = load_routing(e) || has_routing;
+            load_routing_credentials(e);
             has_applications = load_applications(e) || has_applications;
             load_uds_preferred(e);
             load_network(e);
@@ -530,12 +625,12 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
             load_services(e);
             load_request_debounce_time(e);
             load_dispatch_defaults(e);
+            load_unicast_address(e);
         }
     }
 
     if (_load_optional) {
         for (const auto& e : _elements) {
-            load_unicast_address(e);
             load_netmask(e);
             load_device(e);
             load_service_discovery(e);
@@ -688,10 +783,12 @@ bool configuration_impl::load_routing(const configuration_element& _element) {
             if (!is_loaded) {
                 routing_.host_.name_ = its_routing.data();
             } else {
-                if (routing_.guests_.unicast_.is_unspecified())
+                if (routing_.guests_.unicast_.is_unspecified()) {
                     routing_.guests_.unicast_ = routing_.host_.unicast_;
-                if (routing_.guests_.ports_.empty())
+                }
+                if (routing_.guests_.ports_.empty()) {
                     routing_.guests_.ports_[{ANY_UID, ANY_GID}].emplace(31492, 31999);
+                }
             }
 
             // Try to validate the port configuration. Check whether a range
@@ -711,8 +808,9 @@ bool configuration_impl::load_routing(const configuration_element& _element) {
                     bool is_matching((r.first % 2) == (routing_.host_.port_ % 2));
                     if (!is_matching) {
                         its_pair.first++;
-                        if (is_even)
+                        if (is_even) {
                             its_pair.second--;
+                        }
                     } else if (!is_even) {
                         its_pair.second--;
                     }
@@ -723,12 +821,14 @@ bool configuration_impl::load_routing(const configuration_element& _element) {
                     }
                 }
 
-                for (const auto& r : its_invalid_ranges)
+                for (const auto& r : its_invalid_ranges) {
                     ug.second.erase(r);
+                }
                 its_invalid_ranges.clear();
 
-                for (const auto& r : its_corrected_ranges)
+                for (const auto& r : its_corrected_ranges) {
                     ug.second.insert(r);
+                }
                 its_corrected_ranges.clear();
             }
             is_configured_[ET_ROUTING] = true;
@@ -778,8 +878,16 @@ bool configuration_impl::load_routing_host(const boost::property_tree::ptree& _t
             }
         }
 
+        // routing.host uid/gid and an explicit routing-credentials block are
+        // mutually exclusive ways of configuring the routing credentials.
         if (has_uid && has_gid) {
-            policy_manager_->set_routing_credentials(its_uid, its_gid, _name);
+            if (!strict_routing_credentials_) {
+                routing_credentials_ = std::make_tuple(its_uid, its_gid, _name);
+            } else {
+                VSOMEIP_ERROR << "routing.host uid/gid and routing-credentials are mutually exclusive. Ignoring the routing.host "
+                                 "uid/gid from "
+                              << _name;
+            }
         }
 
     } catch (...) {
@@ -803,6 +911,61 @@ bool configuration_impl::load_routing_guests(const boost::property_tree::ptree& 
         }
     } catch (...) {
         // intentionally left empty
+    }
+    return true;
+}
+
+bool configuration_impl::load_routing_credentials(const configuration_element& _element) {
+    try {
+        auto its_cred = _element.tree_.get_child("routing-credentials");
+        // strict_routing_credentials_ is set only by a previous explicit block,
+        // so this guards against a *second* explicit block: the first one wins.
+        // It does NOT guard against routing.host uid/gid, which never sets the
+        // flag — an explicit block therefore always overrides host credentials.
+        if (strict_routing_credentials_) {
+            VSOMEIP_WARNING << "Multiple definitions of routing-credentials. Ignoring definition from " << _element.name_;
+            return true;
+        }
+        // An explicit routing-credentials block always wins over routing.host
+        // uid/gid and switches on strict enforcement (strict_routing_credentials_),
+        // so a mismatching client — including a uid/gid that would be accepted via
+        // routing.host — is rejected once security is out of audit mode.
+        bool has_uid(false), has_gid(false);
+        uid_t its_uid(0);
+        gid_t its_gid(0);
+        for (auto i = its_cred.begin(); i != its_cred.end(); ++i) {
+            std::string its_key(i->first);
+            std::string its_value(i->second.data());
+            if (its_key == "uid" || its_key == "gid") {
+                std::stringstream its_converter;
+                if (its_value.find("0x") == 0) {
+                    its_converter << std::hex << its_value;
+                } else {
+                    its_converter << std::dec << its_value;
+                }
+                if (its_key == "uid") {
+                    its_converter >> its_uid;
+                    has_uid = true;
+                } else {
+                    its_converter >> its_gid;
+                    has_gid = true;
+                }
+            }
+        }
+        if (has_uid && has_gid) {
+            if (routing_credentials_) {
+                // A second explicit block was rejected above, so credentials that
+                // are already set can only come from routing.host uid/gid.
+                const auto& its_host_source = std::get<2>(*routing_credentials_);
+                VSOMEIP_WARNING << "routing.host uid/gid and routing-credentials are mutually exclusive. Overriding the routing.host "
+                                   "uid/gid from "
+                                << its_host_source << " with the routing-credentials definition from " << _element.name_ << ".";
+            }
+            routing_credentials_ = std::make_tuple(its_uid, its_gid, _element.name_);
+            strict_routing_credentials_ = true;
+        }
+    } catch (...) {
+        return false;
     }
     return true;
 }
@@ -836,8 +999,9 @@ void configuration_impl::load_routing_guest_ports(const boost::property_tree::pt
             its_ranges = load_routing_guest_port_range(its_range->second);
         }
 
-        if (!its_ranges.empty())
+        if (!its_ranges.empty()) {
             routing_.guests_.ports_[{its_uid, its_gid}] = its_ranges;
+        }
     }
 }
 
@@ -869,8 +1033,9 @@ std::set<std::pair<port_t, port_t>> configuration_impl::load_routing_guest_port_
             }
         }
 
-        if (its_first_port > 0 && its_last_port > 0)
+        if (its_first_port > 0 && its_last_port > 0) {
             its_ranges.emplace(std::min(its_first_port, its_last_port), std::max(its_first_port, its_last_port));
+        }
     }
 
     return its_ranges;
@@ -891,12 +1056,12 @@ bool configuration_impl::load_applications(const configuration_element& _element
 void configuration_impl::load_application_data(const boost::property_tree::ptree& _tree, const std::string& _file_name) {
     std::string its_name("");
     client_t its_id(VSOMEIP_CLIENT_UNSET);
-    std::size_t its_max_dispatchers(VSOMEIP_DEFAULT_MAX_DISPATCHERS);
-    std::size_t its_max_dispatch_time(VSOMEIP_DEFAULT_MAX_DISPATCH_TIME);
-    std::size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
+    size_t its_max_dispatchers(VSOMEIP_DEFAULT_MAX_DISPATCHERS);
+    size_t its_max_dispatch_time(VSOMEIP_DEFAULT_MAX_DISPATCH_TIME);
+    size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
     uint32_t its_log_status_interval(VSOMEIP_DEFAULT_LOG_STATUS);
     uint32_t its_log_version_interval(VSOMEIP_DEFAULT_LOG_NETWORK);
-    std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
+    size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
     std::map<plugin_type_e, std::set<std::string>> plugins;
     int its_io_thread_nice_level(VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL);
     debounce_configuration_t its_debounces;
@@ -924,10 +1089,10 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
             its_converter << std::dec << its_value;
             its_converter >> its_io_thread_count;
             if (its_io_thread_count == 0) {
-                VSOMEIP_WARNING << "Min. number of threads per application is 1";
+                VSOMEIP_ERROR_P << "Min. number of threads per application is 1";
                 its_io_thread_count = 1;
             } else if (its_io_thread_count > 255) {
-                VSOMEIP_WARNING << "Max. number of threads per application is 255";
+                VSOMEIP_ERROR_P << "Max. number of threads per application is 255";
                 its_io_thread_count = 255;
             }
         } else if (its_key == "status_log_interval") {
@@ -943,7 +1108,7 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
             its_converter << std::dec << its_value;
             its_converter >> its_request_debounce_time;
             if (its_request_debounce_time > 10000) {
-                VSOMEIP_WARNING << "Max. request debounce time is 10.000ms";
+                VSOMEIP_ERROR_P << "Max. request debounce time is 10.000ms";
                 its_request_debounce_time = 10000;
             }
         } else if (its_key == "plugins") {
@@ -984,7 +1149,7 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
                                        its_debounces,
                                        has_session_handling};
         } else {
-            VSOMEIP_WARNING << "Multiple configurations for application " << its_name << ". Ignoring a configuration from " << _file_name;
+            VSOMEIP_ERROR_P << "Multiple configurations for application " << its_name << ". Ignoring a configuration from " << _file_name;
         }
     }
 }
@@ -1070,7 +1235,7 @@ void configuration_impl::add_plugin(std::map<plugin_type_e, std::set<std::string
 #endif
         _plugins[plugin_type_e::PRE_CONFIGURATION_PLUGIN].insert(its_library);
     } else {
-        VSOMEIP_WARNING << "Unknown plug-in type (" << _plugin_data.type_ << ") configured for client: " << _application_name;
+        VSOMEIP_ERROR_P << "Unknown plug-in type (" << _plugin_data.type_ << ") configured for client: " << _application_name;
     }
 }
 
@@ -1094,6 +1259,43 @@ void configuration_impl::load_tracing(const configuration_element& _element) {
                     trace_->is_sd_enabled_ = (its_value == "true");
                     is_configured_[ET_TRACING_SD_ENABLE] = true;
                 }
+            } else if (its_key == "full_logging_threshold") {
+                if (is_configured_[ET_TRACING_FULL_LOGGING_THRESHOLD]) {
+                    VSOMEIP_WARNING << "Multiple definitions of tracing.full_logging_threshold. Ignoring definition from "
+                                    << _element.name_;
+                } else {
+                    bool its_parsed(false);
+                    try {
+                        size_t its_pos(0);
+                        const unsigned long its_threshold = std::stoul(its_value, &its_pos, 10);
+                        // Reject negatives (stoul silently wraps them), trailing
+                        // garbage and values that don't fit in uint32_t - a
+                        // safety knob must not be silently inverted into "no limit".
+                        if (its_value.find('-') == std::string::npos && its_pos == its_value.size()
+                            && its_threshold <= std::numeric_limits<uint32_t>::max()) {
+                            auto its_value_u32 = static_cast<uint32_t>(its_threshold);
+                            // A non-zero threshold below the SOME/IP header size is
+                            // meaningless - header-only logging always emits up to
+                            // VSOMEIP_FULL_HEADER_SIZE bytes - so clamp it up. 0 keeps
+                            // its special "disabled" (always full) meaning.
+                            if (its_value_u32 != 0 && its_value_u32 < VSOMEIP_FULL_HEADER_SIZE) {
+                                VSOMEIP_ERROR_P << "tracing.full_logging_threshold (" << its_value_u32 << ") is below the minimum of "
+                                                << VSOMEIP_FULL_HEADER_SIZE << ", using " << VSOMEIP_FULL_HEADER_SIZE << ".";
+                                its_value_u32 = VSOMEIP_FULL_HEADER_SIZE;
+                            }
+                            trace_->full_logging_threshold_ = its_value_u32;
+                            its_parsed = true;
+                        }
+                    } catch (const std::exception&) {
+                        // reported below
+                    }
+                    if (its_parsed) {
+                        is_configured_[ET_TRACING_FULL_LOGGING_THRESHOLD] = true;
+                    } else {
+                        VSOMEIP_ERROR_P << "Invalid value for tracing.full_logging_threshold (\"" << its_value << "\"), using "
+                                        << trace_->full_logging_threshold_ << ".";
+                    }
+                }
             } else if (its_key == "channels") {
                 load_trace_channels(i->second);
             } else if (its_key == "filters") {
@@ -1108,8 +1310,9 @@ void configuration_impl::load_tracing(const configuration_element& _element) {
 void configuration_impl::load_trace_channels(const boost::property_tree::ptree& _tree) {
     try {
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-            if (i == _tree.begin())
+            if (i == _tree.begin()) {
                 trace_->channels_.clear();
+            }
             load_trace_channel(i->second);
         }
     } catch (...) {
@@ -1159,12 +1362,15 @@ void configuration_impl::load_trace_filter(const boost::property_tree::ptree& _t
             has_channel = true;
         } else if (its_key == "type") {
             std::string its_value = i->second.data();
-            if (its_value == "negative")
+            if (its_value == "negative") {
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::NEGATIVE;
-            else if (its_value == "header-only")
+            } else if (its_value == "header-only") {
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::HEADER_ONLY;
-            else
+            } else if (its_value == "full-payload") {
+                its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::FULL_PAYLOAD;
+            } else {
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::POSITIVE;
+            }
         } else {
             load_trace_filter_expressions(i->second, its_key, its_filter);
         }
@@ -1189,12 +1395,12 @@ void configuration_impl::load_trace_filter_expressions(const boost::property_tre
         }
     } else if (_criteria == "methods") {
         if (!has_issued_methods_warning_) {
-            VSOMEIP_WARNING << "\"method\" entry in filter configuration has no effect!";
+            VSOMEIP_ERROR_P << "\"method\" entry in filter configuration has no effect!";
             has_issued_methods_warning_ = true;
         }
     } else if (_criteria == "clients") {
         if (!has_issued_clients_warning_) {
-            VSOMEIP_WARNING << "\"clients\" entry in filter configuration has no effect!";
+            VSOMEIP_ERROR_P << "\"clients\" entry in filter configuration has no effect!";
             has_issued_clients_warning_ = true;
         }
     } else if (_criteria == "matches") {
@@ -1205,8 +1411,9 @@ void configuration_impl::load_trace_filter_expressions(const boost::property_tre
                 _filter->is_range_ = true;
                 _filter->matches_.insert(_filter->matches_.begin(), its_match);
             } else {
-                if (i->first == "to")
+                if (i->first == "to") {
                     _filter->is_range_ = true;
+                }
                 _filter->matches_.push_back(its_match);
             }
         }
@@ -1242,8 +1449,9 @@ void configuration_impl::load_trace_filter_match(const boost::property_tree::ptr
 
             try {
                 its_value = i->second.data();
-                if (its_value == "any")
+                if (its_value == "any") {
                     its_value = "0xffff";
+                }
 
                 if (i->first == "service") {
                     service_t its_service(ANY_SERVICE);
@@ -1289,8 +1497,9 @@ void configuration_impl::load_suppress_events(const configuration_element& _elem
                 load_suppress_events_data(i->second);
             }
 
-            if (suppress_events_.size())
+            if (suppress_events_.size()) {
                 is_suppress_events_enabled_ = true;
+            }
         }
     } catch (...) {
         // Intentionally left empty
@@ -1325,8 +1534,9 @@ void configuration_impl::load_suppress_events_data(const boost::property_tree::p
     }
 
     // If no event is present in the configuration, use ANY_EVENT!
-    if (events.empty())
+    if (events.empty()) {
         events.insert(ANY_EVENT);
+    }
 
     for (const auto& event : events) {
         insert_suppress_events(its_service, its_instance, event);
@@ -1410,8 +1620,9 @@ void configuration_impl::insert_suppress_events(service_t _service, instance_t _
 
 bool configuration_impl::check_suppress_events(service_t _service, instance_t _instance, event_t _event) const {
 
-    if (!is_suppress_events_enabled_)
+    if (!is_suppress_events_enabled_) {
         return false;
+    }
 
     std::set<suppress_t> event_combinations = {{_service, _instance, _event},       {_service, _instance, ANY_EVENT},
                                                {_service, ANY_INSTANCE, _event},    {_service, ANY_INSTANCE, ANY_EVENT},
@@ -1419,8 +1630,9 @@ bool configuration_impl::check_suppress_events(service_t _service, instance_t _i
                                                {ANY_SERVICE, ANY_INSTANCE, _event}, {ANY_SERVICE, ANY_INSTANCE, ANY_EVENT}};
 
     for (const auto& its_event : event_combinations) {
-        if (suppress_events_.find(its_event) != std::end(suppress_events_))
+        if (suppress_events_.find(its_event) != std::end(suppress_events_)) {
             return true;
+        }
     }
 
     return false;
@@ -1542,10 +1754,10 @@ void configuration_impl::load_diagnosis_address(const configuration_element& _el
             is_configured_[ET_DIAGNOSIS_MASK] = true;
         }
         if (is_configured_[ET_DIAGNOSIS] && is_configured_[ET_DIAGNOSIS_MASK]
-            && (static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) != static_cast<std::uint16_t>(diagnosis_ << 8)) {
+            && (static_cast<uint16_t>(diagnosis_ << 8) & diagnosis_mask_) != static_cast<uint16_t>(diagnosis_ << 8)) {
             VSOMEIP_WARNING << "Diagnosis mask masks bits of diagnosis prefix! Client IDs will start at 0x"
-                            << hex4(static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
-                            << hex4(static_cast<std::uint16_t>(diagnosis_ << 8));
+                            << hex4(static_cast<uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
+                            << hex4(static_cast<uint16_t>(diagnosis_ << 8));
         }
     } catch (...) {
         // intentionally left empty
@@ -1647,8 +1859,8 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     int tmp;
                     its_converter << its_value;
                     its_converter >> tmp;
-                    sd_repetitions_max_ = (tmp > std::numeric_limits<std::uint8_t>::max()) ? std::numeric_limits<std::uint8_t>::max()
-                                                                                           : static_cast<std::uint8_t>(tmp);
+                    sd_repetitions_max_ =
+                            (tmp > std::numeric_limits<uint8_t>::max()) ? std::numeric_limits<uint8_t>::max() : static_cast<uint8_t>(tmp);
                     is_configured_[ET_SERVICE_DISCOVERY_REPETITION_MAX] = true;
                 }
             } else if (its_key == "ttl") {
@@ -1661,8 +1873,9 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     if (sd_ttl_ == 0) {
                         VSOMEIP_WARNING << "TTL=0 is not allowed. Using default (" << VSOMEIP_SD_DEFAULT_TTL << ")";
                         sd_ttl_ = VSOMEIP_SD_DEFAULT_TTL;
-                    } else
+                    } else {
                         is_configured_[ET_SERVICE_DISCOVERY_TTL] = true;
+                    }
                 }
             } else if (its_key == "cyclic_offer_delay") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY]) {
@@ -1673,15 +1886,6 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     its_converter >> sd_cyclic_offer_delay_;
                     is_configured_[ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY] = true;
                 }
-            } else if (its_key == "request_response_delay") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.request_response_delay. Ignoring definition from "
-                                    << _element.name_;
-                } else {
-                    its_converter << its_value;
-                    its_converter >> sd_request_response_delay_;
-                    is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY] = true;
-                }
             } else if (its_key == "find_initial_debounce_reps") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_initial_debounce_reps. Ignoring definition from "
@@ -1690,11 +1894,11 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     int tmp;
                     its_converter << its_value;
                     its_converter >> tmp;
-                    if (tmp == static_cast<std::uint8_t>(tmp)) {
-                        sd_find_initial_debounce_reps_ = static_cast<std::uint8_t>(tmp);
+                    if (tmp == static_cast<uint8_t>(tmp)) {
+                        sd_find_initial_debounce_reps_ = static_cast<uint8_t>(tmp);
                     } else {
                         VSOMEIP_WARNING << "Invalid value for service_discovery.find_initial_debounce_reps: " << tmp;
-                        sd_find_initial_debounce_reps_ = std::numeric_limits<std::uint8_t>::max();
+                        sd_find_initial_debounce_reps_ = std::numeric_limits<uint8_t>::max();
                     }
                     is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS] = true;
                 }
@@ -1749,10 +1953,10 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     int tmp;
                     its_converter << its_value;
                     its_converter >> tmp;
-                    max_remote_subscribers_ = (tmp > std::numeric_limits<std::uint8_t>::max()) ? std::numeric_limits<std::uint8_t>::max()
-                                                                                               : static_cast<std::uint8_t>(tmp);
+                    max_remote_subscribers_ =
+                            (tmp > std::numeric_limits<uint8_t>::max()) ? std::numeric_limits<uint8_t>::max() : static_cast<uint8_t>(tmp);
                     if (max_remote_subscribers_ == 0) {
-                        VSOMEIP_WARNING << "max_remote_subscribers_ = 0 is not allowed. Using default ("
+                        VSOMEIP_ERROR_P << "max_remote_subscribers_ = 0 is not allowed. Using default ("
                                         << VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS << ")";
                         max_remote_subscribers_ = VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS;
                     }
@@ -1803,6 +2007,11 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
     } catch (...) {
         // intentionally left empty
     }
+
+    if (sd_initial_delay_min_ > sd_initial_delay_max_) {
+        VSOMEIP_ERROR_P << "Bad parameters, service_discovery.initial_delay_min > service_discovery.initial_delay_max, will swap";
+        std::swap(sd_initial_delay_max_, sd_initial_delay_min_);
+    }
 }
 
 void configuration_impl::load_npdu_default_timings(const configuration_element& _element) {
@@ -1845,8 +2054,9 @@ void configuration_impl::load_services(const configuration_element& _element) {
     std::scoped_lock its_lock(services_mutex_);
     try {
         auto its_services = _element.tree_.get_child("services");
-        for (auto i = its_services.begin(); i != its_services.end(); ++i)
+        for (auto i = its_services.begin(); i != its_services.end(); ++i) {
             load_service(i->second, default_unicast_);
+        }
     } catch (...) {
         // intentionally left empty
     }
@@ -1992,10 +2202,11 @@ void configuration_impl::load_event(std::shared_ptr<service>& _service, const bo
             } else if (its_key == "is_field") {
                 its_is_field = (its_value == "true");
             } else if (its_key == "is_reliable") {
-                if (its_value == "true")
+                if (its_value == "true") {
                     its_reliability = reliability_type_e::RT_RELIABLE;
-                else
+                } else {
                     its_reliability = reliability_type_e::RT_UNRELIABLE;
+                }
             } else if (its_key == "cycle") {
                 std::stringstream its_converter;
                 its_converter << std::dec << its_value;
@@ -2061,9 +2272,8 @@ void configuration_impl::load_eventgroup(std::shared_ptr<service>& _service, con
                 int its_threshold(0);
                 its_converter << std::dec << its_value;
                 its_converter >> std::dec >> its_threshold;
-                its_eventgroup->threshold_ = (its_threshold > std::numeric_limits<std::uint8_t>::max())
-                        ? std::numeric_limits<std::uint8_t>::max()
-                        : static_cast<uint8_t>(its_threshold);
+                its_eventgroup->threshold_ = (its_threshold > std::numeric_limits<uint8_t>::max()) ? std::numeric_limits<uint8_t>::max()
+                                                                                                   : static_cast<uint8_t>(its_threshold);
             } else if (its_key == "events") {
                 for (auto k = j->second.begin(); k != j->second.end(); ++k) {
                     // Reset the shared converter: after the first extraction it is
@@ -2174,8 +2384,9 @@ void configuration_impl::load_internal_services(const configuration_element& _el
 void configuration_impl::load_clients(const configuration_element& _element) {
     try {
         auto its_clients = _element.tree_.get_child("clients");
-        for (auto i = its_clients.begin(); i != its_clients.end(); ++i)
+        for (auto i = its_clients.begin(); i != its_clients.end(); ++i) {
             load_client(i->second);
+        }
     } catch (...) {
         // intentionally left empty!
     }
@@ -2273,7 +2484,7 @@ std::pair<uint16_t, uint16_t> configuration_impl::load_client_port_range(const b
     }
 
     if (its_last_port < its_first_port) {
-        VSOMEIP_WARNING << "Port range invalid: first: " << its_first_port << " last: " << its_last_port;
+        VSOMEIP_ERROR_P << "Port range invalid: first: " << its_first_port << " last: " << its_last_port;
         its_port_range = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
     } else {
         its_port_range = std::make_pair(its_first_port, its_last_port);
@@ -2345,7 +2556,7 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
                 const std::string size_str(_element.tree_.get_child(s).data());
                 try {
                     // add 16 Byte for the SOME/IP header
-                    const auto its_size = static_cast<std::uint32_t>(std::stoul(size_str.c_str(), NULL, 10) + 16);
+                    const auto its_size = static_cast<uint32_t>(std::stoul(size_str.c_str(), NULL, 10) + 16);
                     if (s == max_local_payload_size) {
                         max_local_message_size_ = its_size;
                     } else if (s == max_reliable_payload_size) {
@@ -2363,7 +2574,7 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
             auto bst = _element.tree_.get_child(buffer_shrink_threshold);
             std::string s(bst.data());
             try {
-                buffer_shrink_threshold_ = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
+                buffer_shrink_threshold_ = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10));
             } catch (const std::exception& e) {
                 VSOMEIP_ERROR_P << buffer_shrink_threshold << " " << e.what();
             }
@@ -2385,15 +2596,15 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
                         continue;
                     }
 
-                    std::uint16_t its_port = ILLEGAL_PORT;
-                    std::uint32_t its_message_size = 0;
+                    uint16_t its_port = ILLEGAL_PORT;
+                    uint32_t its_message_size = 0;
 
                     try {
                         std::string p(j->second.get_child(port).data());
-                        its_port = static_cast<std::uint16_t>(std::stoul(p.c_str(), NULL, 10));
+                        its_port = static_cast<uint16_t>(std::stoul(p.c_str(), NULL, 10));
                         std::string s(j->second.get_child(max_payload_size).data());
                         // add 16 Byte for the SOME/IP header
-                        its_message_size = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10) + 16);
+                        its_message_size = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10) + 16);
                     } catch (const std::exception& e) {
                         VSOMEIP_ERROR_P << e.what();
                     }
@@ -2410,20 +2621,20 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
             }
             if (max_local_message_size_ != 0 && max_configured_message_size_ != 0
                 && max_configured_message_size_ > max_local_message_size_) {
-                VSOMEIP_WARNING << max_local_payload_size << " is configured smaller than the biggest payloadsize for external"
+                VSOMEIP_ERROR_P << max_local_payload_size << " is configured smaller than the biggest payloadsize for external"
                                 << " communication. " << max_local_payload_size << " will be increased to "
                                 << max_configured_message_size_ - 16 << " to ensure local message distribution.";
                 max_local_message_size_ = max_configured_message_size_;
             }
             if (max_local_message_size_ != 0 && max_reliable_message_size_ != 0 && max_reliable_message_size_ > max_local_message_size_) {
-                VSOMEIP_WARNING << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
+                VSOMEIP_ERROR_P << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
                                 << max_reliable_payload_size << " (" << max_reliable_message_size_ - 16 << "). " << max_local_payload_size
                                 << " will be increased to " << max_reliable_message_size_ - 16 << " to ensure local message distribution.";
                 max_local_message_size_ = max_reliable_message_size_;
             }
             if (max_local_message_size_ != 0 && max_unreliable_message_size_ != 0
                 && max_unreliable_message_size_ > max_local_message_size_) {
-                VSOMEIP_WARNING << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
+                VSOMEIP_ERROR_P << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
                                 << max_unreliable_payload_size << " (" << max_unreliable_message_size_ - 16 << "). "
                                 << max_local_payload_size << " will be increased to " << max_unreliable_message_size_ - 16 << " to ensure "
                                 << "local message distribution.";
@@ -2489,11 +2700,6 @@ void configuration_impl::load_security(const configuration_element& _element) {
     } catch (...) {
         // intentionally left empty
     }
-
-#ifndef VSOMEIP_DISABLE_SECURITY
-    if (!is_security_external())
-        policy_manager_->load(_element);
-#endif // !VSOMEIP_DISABLE_SECURITY
 }
 
 void configuration_impl::load_selective_broadcasts_support(const configuration_element& _element) {
@@ -2541,10 +2747,11 @@ void configuration_impl::load_partition(const boost::property_tree::ptree& _tree
                 its_converter.str("");
                 its_converter.clear();
 
-                if (its_data.find("0x") != std::string::npos)
+                if (its_data.find("0x") != std::string::npos) {
                     its_converter << std::hex;
-                else
+                } else {
                     its_converter << std::dec;
+                }
                 its_converter << its_data;
 
                 if (its_key == "service") {
@@ -2556,10 +2763,11 @@ void configuration_impl::load_partition(const boost::property_tree::ptree& _tree
                 }
             }
 
-            if (its_service > 0 && its_instance > 0)
+            if (its_service > 0 && its_instance > 0) {
                 its_partition_members[its_service].insert(its_instance);
-            else
+            } else {
                 VSOMEIP_ERROR << "P: <" << its_service_s << "." << its_instance_s << "> is no valid service instance.";
+            }
         }
 
         if (!its_partition_members.empty()) {
@@ -2713,7 +2921,7 @@ uint16_t configuration_impl::get_unreliable_port(service_t _service, instance_t 
     return its_unreliable;
 }
 
-void configuration_impl::get_configured_timing_requests(service_t _service, const std::string& _ip_target, std::uint16_t _port_target,
+void configuration_impl::get_configured_timing_requests(service_t _service, const std::string& _ip_target, uint16_t _port_target,
                                                         method_t _method, std::chrono::nanoseconds* _debounce_time,
                                                         std::chrono::nanoseconds* _max_retention_time) const {
 
@@ -2734,7 +2942,7 @@ void configuration_impl::get_configured_timing_requests(service_t _service, cons
     *_max_retention_time = npdu_default_max_retention_requ_;
 }
 
-void configuration_impl::get_configured_timing_responses(service_t _service, const std::string& _ip_service, std::uint16_t _port_service,
+void configuration_impl::get_configured_timing_responses(service_t _service, const std::string& _ip_service, uint16_t _port_service,
                                                          method_t _method, std::chrono::nanoseconds* _debounce_time,
                                                          std::chrono::nanoseconds* _max_retention_time) const {
     if (_debounce_time == nullptr || _max_retention_time == nullptr) {
@@ -2756,8 +2964,9 @@ void configuration_impl::get_configured_timing_responses(service_t _service, con
 }
 
 bool configuration_impl::is_someip(service_t _service, instance_t _instance) const {
-    if (auto its_service = find_service({_service, _instance}); its_service)
+    if (auto its_service = find_service({_service, _instance}); its_service) {
         return (its_service->protocol_ == "someip");
+    }
     return true; // we need to explicitely configure a service to
                  // be something else than SOME/IP
 }
@@ -2835,20 +3044,24 @@ const boost::asio::ip::address& configuration_impl::get_routing_guest_address() 
 std::set<std::pair<port_t, port_t>> configuration_impl::get_routing_guest_ports(uid_t _uid, gid_t _gid) const {
 
     auto found = routing_.guests_.ports_.find({_uid, _gid});
-    if (found != routing_.guests_.ports_.end())
+    if (found != routing_.guests_.ports_.end()) {
         return found->second;
+    }
 
     found = routing_.guests_.ports_.find({_uid, ANY_GID});
-    if (found != routing_.guests_.ports_.end())
+    if (found != routing_.guests_.ports_.end()) {
         return found->second;
+    }
 
     found = routing_.guests_.ports_.find({ANY_UID, _gid});
-    if (found != routing_.guests_.ports_.end())
+    if (found != routing_.guests_.ports_.end()) {
         return found->second;
+    }
 
     found = routing_.guests_.ports_.find({ANY_UID, ANY_GID});
-    if (found != routing_.guests_.ports_.end())
+    if (found != routing_.guests_.ports_.end()) {
         return found->second;
+    }
 
     return std::set<std::pair<port_t, port_t>>();
 }
@@ -2912,7 +3125,7 @@ uint32_t configuration_impl::get_status_log_interval(const std::string& _name, b
     }
 }
 
-std::size_t configuration_impl::get_request_debounce_time(const std::string& _name) const {
+size_t configuration_impl::get_request_debounce_time(const std::string& _name) const {
     size_t its_request_debounce_time{request_debounce_time_};
 
     auto found_application = applications_.find(_name);
@@ -2923,8 +3136,8 @@ std::size_t configuration_impl::get_request_debounce_time(const std::string& _na
     return its_request_debounce_time;
 }
 
-std::size_t configuration_impl::get_io_thread_count(const std::string& _name) const {
-    std::size_t its_io_thread_count = VSOMEIP_DEFAULT_IO_THREAD_COUNT;
+size_t configuration_impl::get_io_thread_count(const std::string& _name) const {
+    size_t its_io_thread_count = VSOMEIP_DEFAULT_IO_THREAD_COUNT;
 
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -2945,7 +3158,7 @@ int configuration_impl::get_io_thread_nice_level(const std::string& _name) const
     return its_io_thread_nice_level;
 }
 
-std::size_t configuration_impl::get_max_dispatchers(const std::string& _name) const {
+size_t configuration_impl::get_max_dispatchers(const std::string& _name) const {
     size_t its_max_dispatchers{default_max_dispatchers_};
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -2954,7 +3167,7 @@ std::size_t configuration_impl::get_max_dispatchers(const std::string& _name) co
     return its_max_dispatchers;
 }
 
-std::size_t configuration_impl::get_max_dispatch_time(const std::string& _name) const {
+size_t configuration_impl::get_max_dispatch_time(const std::string& _name) const {
     size_t its_max_dispatch_time{default_max_dispatch_time_};
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -2968,8 +3181,9 @@ bool configuration_impl::has_session_handling(const std::string& _name) const {
     bool its_value(true);
 
     auto found_application = applications_.find(_name);
-    if (found_application != applications_.end())
+    if (found_application != applications_.end()) {
         its_value = found_application->second.has_session_handling_;
+    }
 
     return its_value;
 }
@@ -3027,11 +3241,13 @@ bool configuration_impl::is_remote(const std::shared_ptr<service>& _service) con
 bool configuration_impl::get_multicast(service_t _service, instance_t _instance, eventgroup_t _eventgroup, std::string& _address,
                                        uint16_t& _port) const {
     std::shared_ptr<eventgroup> its_eventgroup = find_eventgroup({_service, _instance}, _eventgroup);
-    if (!its_eventgroup)
+    if (!its_eventgroup) {
         return false;
+    }
 
-    if (its_eventgroup->multicast_address_.empty())
+    if (its_eventgroup->multicast_address_.empty()) {
         return false;
+    }
 
     _address = its_eventgroup->multicast_address_;
     _port = its_eventgroup->multicast_port_;
@@ -3243,7 +3459,7 @@ std::shared_ptr<service> configuration_impl::find_service_unlocked(service_insta
     return std::shared_ptr<service>();
 }
 
-std::shared_ptr<service> configuration_impl::find_service(service_t _service, const std::string& _address, std::uint16_t _port) const {
+std::shared_ptr<service> configuration_impl::find_service(service_t _service, const std::string& _address, uint16_t _port) const {
 
     std::shared_ptr<service> its_service;
 
@@ -3272,7 +3488,7 @@ std::shared_ptr<eventgroup> configuration_impl::find_eventgroup(service_instance
     return its_eventgroup;
 }
 
-std::uint32_t configuration_impl::get_max_message_size_local() const {
+uint32_t configuration_impl::get_max_message_size_local() const {
     if (max_local_message_size_ == 0 && VSOMEIP_MAX_LOCAL_MESSAGE_SIZE == 0 && VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) {
         return DEFAULT_MAX_MESSAGE_SIZE;
     }
@@ -3290,10 +3506,10 @@ std::uint32_t configuration_impl::get_max_message_size_local() const {
 
     // add sizes of the the routing_manager_proxy's messages
     // to the routing_manager stub
-    return std::uint32_t(its_max_message_size + protocol::SEND_COMMAND_HEADER_SIZE);
+    return uint32_t(its_max_message_size + protocol::SEND_COMMAND_HEADER_SIZE);
 }
 
-std::uint32_t configuration_impl::get_max_message_size_reliable(const std::string& _address, std::uint16_t _port) const {
+uint32_t configuration_impl::get_max_message_size_reliable(const std::string& _address, uint16_t _port) const {
     const auto its_address = message_sizes_.find(_address);
     if (its_address != message_sizes_.end()) {
         const auto its_port = its_address->second.find(_port);
@@ -3306,11 +3522,11 @@ std::uint32_t configuration_impl::get_max_message_size_reliable(const std::strin
             : max_reliable_message_size_;
 }
 
-std::uint32_t configuration_impl::get_max_message_size_unreliable() const {
+uint32_t configuration_impl::get_max_message_size_unreliable() const {
     return (max_unreliable_message_size_ == 0) ? DEFAULT_MAX_MESSAGE_SIZE : max_unreliable_message_size_;
 }
 
-std::uint32_t configuration_impl::get_buffer_shrink_threshold() const {
+uint32_t configuration_impl::get_buffer_shrink_threshold() const {
     return buffer_shrink_threshold_;
 }
 
@@ -3381,23 +3597,19 @@ int32_t configuration_impl::get_sd_cyclic_offer_delay() const {
     return sd_cyclic_offer_delay_;
 }
 
-int32_t configuration_impl::get_sd_request_response_delay() const {
-    return sd_request_response_delay_;
-}
-
 uint8_t configuration_impl::get_sd_find_initial_debounce_reps() const {
     return sd_find_initial_debounce_reps_;
 }
 
-std::uint32_t configuration_impl::get_sd_find_initial_debounce_time() const {
+uint32_t configuration_impl::get_sd_find_initial_debounce_time() const {
     return sd_find_initial_debounce_time_;
 }
 
-std::uint32_t configuration_impl::get_sd_offer_debounce_time() const {
+uint32_t configuration_impl::get_sd_offer_debounce_time() const {
     return sd_offer_debounce_time_;
 }
 
-std::uint32_t configuration_impl::get_sd_find_debounce_time() const {
+uint32_t configuration_impl::get_sd_find_debounce_time() const {
     return sd_find_debounce_time_;
 }
 
@@ -3418,7 +3630,7 @@ std::shared_ptr<cfg::trace> configuration_impl::get_trace() const {
     return trace_;
 }
 
-std::uint32_t configuration_impl::get_permissions_uds() const {
+uint32_t configuration_impl::get_permissions_uds() const {
     return permissions_uds_;
 }
 
@@ -3576,7 +3788,7 @@ configuration::ttl_map_t configuration_impl::get_ttl_factor_subscribes() const {
     return ttl_factors_subscriptions_;
 }
 
-configuration::endpoint_queue_limit_t configuration_impl::get_endpoint_queue_limit(const std::string& _address, std::uint16_t _port) const {
+configuration::endpoint_queue_limit_t configuration_impl::get_endpoint_queue_limit(const std::string& _address, uint16_t _port) const {
     auto found_address = endpoint_queue_limits_.find(_address);
     if (found_address != endpoint_queue_limits_.end()) {
         auto found_port = found_address->second.find(_port);
@@ -3649,14 +3861,14 @@ void configuration_impl::load_endpoint_queue_sizes(const configuration_element& 
                             continue;
                         }
 
-                        std::uint16_t its_port = ILLEGAL_PORT;
-                        std::uint32_t its_queue_size_limit = 0;
+                        uint16_t its_port = ILLEGAL_PORT;
+                        uint32_t its_queue_size_limit = 0;
 
                         try {
                             std::string p(j.second.get_child(port).data());
-                            its_port = static_cast<std::uint16_t>(std::stoul(p.c_str(), NULL, 10));
+                            its_port = static_cast<uint16_t>(std::stoul(p.c_str(), NULL, 10));
                             std::string s(j.second.get_child(queue_size_limit).data());
-                            its_queue_size_limit = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
+                            its_queue_size_limit = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10));
                         } catch (const std::exception& e) {
                             VSOMEIP_ERROR_P << e.what();
                         }
@@ -3769,7 +3981,7 @@ void configuration_impl::load_event_debounce(const boost::property_tree::ptree& 
                 its_converter >> its_debounce->interval_;
             }
         } else if (its_key == "send_current_value_after") {
-            VSOMEIP_WARNING << "Filter uses unsupported parameter 'send_current_value_after'";
+            VSOMEIP_ERROR_P << "Filter uses unsupported parameter 'send_current_value_after'";
             its_debounce->send_current_value_after_ = (its_value == "true");
         }
     }
@@ -3783,8 +3995,8 @@ void configuration_impl::load_event_debounce(const boost::property_tree::ptree& 
     }
 }
 
-void configuration_impl::load_event_debounce_ignore(const boost::property_tree::ptree& _tree, std::map<std::size_t, byte_t>& _ignore) {
-    std::size_t its_ignored;
+void configuration_impl::load_event_debounce_ignore(const boost::property_tree::ptree& _tree, std::map<size_t, byte_t>& _ignore) {
+    size_t its_ignored;
     byte_t its_mask;
     std::stringstream its_converter;
 
@@ -3855,7 +4067,7 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
 
         boost::asio::ip::address its_address;
         std::set<std::string> its_paths;
-        std::map<bool, std::pair<boost::icl::interval_set<std::uint16_t>, boost::icl::interval_set<std::uint16_t>>> its_ports;
+        std::map<bool, std::pair<boost::icl::interval_set<uint16_t>, boost::icl::interval_set<uint16_t>>> its_ports;
         bool has_optional, has_secure, is_reliable;
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
@@ -3874,8 +4086,8 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
 
                 for (const auto& p : i->second) {
                     if (p.second.size()) { // range
-                        std::uint16_t its_first(0);
-                        std::uint16_t its_last(0);
+                        uint16_t its_first(0);
+                        uint16_t its_last(0);
                         port_type_e its_type(port_type_e::PT_OPTIONAL);
 
                         for (const auto& range : p.second) {
@@ -3883,7 +4095,7 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
                             const std::string its_value_inner(range.second.data());
                             if (its_key_inner == "first" || its_key_inner == "last" || its_key_inner == "port") {
                                 its_converter << std::dec << its_value_inner;
-                                std::uint16_t its_port_value(0);
+                                uint16_t its_port_value(0);
                                 its_converter >> its_port_value;
                                 its_converter.str("");
                                 its_converter.clear();
@@ -3909,13 +4121,13 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
                                 has_optional = true;
                                 if (its_first != 0 && its_last != 0) {
                                     its_ports.operator[](is_reliable)
-                                            .first.insert(boost::icl::interval<std::uint16_t>::closed(its_first, its_last));
+                                            .first.insert(boost::icl::interval<uint16_t>::closed(its_first, its_last));
                                 }
                             } else {
                                 has_secure = true;
                                 if (its_first != 0 && its_last != 0) {
                                     its_ports.operator[](is_reliable)
-                                            .second.insert(boost::icl::interval<std::uint16_t>::closed(its_first, its_last));
+                                            .second.insert(boost::icl::interval<uint16_t>::closed(its_first, its_last));
                                 }
                             }
                         }
@@ -3924,9 +4136,9 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
 
                 // If optional was not set, use default!
                 if (!has_optional) {
-                    const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
-                    const auto its_optional_client_spare = boost::icl::interval<std::uint16_t>::closed(30898, 30998);
-                    const auto its_optional_server = boost::icl::interval<std::uint16_t>::closed(30501, 30599);
+                    const auto its_optional_client = boost::icl::interval<uint16_t>::closed(30491, 30499);
+                    const auto its_optional_client_spare = boost::icl::interval<uint16_t>::closed(30898, 30998);
+                    const auto its_optional_server = boost::icl::interval<uint16_t>::closed(30501, 30599);
 
                     its_ports.operator[](is_reliable).first.insert(its_optional_client);
                     its_ports.operator[](is_reliable).first.insert(its_optional_client_spare);
@@ -3935,9 +4147,9 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
 
                 // If secure was not set, use default!
                 if (!has_secure) {
-                    const auto its_secure_client = boost::icl::interval<std::uint16_t>::closed(32491, 32499);
-                    const auto its_secure_client_spare = boost::icl::interval<std::uint16_t>::closed(32898, 32998);
-                    const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
+                    const auto its_secure_client = boost::icl::interval<uint16_t>::closed(32491, 32499);
+                    const auto its_secure_client_spare = boost::icl::interval<uint16_t>::closed(32898, 32998);
+                    const auto its_secure_server = boost::icl::interval<uint16_t>::closed(32501, 32599);
 
                     its_ports.operator[](is_reliable).second.insert(its_secure_client);
                     its_ports.operator[](is_reliable).second.insert(its_secure_client_spare);
@@ -3954,7 +4166,7 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
                         find_sd_acceptance_rule->second.first.insert(p);
                     }
                 } else {
-                    VSOMEIP_WARNING << "Detected inconsistent acceptance rules. Multiple entries share the IP address but define different "
+                    VSOMEIP_ERROR_P << "Detected inconsistent acceptance rules. Multiple entries share the IP address but define different "
                                     << "[semi-] secure ports";
                 }
             } else {
@@ -4027,7 +4239,7 @@ bool configuration_impl::load_npdu_debounce_times_for_service(const std::shared_
                 std::chrono::nanoseconds its_retention_time(npdu_default_max_retention_requ_);
                 for (const auto& j : i.second) {
                     const std::string& key = j.first;
-                    const std::uint64_t value = std::strtoull(j.second.data().c_str(), NULL, 10) * 1000000;
+                    const uint64_t value = std::strtoull(j.second.data().c_str(), NULL, 10) * 1000000;
                     if (key == dtime) {
                         its_debounce_time = std::chrono::nanoseconds(value);
                     } else if (key == rtime) {
@@ -4089,17 +4301,17 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
 
                             // Segment length must be multiple of 16
                             // Ensure this by subtracting the rest
-                            auto its_rest = std::uint16_t(its_max_segment_length % 16);
+                            auto its_rest = uint16_t(its_max_segment_length % 16);
                             if (its_rest != 0) {
-                                VSOMEIP_WARNING << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected "
+                                VSOMEIP_ERROR_P << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected "
                                                 << its_max_segment_length << " to " << its_max_segment_length - its_rest;
 
-                                its_max_segment_length = std::uint16_t(its_max_segment_length - its_rest);
+                                its_max_segment_length = uint16_t(its_max_segment_length - its_rest);
                             }
                         } else if (its_data.first == "separation-time") {
                             its_converter << std::dec << its_value_inner;
                             its_converter >> its_separation_time;
-                            its_separation_time *= std::uint32_t(1000);
+                            its_separation_time *= uint32_t(1000);
                         }
                     }
                     its_converter.str("");
@@ -4122,7 +4334,7 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                     if (its_entry == _service->tp_client_config_.end()) {
                         _service->tp_client_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
-                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method [" << _service->service_instance_ << "."
+                        VSOMEIP_ERROR_P << "SOME/IP-TP: Multiple client configurations for method [" << _service->service_instance_ << "."
                                         << hex4(its_method) << "]: using (" << its_entry->second.first << ", " << its_entry->second.second
                                         << ")";
                     }
@@ -4131,7 +4343,7 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                     if (its_entry == _service->tp_service_config_.end()) {
                         _service->tp_service_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
-                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method [" << _service->service_instance_ << "."
+                        VSOMEIP_ERROR_P << "SOME/IP-TP: Multiple service configurations for method [" << _service->service_instance_ << "."
                                         << hex4(its_method) << "]: using (" << its_entry->second.first << ", " << its_entry->second.second
                                         << ")";
                     }
@@ -4170,8 +4382,9 @@ void configuration_impl::load_secure_services(const configuration_element& _elem
     std::scoped_lock its_lock(secure_services_mutex_);
     try {
         auto its_services = _element.tree_.get_child("secure-services");
-        for (auto i = its_services.begin(); i != its_services.end(); ++i)
+        for (auto i = its_services.begin(); i != its_services.end(); ++i) {
             load_secure_service(i->second);
+        }
     } catch (...) {
         // intentionally left empty
     }
@@ -4324,7 +4537,7 @@ void configuration_impl::load_tcp_restart_settings(const configuration_element& 
                 auto mpsl = _element.tree_.get_child(tcp_restart_aborts_max);
                 std::string s(mpsl.data());
                 try {
-                    tcp_restart_aborts_max_ = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
+                    tcp_restart_aborts_max_ = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10));
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR_P << tcp_restart_aborts_max << " " << e.what();
                 }
@@ -4338,7 +4551,7 @@ void configuration_impl::load_tcp_restart_settings(const configuration_element& 
                 auto mpsl = _element.tree_.get_child(tcp_connect_time_max);
                 std::string s(mpsl.data());
                 try {
-                    tcp_connect_time_max_ = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
+                    tcp_connect_time_max_ = static_cast<uint32_t>(std::stoul(s.c_str(), NULL, 10));
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR_P << tcp_connect_time_max << " " << e.what();
                 }
@@ -4349,11 +4562,11 @@ void configuration_impl::load_tcp_restart_settings(const configuration_element& 
     }
 }
 
-std::uint32_t configuration_impl::get_max_tcp_restart_aborts() const {
+uint32_t configuration_impl::get_max_tcp_restart_aborts() const {
     return tcp_restart_aborts_max_;
 }
 
-std::uint32_t configuration_impl::get_max_tcp_connect_time() const {
+uint32_t configuration_impl::get_max_tcp_connect_time() const {
     return tcp_connect_time_max_;
 }
 
@@ -4362,7 +4575,7 @@ bool configuration_impl::is_protected_device(const boost::asio::ip::address& _ad
     return (sd_acceptance_rules_active_.count(_address) > 0);
 }
 
-bool configuration_impl::is_protected_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const {
+bool configuration_impl::is_protected_port(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) const {
 
     bool is_required(is_protected_device(_address));
 
@@ -4375,7 +4588,7 @@ bool configuration_impl::is_protected_port(const boost::asio::ip::address& _addr
     if (found_address != sd_acceptance_rules_.end()) {
         const auto found_reliability = found_address->second.second.find(_reliable);
         if (found_reliability != found_address->second.second.end()) {
-            const auto its_range = boost::icl::interval<std::uint16_t>::closed(_port, _port);
+            const auto its_range = boost::icl::interval<uint16_t>::closed(_port, _port);
 
             bool is_optional = (found_reliability->second.first.find(its_range) != found_reliability->second.first.end());
 
@@ -4388,7 +4601,7 @@ bool configuration_impl::is_protected_port(const boost::asio::ip::address& _addr
     return is_required;
 }
 
-bool configuration_impl::is_secure_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const {
+bool configuration_impl::is_secure_port(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) const {
 
     bool is_secure(false);
 
@@ -4397,7 +4610,7 @@ bool configuration_impl::is_secure_port(const boost::asio::ip::address& _address
     if (found_address != sd_acceptance_rules_.end()) {
         const auto found_reliability = found_address->second.second.find(_reliable);
         if (found_reliability != found_address->second.second.end()) {
-            const auto its_range = boost::icl::interval<std::uint16_t>::closed(_port, _port);
+            const auto its_range = boost::icl::interval<uint16_t>::closed(_port, _port);
             return (found_reliability->second.second.find(its_range) != found_reliability->second.second.end());
         }
     }
@@ -4413,13 +4626,13 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
 
     std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
 
-    const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
-    const auto its_optional_client_spare = boost::icl::interval<std::uint16_t>::closed(30898, 30998);
-    const auto its_optional_server = boost::icl::interval<std::uint16_t>::closed(30501, 30599);
+    const auto its_optional_client = boost::icl::interval<uint16_t>::closed(30491, 30499);
+    const auto its_optional_client_spare = boost::icl::interval<uint16_t>::closed(30898, 30998);
+    const auto its_optional_server = boost::icl::interval<uint16_t>::closed(30501, 30599);
 
-    const auto its_secure_client = boost::icl::interval<std::uint16_t>::closed(32491, 32499);
-    const auto its_secure_client_spare = boost::icl::interval<std::uint16_t>::closed(32898, 32998);
-    const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
+    const auto its_secure_client = boost::icl::interval<uint16_t>::closed(32491, 32499);
+    const auto its_secure_client_spare = boost::icl::interval<uint16_t>::closed(32898, 32998);
+    const auto its_secure_server = boost::icl::interval<uint16_t>::closed(32501, 32599);
 
     const bool rules_active = (sd_acceptance_rules_active_.count(_address) > 0);
 
@@ -4467,11 +4680,11 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
                 }
             }
         } else if (_enable) {
-            boost::icl::interval_set<std::uint16_t> its_optional_default;
+            boost::icl::interval_set<uint16_t> its_optional_default;
             its_optional_default.add(its_optional_client);
             its_optional_default.add(its_optional_client_spare);
             its_optional_default.add(its_optional_server);
-            boost::icl::interval_set<std::uint16_t> its_secure_default;
+            boost::icl::interval_set<uint16_t> its_secure_default;
             its_secure_default.add(its_secure_client);
             its_secure_default.add(its_secure_client_spare);
             its_secure_default.add(its_secure_server);
@@ -4487,11 +4700,11 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
                          << found_reliability_inner->second.second;
         }
     } else if (_enable) {
-        boost::icl::interval_set<std::uint16_t> its_optional_default;
+        boost::icl::interval_set<uint16_t> its_optional_default;
         its_optional_default.add(its_optional_client);
         its_optional_default.add(its_optional_client_spare);
         its_optional_default.add(its_optional_server);
-        boost::icl::interval_set<std::uint16_t> its_secure_default;
+        boost::icl::interval_set<uint16_t> its_secure_default;
         its_secure_default.add(its_secure_client);
         its_secure_default.add(its_secure_client_spare);
         its_secure_default.add(its_secure_server);
@@ -4502,7 +4715,7 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
         sd_acceptance_rules_.emplace(std::make_pair(
                 _address,
                 std::make_pair(its_path,
-                               std::map<bool, std::pair<boost::icl::interval_set<std::uint16_t>, boost::icl::interval_set<std::uint16_t>>>(
+                               std::map<bool, std::pair<boost::icl::interval_set<uint16_t>, boost::icl::interval_set<uint16_t>>>(
                                        {{_reliable, std::make_pair(its_optional_default, its_secure_default)}}))));
         if (!rules_active) {
             sd_acceptance_rules_active_.insert(_address);
@@ -4536,8 +4749,9 @@ void configuration_impl::set_sd_acceptance_rules_active(const boost::asio::ip::a
 bool configuration_impl::is_secure_service(service_t _service, instance_t _instance) const {
     std::scoped_lock its_lock(secure_services_mutex_);
     const auto its_service = secure_services_.find(_service);
-    if (its_service != secure_services_.end())
+    if (its_service != secure_services_.end()) {
         return (its_service->second.count(_instance) > 0);
+    }
     return false;
 }
 
@@ -4568,7 +4782,7 @@ bool configuration_impl::is_tp_service(service_t _service, instance_t _instance,
 }
 
 void configuration_impl::get_tp_configuration(service_t _service, instance_t _instance, method_t _method, bool _is_client,
-                                              std::uint16_t& _max_segment_length, std::uint32_t& _separation_time) const {
+                                              uint16_t& _max_segment_length, uint32_t& _separation_time) const {
 
     if (auto its_info = find_service({_service, _instance}); its_info) {
         if (_is_client) {
@@ -4576,8 +4790,9 @@ void configuration_impl::get_tp_configuration(service_t _service, instance_t _in
 
             // Note: The following two lines do not make sense now,
             // but they will when TP configuration is reworked
-            if (its_method == its_info->tp_client_config_.end())
+            if (its_method == its_info->tp_client_config_.end()) {
                 its_method = its_info->tp_client_config_.find(ANY_METHOD);
+            }
 
             if (its_method != its_info->tp_client_config_.end()) {
                 _max_segment_length = its_method->second.first;
@@ -4589,8 +4804,9 @@ void configuration_impl::get_tp_configuration(service_t _service, instance_t _in
 
             // Note: The following two lines do not make sense now,
             // but they will when TP configuration is reworked
-            if (its_method == its_info->tp_service_config_.end())
+            if (its_method == its_info->tp_service_config_.end()) {
                 its_method = its_info->tp_service_config_.find(ANY_METHOD);
+            }
 
             if (its_method != its_info->tp_service_config_.end()) {
                 _max_segment_length = its_method->second.first;
@@ -4638,22 +4854,6 @@ partition_id_t configuration_impl::get_partition_id(service_t _service, instance
     return its_id;
 }
 
-reliability_type_e configuration_impl::get_reliability_type(const boost::asio::ip::address& _reliable_address,
-                                                            const uint16_t& _reliable_port,
-                                                            const boost::asio::ip::address& _unreliable_address,
-                                                            const uint16_t& _unreliable_port) const {
-
-    if (_reliable_port != ILLEGAL_PORT && _unreliable_port != ILLEGAL_PORT && !_reliable_address.is_unspecified()
-        && !_unreliable_address.is_unspecified()) {
-        return reliability_type_e::RT_BOTH;
-    } else if (_unreliable_port != ILLEGAL_PORT && !_unreliable_address.is_unspecified()) {
-        return reliability_type_e::RT_UNRELIABLE;
-    } else if (_reliable_port != ILLEGAL_PORT && !_reliable_address.is_unspecified()) {
-        return reliability_type_e::RT_RELIABLE;
-    }
-    return reliability_type_e::RT_UNKNOWN;
-}
-
 bool configuration_impl::is_security_enabled() const {
 
     return is_security_enabled_;
@@ -4672,14 +4872,6 @@ bool configuration_impl::is_security_audit() const {
 bool configuration_impl::is_remote_access_allowed() const {
 
     return is_remote_access_allowed_;
-}
-
-std::shared_ptr<policy_manager_impl> configuration_impl::get_policy_manager() const {
-    return policy_manager_;
-}
-
-std::shared_ptr<security> configuration_impl::get_security() const {
-    return security_;
 }
 
 routing_state_e configuration_impl::get_initial_routing_state() const {

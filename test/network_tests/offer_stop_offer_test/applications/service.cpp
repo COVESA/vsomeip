@@ -9,7 +9,7 @@
 #include "service.hpp"
 #include "service_ids.hpp"
 
-constexpr std::size_t PAYLOAD_SIZE = 1000UL;
+constexpr size_t PAYLOAD_SIZE = 1000UL;
 
 service_t::service_t() :
 

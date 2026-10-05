@@ -41,7 +41,7 @@ static void wait_for_signal() {
 
 class initial_event_test_service {
 public:
-    initial_event_test_service(struct initial_event_test::service_info _service_info, std::uint16_t _events_to_offer,
+    initial_event_test_service(struct initial_event_test::service_info _service_info, uint16_t _events_to_offer,
                                vsomeip::reliability_type_e _reliability_type) :
         service_info_(_service_info), app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true),
         events_to_offer_(_events_to_offer), offer_thread_(std::bind(&initial_event_test_service::run, this)),
@@ -56,7 +56,7 @@ public:
         // offer field
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(service_info_.eventgroup_id);
-        for (std::uint16_t i = 0; i < events_to_offer_; i++) {
+        for (uint16_t i = 0; i < events_to_offer_; i++) {
             app_->offer_event(service_info_.service_id, service_info_.instance_id,
                               static_cast<vsomeip::event_t>(service_info_.event_id + i), its_eventgroups, vsomeip::event_type_e::ET_FIELD,
                               std::chrono::milliseconds::zero(), false, true, nullptr, reliability_type_);
@@ -67,7 +67,7 @@ public:
         vsomeip::byte_t its_data[2] = {static_cast<vsomeip::byte_t>((service_info_.service_id & 0xFF00) >> 8),
                                        static_cast<vsomeip::byte_t>((service_info_.service_id & 0xFF))};
         its_payload->set_data(its_data, 2);
-        for (std::uint16_t i = 0; i < events_to_offer_; i++) {
+        for (uint16_t i = 0; i < events_to_offer_; i++) {
             app_->notify(service_info_.service_id, service_info_.instance_id, static_cast<vsomeip::event_t>(service_info_.event_id + i),
                          its_payload);
         }
@@ -124,16 +124,16 @@ private:
     std::shared_ptr<vsomeip::application> app_;
 
     bool wait_until_registered_;
-    std::uint16_t events_to_offer_;
+    uint16_t events_to_offer_;
     std::mutex mutex_;
     std::condition_variable condition_;
     std::thread offer_thread_;
     vsomeip::reliability_type_e reliability_type_;
 };
 
-static std::uint64_t service_number;
+static uint64_t service_number;
 static bool use_same_service_id;
-static std::uint16_t offer_multiple_events;
+static uint16_t offer_multiple_events;
 vsomeip::reliability_type_e reliability_type = vsomeip::reliability_type_e::RT_UNKNOWN;
 
 TEST(someip_initial_event_test, set_field_once) {

@@ -89,16 +89,19 @@ uint32_t utility::get_message_size(const byte_t* _data, size_t _size) {
 }
 
 uint32_t utility::get_payload_size(const byte_t* _data, uint32_t _size) {
-    if (_size <= VSOMEIP_FULL_HEADER_SIZE)
+    if (_size <= VSOMEIP_FULL_HEADER_SIZE) {
         return 0;
+    }
 
     uint32_t length_ = bithelper::read_uint32_be(&_data[4]);
 
-    if (length_ <= VSOMEIP_SOMEIP_HEADER_SIZE)
+    if (length_ <= VSOMEIP_SOMEIP_HEADER_SIZE) {
         return 0;
+    }
 
-    if (_size != (VSOMEIP_SOMEIP_HEADER_SIZE + length_))
+    if (_size != (VSOMEIP_SOMEIP_HEADER_SIZE + length_)) {
         return 0;
+    }
 
     return length_ - VSOMEIP_SOMEIP_HEADER_SIZE;
 }
@@ -109,12 +112,14 @@ bool utility::is_routing_manager(const std::string& _network) {
 
     std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
-    if (data.count(_network) > 0)
+    if (data.count(_network) > 0) {
         return false;
+    }
 
     auto r = data.insert(std::make_pair(_network, data_t()));
-    if (!r.second)
+    if (!r.second) {
         return false;
+    }
 
 #ifdef _WIN32
     wchar_t its_tmp_folder[MAX_PATH];
@@ -223,8 +228,9 @@ void utility::remove_lockfile(const std::string& _network) {
     auto& data = get_utility_data();
 
     auto r = data.find(_network);
-    if (r == data.end()) // No need to do anything as automatic
+    if (r == data.end()) { // No need to do anything as automatic
         return;
+    }
 
 #ifdef _WIN32
     if (r->second.lock_handle_ != INVALID_HANDLE_VALUE) {
@@ -267,8 +273,9 @@ bool utility::exists(const std::string& _path) {
 bool utility::is_file(const std::string& _path) {
     struct stat its_stat;
     if (stat(_path.c_str(), &its_stat) == 0) {
-        if (its_stat.st_mode & S_IFREG)
+        if (its_stat.st_mode & S_IFREG) {
             return true;
+        }
     }
     return false;
 }
@@ -276,8 +283,9 @@ bool utility::is_file(const std::string& _path) {
 bool utility::is_folder(const std::string& _path) {
     struct stat its_stat;
     if (stat(_path.c_str(), &its_stat) == 0) {
-        if (its_stat.st_mode & S_IFDIR)
+        if (its_stat.st_mode & S_IFDIR) {
             return true;
+        }
     }
     return false;
 }
@@ -289,17 +297,18 @@ std::string utility::get_base_path(const std::string& _network) {
 client_t utility::request_client_id(const std::shared_ptr<configuration>& _config, std::string_view _name, client_t _client) {
     std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
-    static const std::uint16_t its_max_num_clients = get_max_client_number(_config);
+    static const uint16_t its_max_num_clients = get_max_client_number(_config);
 
-    static const std::uint16_t its_diagnosis_mask = _config->get_diagnosis_mask();
-    static const std::uint16_t its_client_mask = static_cast<std::uint16_t>(~its_diagnosis_mask);
+    static const uint16_t its_diagnosis_mask = _config->get_diagnosis_mask();
+    static const uint16_t its_client_mask = static_cast<uint16_t>(~its_diagnosis_mask);
     static const client_t its_masked_diagnosis_address =
             static_cast<client_t>((_config->get_diagnosis_address() << 8) & its_diagnosis_mask);
     static const client_t its_smallest_client = its_masked_diagnosis_address;
 
     auto r = data.find(_config->get_network());
-    if (r == data.end())
+    if (r == data.end()) {
         return VSOMEIP_CLIENT_UNSET;
+    }
 
     if (r->second.next_client_ == VSOMEIP_CLIENT_UNSET) {
         r->second.next_client_ = its_smallest_client;
@@ -337,16 +346,16 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
     // restart at beginning of client range
     r->second.next_client_ = its_smallest_client;
 
-    std::uint16_t increase_count = 0;
+    uint16_t increase_count = 0;
     do {
-        r->second.next_client_ = (r->second.next_client_ & static_cast<std::uint16_t>(~its_client_mask)) // save diagnosis address bits
-                | (static_cast<std::uint16_t>((r->second.next_client_ // set all diagnosis address bits to one
-                                               | static_cast<std::uint16_t>(~its_client_mask))
-                                              + 1u) //  and add one to the result
+        r->second.next_client_ = (r->second.next_client_ & static_cast<uint16_t>(~its_client_mask)) // save diagnosis address bits
+                | (static_cast<uint16_t>((r->second.next_client_ // set all diagnosis address bits to one
+                                          | static_cast<uint16_t>(~its_client_mask))
+                                         + 1u) //  and add one to the result
                    & its_client_mask); // set the diagnosis address bits to zero again
         if (increase_count++ == its_max_num_clients) {
-            VSOMEIP_ERROR_P << "No free client IDs left! Max amount of possible concurrent active vsomeip "
-                            << "applications reached (" << r->second.used_clients_.size() << ").";
+            VSOMEIP_ERROR_P << "No free client IDs left! Max amount of possible concurrent active vsomeip " << "applications reached ("
+                            << r->second.used_clients_.size() << ").";
             return VSOMEIP_CLIENT_UNSET;
         }
     } while (r->second.used_clients_.count(r->second.next_client_) > 0 || _config->is_configured_client_id(r->second.next_client_));
@@ -374,8 +383,9 @@ void utility::release_client_id(const std::string& _network, client_t _client) {
     std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
     auto r = data.find(_network);
-    if (r != data.end())
+    if (r != data.end()) {
         r->second.used_clients_.erase(_client);
+    }
 }
 
 std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
@@ -384,8 +394,9 @@ std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
     std::set<client_t> its_used_clients;
     auto r = data.find(_network);
     if (r != data.end()) {
-        for (const auto& c : r->second.used_clients_)
+        for (const auto& c : r->second.used_clients_) {
             its_used_clients.insert(c.first);
+        }
     }
     return its_used_clients;
 }
@@ -412,17 +423,17 @@ void utility::set_thread_niceness(int _nice) noexcept {
 #endif
 }
 
-std::uint16_t utility::get_max_client_number(const std::shared_ptr<configuration>& _config) {
-    std::uint16_t its_max_clients(0);
+uint16_t utility::get_max_client_number(const std::shared_ptr<configuration>& _config) {
+    uint16_t its_max_clients(0);
     const int bits_for_clients =
 #ifdef _WIN32
             __popcnt(
 #else
             __builtin_popcount(
 #endif
-                    static_cast<std::uint16_t>(~_config->get_diagnosis_mask()));
+                    static_cast<uint16_t>(~_config->get_diagnosis_mask()));
     for (int var = 0; var < bits_for_clients; ++var) {
-        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+        its_max_clients = static_cast<uint16_t>(its_max_clients | (1 << var));
     }
     return its_max_clients;
 }

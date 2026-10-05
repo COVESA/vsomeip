@@ -87,8 +87,8 @@ public:
     std::set<client_t> update(const std::set<client_t>& _clients, const std::chrono::steady_clock::time_point& _timepoint,
                               const bool _is_subscribe);
 
-    VSOMEIP_EXPORT std::uint32_t get_answers() const;
-    VSOMEIP_EXPORT void set_answers(const std::uint32_t _answers);
+    VSOMEIP_EXPORT uint32_t get_answers() const;
+    VSOMEIP_EXPORT void set_answers(const uint32_t _answers);
 
     VSOMEIP_EXPORT bool get_ip_address(boost::asio::ip::address& _address) const;
 
@@ -108,8 +108,8 @@ private:
     std::weak_ptr<eventgroupinfo> eventgroupinfo_;
 
     ttl_t ttl_;
-    std::uint16_t reserved_;
-    std::uint8_t counter_;
+    uint16_t reserved_;
+    uint8_t counter_;
 
     std::map<client_t, std::pair<remote_subscription_state_e, std::chrono::steady_clock::time_point>> clients_;
 
@@ -124,7 +124,7 @@ private:
     // for the subscriptions. This is usally 1, but
     // may be larger if a matching subscription arrived
     // before the subscription could be acknowledged
-    std::atomic<std::uint32_t> answers_;
+    std::atomic<uint32_t> answers_;
 
     mutable std::mutex mutex_;
 
@@ -135,7 +135,7 @@ private:
      * - expiration, if expire_subscriptions() runs first
      * - forwarding, if on_remote_subscribe() runs first
      */
-    enum struct destiny : std::uint8_t { none, expire, forward };
+    enum struct destiny : uint8_t { none, expire, forward };
     std::atomic<destiny> final_destination_;
 };
 

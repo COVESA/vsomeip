@@ -15,10 +15,10 @@ interface::interface(vsomeip::service_t _service, std::vector<event_spec> _event
 interface::interface(service_instance _instance, std::vector<event_spec> _events, std::vector<event_spec> _fields,
                      std::optional<someip_tp> tp) : instance_(_instance) {
     for (auto const& e : _events) {
-        events_.push_back({instance_, e.event_id_, e.eventgroup_id_, e.reliability_});
+        events_.push_back({e.event_id_, e.eventgroup_id_, e.reliability_});
     }
     for (auto const& f : _fields) {
-        fields_.push_back({instance_, f.event_id_, f.eventgroup_id_, f.reliability_});
+        fields_.push_back({f.event_id_, f.eventgroup_id_, f.reliability_});
     }
     if (tp) {
         tp_ = *tp;
@@ -83,6 +83,11 @@ std::ostream& operator<<(std::ostream& o, service_state const& s) {
 std::ostream& operator<<(std::ostream& o, event_ids const& s) {
     return o << "[" << std::hex << std::setfill('0') << std::setw(4) << s.si_.service_ << "." << std::setw(4) << s.si_.instance_ << '.'
              << std::setw(4) << s.eventgroup_id_ << '.' << std::setw(4) << s.event_id_ << std::dec
+             << ":reliable=" << static_cast<unsigned int>(static_cast<uint8_t>(s.reliability_)) << "]";
+}
+
+std::ostream& operator<<(std::ostream& o, event_spec const& s) {
+    return o << "[" << std::hex << std::setfill('0') << std::setw(4) << s.eventgroup_id_ << '.' << std::setw(4) << s.event_id_ << std::dec
              << ":reliable=" << static_cast<unsigned int>(static_cast<uint8_t>(s.reliability_)) << "]";
 }
 

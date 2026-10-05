@@ -11,9 +11,13 @@
 #include <boost/asio/ip/address_v4.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdlib>
 #include <fstream>
 #include <stdexcept>
+#include <string>
+
+#include <unistd.h>
 
 #define LOCAL_LOG TEST_LOG << "[ecu_setup|" << name_ << "|" << __func__ << "] "
 #define EARLY_LOG std::cout << "[ecu_setup|" << name_ << "|" << __func__ << "] "
@@ -36,6 +40,14 @@ std::string derive_router_name(ecu_config const& cfg) {
             },
             *cfg.routing_config_);
     return name;
+}
+
+// Config files are written to a directory shared by every test (/tmp unless
+// VSOMEIP_BASE_PATH says otherwise), and the configuration plugin caches
+// configurations by file path.
+std::string unique_config_file_name(std::string const& name) {
+    static std::atomic<unsigned> counter{0};
+    return name + "_" + std::to_string(::getpid()) + "_" + std::to_string(counter++) + ".json";
 }
 } // namespace
 
@@ -106,7 +118,7 @@ void ecu_setup::prepare() {
         }
         return std::filesystem::temp_directory_path();
     }();
-    config_file_ = base / (name_ + ".json");
+    config_file_ = base / unique_config_file_name(name_);
 
     {
         auto const json = to_json_string(config_);
@@ -137,7 +149,7 @@ void ecu_setup::prepare() {
     }
 
     if (guest_config_) {
-        guest_config_file_ = base / (guest_config_name_ + ".json");
+        guest_config_file_ = base / unique_config_file_name(guest_config_name_);
         {
             auto const json = to_json_string(*guest_config_);
             std::ofstream f{guest_config_file_};

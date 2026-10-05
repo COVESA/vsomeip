@@ -89,7 +89,6 @@
             "displayName": "Network tests (CI)",
             "description": "Preset for network tests on CI",
             "environment": {
-                "TSAN_OPTIONS": "suppressions=${sourceDir}/test/tsan-suppressions.txt",
                 "USE_LXC_TEST": "1"
             },
             "configurePreset": "ci-network-tests",

@@ -31,6 +31,8 @@
 
 #include "internal.hpp"
 #include "../../routing/include/routing_manager_host.hpp"
+#include "../../security/include/policy_manager_impl.hpp"
+#include "../../security/include/security.hpp"
 #include "../../utility/include/service_instance_map.hpp"
 #include "../../utility/include/utility.hpp"
 
@@ -121,22 +123,26 @@ public:
     VSOMEIP_EXPORT void set_client(const client_t& _client);
     VSOMEIP_EXPORT session_t get_session(bool _is_request);
     VSOMEIP_EXPORT vsomeip_sec_client_t get_sec_client() const;
+    VSOMEIP_EXPORT uid_t get_sec_client_uid() const;
     VSOMEIP_EXPORT void set_sec_client_port(port_t _port);
     VSOMEIP_EXPORT diagnosis_t get_diagnosis() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration> get_configuration() const;
-    VSOMEIP_EXPORT std::shared_ptr<policy_manager> get_policy_manager() const;
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager> get_policy_manager() const override;
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager_impl> get_policy_manager_impl() const override;
+    VSOMEIP_EXPORT std::shared_ptr<security> get_security() const override;
     VSOMEIP_EXPORT std::shared_ptr<configuration_public> get_public_configuration() const;
     VSOMEIP_EXPORT boost::asio::io_context& get_io();
 
     VSOMEIP_EXPORT void on_state(state_type_e _state);
     VSOMEIP_EXPORT void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
                                         minor_version_t _minor);
+    VSOMEIP_EXPORT void reset_availability_state(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     VSOMEIP_EXPORT void on_message(std::shared_ptr<message>&& _message);
     VSOMEIP_EXPORT void on_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client,
                                         const vsomeip_sec_client_t* _sec_client, const std::string& _env, bool _subscribed,
                                         const std::function<void(bool)>& _accepted_cb);
     VSOMEIP_EXPORT void on_subscription_status(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                               uint16_t _error);
+                                               subscription_outcome_e _outcome);
     VSOMEIP_EXPORT void register_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                              event_t _event, subscription_status_handler_t _handler, bool _is_selective);
     VSOMEIP_EXPORT void unregister_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
@@ -177,7 +183,7 @@ public:
     VSOMEIP_EXPORT void register_routing_ready_handler(const routing_ready_handler_t& _handler);
     VSOMEIP_EXPORT void register_routing_state_handler(const routing_state_handler_t& _handler);
 
-    VSOMEIP_EXPORT bool update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+    VSOMEIP_EXPORT bool update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                      bool _magic_cookies_enabled, bool _offer);
 
     VSOMEIP_EXPORT void update_security_policy_configuration(uint32_t _uid, uint32_t _gid, std::shared_ptr<policy> _policy,
@@ -197,7 +203,7 @@ public:
                                                      const message_handler_t& _handler, handler_registration_type_e _type);
 
 private:
-    using members_key_t = std::uint64_t;
+    using members_key_t = uint64_t;
     using members_t = std::unordered_map<members_key_t, std::deque<message_handler_t>>;
 
     static members_key_t to_members_key(service_t _service, instance_t _instance, method_t _method) {
@@ -274,6 +280,28 @@ private:
     void register_availability_handler_unlocked(service_t _service, instance_t _instance, const availability_state_handler_t& _handler,
                                                 major_version_t _major, minor_version_t _minor, bool _is_available);
 
+    // Emit an error log that "_what" (e.g. "Subscription handler") is being registered too late, i.e.
+    // after the related service was already offered/requested or the eventgroup subscribed to.
+    // Registering before the offer/request/subscribe avoids missing early callbacks. "_context" is the
+    // operation that already happened (e.g. "offer", "request", "subscribe"); the second overload also
+    // prints "_sub_id" (a method or eventgroup) in the id.
+    //
+    // These checks are best-effort and intentionally NOT atomic with the registration: the routing
+    // manager is queried outside the application's handler mutexes to avoid lock-ordering issues, so
+    // a concurrent offer/request/subscribe on another thread can be missed. The goal is to catch
+    // sequential API-ordering mistakes (typically at startup), not to detect races.
+    void warn_late_registration(const char* _what, service_t _service, instance_t _instance, const char* _context) const;
+    void warn_late_registration(const char* _what, service_t _service, instance_t _instance, uint16_t _sub_id, const char* _context) const;
+
+    // Emit a warning log that "_what" is being registered while a handler is already registered for the
+    // same key, i.e. a duplicate registration that silently replaces the previous handler. Like the
+    // late-registration checks above this is best-effort and API-level only; it is not emitted for
+    // handlers where keeping several handlers is intentional (e.g. message handlers registered
+    // with HRT_APPEND/HRT_PREPEND).
+    void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, major_version_t _major,
+                                     minor_version_t _minor) const;
+    void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, uint16_t _sub_id) const;
+
     void main_dispatch();
     void dispatch();
     void invoke_handler(std::unique_lock<std::mutex>& _lock, std::shared_ptr<sync_handler>& _handler);
@@ -284,13 +312,17 @@ private:
     bool is_active_dispatcher(const std::thread::id& _id) const;
     void remove_elapsed_dispatchers(std::unique_lock<std::mutex>& _lock);
 
-    void deliver_subscription_state(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event, uint16_t _error);
-
     void print_blocking_call(const std::shared_ptr<sync_handler>& _handler);
 
     void watchdog_cbk(boost::system::error_code const& _error);
 
     bool is_local_endpoint(const boost::asio::ip::address& _unicast, port_t _port);
+
+    // Decides whether this application is the routing manager host and, if it is
+    // (or if no routing host is configured by name), loads the optional part of
+    // the configuration. Returns false when init() must be aborted because
+    // another routing manager is already present.
+    bool determine_routing_host();
 
     const std::deque<message_handler_t>& find_handlers(service_t _service, instance_t _instance, method_t _method) const;
 
@@ -343,6 +375,10 @@ private:
     // vsomeip security mode
     security_mode_e security_mode_;
 
+    // per-app policy manager and security (not shared with other apps)
+    std::shared_ptr<policy_manager_impl> policy_manager_;
+    std::shared_ptr<security> security_;
+
     // vsomeip offered services handler
     std::mutex offered_services_handler_mutex_;
     offered_services_handler_t offered_services_handler_;
@@ -384,8 +420,8 @@ private:
     // Condition to wakeup the dispatcher thread
     bool elapse_unactive_dispatchers_;
     mutable std::condition_variable dispatcher_condition_;
-    std::size_t max_dispatchers_;
-    std::size_t max_dispatch_time_;
+    size_t max_dispatchers_;
+    size_t max_dispatch_time_;
 
     std::mutex start_stop_mutex_;
     std::atomic_bool stopping_;
@@ -394,7 +430,7 @@ private:
 
     std::thread::id stop_caller_id_;
 
-    service_instance_map<std::map<eventgroup_t, std::map<event_t, std::pair<subscription_status_handler_t, bool>>>>
+    service_instance_map<std::map<eventgroup_t, std::map<event_t, std::pair<subscription_status_handler_t, bool /*is-selective/*/>>>>
             subscription_status_handlers_;
     std::mutex subscription_status_handlers_mutex_;
 
@@ -406,7 +442,7 @@ private:
     bool client_side_logging_;
     std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
 
-    vsomeip_sec_client_t sec_client_;
+    vsomeip_sec_client_t sec_client_{};
 
     bool has_session_handling_;
 

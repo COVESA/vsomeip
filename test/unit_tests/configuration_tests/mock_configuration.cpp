@@ -3,8 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef policy_manager_impl_unit_test
-#define policy_manager_impl_unit_test
+#include "mock_configuration.hpp"
 
-#define UNIT_TEST_BUILD_DIR_PATH     "@UNIT_TEST_BIN_DIR@"
-#endif
+namespace vsomeip_v3::testing {
+mock_configuration::mock_configuration() : configuration_impl("") { }
+mock_configuration::~mock_configuration() = default;
+}

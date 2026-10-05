@@ -7,6 +7,7 @@
 
 #include "../../routing/include/routing_manager_host.hpp"
 
+#include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 
 #include <vsomeip/enumeration_types.hpp>
@@ -23,15 +24,16 @@ class routing_manager_impl;
 
 class routing_application : public routing_manager_host {
 public:
-    routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name);
+    routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name,
+                        std::shared_ptr<policy_manager_impl> _policy_manager, std::shared_ptr<security> _security);
     ~routing_application();
 
     void start() const;
     void stop() const;
 
     void set_routing_state(routing_state_e _routing_state) const;
-    bool update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
-                                      bool _magic_cookies_enabled, bool _offer) const;
+    bool update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable, bool _magic_cookies_enabled,
+                                      bool _offer) const;
 
 #ifndef VSOMEIP_DISABLE_SECURITY
     void update_security_policy_configuration(uint32_t _uid, uint32_t _gid, std::shared_ptr<policy> _policy,
@@ -58,6 +60,7 @@ private:
     session_t get_session(bool _is_request) override;
 
     vsomeip_sec_client_t get_sec_client() const override;
+    uid_t get_sec_client_uid() const override;
     void set_sec_client_port(port_t _port) override;
 
     const std::string& get_name() const override;
@@ -66,16 +69,20 @@ private:
 
     void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major = DEFAULT_MAJOR,
                          minor_version_t _minor = DEFAULT_MINOR) override;
+    void reset_availability_state(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) override;
     void on_state(state_type_e _state) override;
     void on_message(std::shared_ptr<message>&& _message) override;
     void on_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client,
                          const vsomeip_sec_client_t* _sec_client, const std::string& _env, bool _subscribed,
                          const std::function<void(bool)>& _accepted_cb) override;
     void on_subscription_status(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                uint16_t _error) override;
+                                subscription_outcome_e _outcome) override;
     void send(std::shared_ptr<message> _message) override;
     void on_offered_services_info(std::vector<std::pair<service_t, instance_t>>& _services) override;
     bool is_routing() const override;
+
+    std::shared_ptr<policy_manager_impl> get_policy_manager_impl() const override;
+    std::shared_ptr<security> get_security() const override;
 
 private:
     vsomeip_sec_client_t sec_client_;
@@ -89,5 +96,8 @@ private:
     std::shared_ptr<configuration> const configuration_;
     std::shared_ptr<routing_manager_impl> const routing_;
     bool const has_session_handling_;
+
+    std::shared_ptr<policy_manager_impl> const policy_manager_;
+    std::shared_ptr<security> const security_;
 };
 }

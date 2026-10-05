@@ -64,16 +64,16 @@ public:
     const data_type* data() const { return reinterpret_cast<const struct sockaddr*>(&sockaddr); }
 
     /// Get the underlying size of the endpoint in the native type.
-    std::size_t size() const { return sizeof(sockaddr); }
+    size_t size() const { return sizeof(sockaddr); }
 
     /// Set the underlying size of the endpoint in the native type.
-    void resize(std::size_t size) {
+    void resize(size_t size) {
         (void)size;
         /* nothing we can do here */
     }
 
     /// Get the capacity of the endpoint in the native type.
-    std::size_t capacity() const { return sizeof(sockaddr); }
+    size_t capacity() const { return sizeof(sockaddr); }
 
 private:
     sockaddr_nl sockaddr;
@@ -124,12 +124,12 @@ private:
     void set_state(state_e _state);
 
     bool has_address(const struct ifaddrmsg* ifa_struct, size_t length) const;
-    void send_ifa_request(std::uint32_t _retry = 0);
-    void send_ifi_request(std::uint32_t _retry = 0);
-    void send_rt_request(std::uint32_t _retry = 0);
+    void send_ifa_request(uint32_t _retry = 0);
+    void send_ifi_request(uint32_t _retry = 0);
+    void send_rt_request(uint32_t _retry = 0);
 
-    void receive_cbk(boost::system::error_code const& _error, std::size_t _bytes);
-    void send_cbk(boost::system::error_code const& _error, std::size_t _bytes);
+    void receive_cbk(boost::system::error_code const& _error, size_t _bytes);
+    void send_cbk(boost::system::error_code const& _error, size_t _bytes);
 
     bool check_sd_multicast_route_match(const struct rtmsg* _routemsg, size_t _length, std::string* _routename) const;
 
@@ -170,10 +170,10 @@ private:
     bool multicast_route_found_ = false;
     state_e current_state_ = state_e::INIT;
 
-    static const std::uint32_t retry_bit_shift_ = 8;
-    static const std::uint32_t ifa_request_sequence_ = 1;
-    static const std::uint32_t ifi_request_sequence_ = 2;
-    static const std::uint32_t rt_request_sequence_ = 3;
+    static const uint32_t retry_bit_shift_ = 8;
+    static const uint32_t ifa_request_sequence_ = 1;
+    static const uint32_t ifi_request_sequence_ = 2;
+    static const uint32_t rt_request_sequence_ = 3;
 };
 
 } // namespace vsomeip_v3

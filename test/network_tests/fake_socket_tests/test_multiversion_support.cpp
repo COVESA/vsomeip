@@ -62,10 +62,10 @@ struct test_multiversion_support_single_ecu : public base_fake_socket_fixture {
 
     interface interface_v1_{service_instance{.service_ = 0x1000, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0x0},
                             {},
-                            {interface::event_spec{0x8001, 0x8001, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
+                            {event_spec{0x8001, {0x8001}, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
     interface interface_v2_{service_instance{.service_ = 0x1000, .instance_ = 0x1, .major_ = 0x2, .minor_ = 0x0},
                             {},
-                            {interface::event_spec{0x8002, 0x8002, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
+                            {event_spec{0x8002, {0x8002}, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
 
     ecu_setup ecu_{"single-ecu", ecu_config{boardnet::ecu_one_config}, *socket_manager_};
 
@@ -245,7 +245,8 @@ TEST_F(test_multiversion_support_single_ecu, when_v1_client_connection_breaks_th
     server_v1_->offer(interface_v1_.instance_);
     server_v2_->offer(interface_v2_.instance_);
     ASSERT_TRUE(client_v1_->availability_record_.wait_for_last(service_availability::available(interface_v1_.instance_)));
-    ASSERT_TRUE(client_v1_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(interface_v1_.fields_[0])));
+    ASSERT_TRUE(client_v1_->subscription_record_.wait_for_last(
+            event_subscription::successfully_subscribed_to({interface_v1_.instance_, interface_v1_.fields_[0]})));
     ASSERT_TRUE(client_v2_->availability_record_.wait_for_last(service_availability::available(interface_v2_.instance_)));
 
     gate->block_at(vsomeip_v3::protocol::id_e::PING_ID);
@@ -259,7 +260,8 @@ TEST_F(test_multiversion_support_single_ecu, when_v1_client_connection_breaks_th
     client_v1_->subscribe(interface_v1_);
     server_v1_->offer(interface_v1_.instance_);
     ASSERT_TRUE(client_v1_->availability_record_.wait_for_last(service_availability::available(interface_v1_.instance_)));
-    ASSERT_TRUE(client_v1_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(interface_v1_.fields_[0])));
+    ASSERT_TRUE(client_v1_->subscription_record_.wait_for_last(
+            event_subscription::successfully_subscribed_to({interface_v1_.instance_, interface_v1_.fields_[0]})));
     client_v1_->availability_record_.clear();
 
     ASSERT_TRUE(disconnect(client_v1_name_, boost::asio::error::timed_out, server_v1_name_, boost::asio::error::connection_reset));
@@ -288,7 +290,8 @@ TEST_F(test_multiversion_support_single_ecu, when_v2_client_connection_breaks_th
     server_v1_->offer(interface_v1_.instance_);
     server_v2_->offer(interface_v2_.instance_);
     ASSERT_TRUE(client_v2_->availability_record_.wait_for_last(service_availability::available(interface_v2_.instance_)));
-    ASSERT_TRUE(client_v2_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(interface_v2_.fields_[0])));
+    ASSERT_TRUE(client_v2_->subscription_record_.wait_for_last(
+            event_subscription::successfully_subscribed_to({interface_v2_.instance_, interface_v2_.fields_[0]})));
     ASSERT_TRUE(client_v1_->availability_record_.wait_for_last(service_availability::available(interface_v1_.instance_)));
 
     gate->block_at(vsomeip_v3::protocol::id_e::PING_ID);
@@ -302,7 +305,8 @@ TEST_F(test_multiversion_support_single_ecu, when_v2_client_connection_breaks_th
     client_v2_->subscribe(interface_v2_);
     server_v2_->offer(interface_v2_.instance_);
     ASSERT_TRUE(client_v2_->availability_record_.wait_for_last(service_availability::available(interface_v2_.instance_)));
-    ASSERT_TRUE(client_v2_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(interface_v2_.fields_[0])));
+    ASSERT_TRUE(client_v2_->subscription_record_.wait_for_last(
+            event_subscription::successfully_subscribed_to({interface_v2_.instance_, interface_v2_.fields_[0]})));
     client_v2_->availability_record_.clear();
 
     ASSERT_TRUE(disconnect(client_v2_name_, boost::asio::error::timed_out, server_v2_name_, boost::asio::error::connection_reset));
@@ -406,10 +410,10 @@ struct test_multiversion_support_limited_support : public base_fake_socket_fixtu
 
     interface interface_v1_{service_instance{.service_ = 0x1000, .instance_ = 0x1, .major_ = 0x1, .minor_ = 0x0},
                             {},
-                            {interface::event_spec{0x8001, 0x8001, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
+                            {event_spec{0x8001, {0x8001}, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
     interface interface_v2_{service_instance{.service_ = 0x1000, .instance_ = 0x1, .major_ = 0x2, .minor_ = 0x0},
                             {},
-                            {interface::event_spec{0x8002, 0x8002, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
+                            {event_spec{0x8002, {0x8002}, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
 
     ecu_setup ecu_{"single-ecu", ecu_config{boardnet::ecu_one_config}.add_interface({interface_v1_, interface_v2_}), *socket_manager_};
 

@@ -196,8 +196,9 @@ void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
         if (last_sent_ != std::chrono::steady_clock::time_point()) {
             const auto its_elapsed =
                     std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - last_sent_).count();
-            if (_entry.second > its_elapsed)
+            if (_entry.second > its_elapsed) {
                 std::this_thread::sleep_for(std::chrono::microseconds(_entry.second - its_elapsed));
+            }
         }
         last_sent_ = std::chrono::steady_clock::now();
     } else {
@@ -248,17 +249,17 @@ bool udp_client_endpoint_impl::get_remote_address(boost::asio::ip::address& _add
     return true;
 }
 
-std::uint16_t udp_client_endpoint_impl::get_local_port() const {
+uint16_t udp_client_endpoint_impl::get_local_port() const {
     std::scoped_lock its_lock(socket_mutex_);
 
     return local_.port();
 }
 
-std::uint16_t udp_client_endpoint_impl::get_remote_port() const {
+uint16_t udp_client_endpoint_impl::get_remote_port() const {
     return remote_port_;
 }
 
-void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes,
+void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _error, size_t _bytes,
                                            std::shared_ptr<message_buffer_t> _recv_buffer) {
     if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
@@ -274,8 +275,7 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         if (_bytes > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
             VSOMEIP_ERROR_P << "Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE (" << VSOMEIP_MAX_UDP_MESSAGE_SIZE
                             << ") bytes with " << _bytes << " bytes in " << local_ << ", " << socket_.get() << " from " << remote_
-                            << ". Message will be dropped"
-                            << " pdu: " << utility::dump(&(*_recv_buffer)[0], _bytes);
+                            << ". Message will be dropped" << " pdu: " << utility::dump(&(*_recv_buffer)[0], _bytes);
             receive(std::move(_recv_buffer));
             return;
         } else if (_bytes < VSOMEIP_FULL_HEADER_SIZE) {
@@ -286,8 +286,8 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
             return;
         }
 
-        std::size_t remaining_bytes = _bytes;
-        std::size_t i = 0;
+        size_t remaining_bytes = _bytes;
+        size_t i = 0;
 
         do {
             uint32_t current_message_size = utility::get_message_size(&(*_recv_buffer)[i], remaining_bytes);
@@ -334,8 +334,8 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                     const auto res =
                             tp_reassembler_->process_tp_message(&(*_recv_buffer)[i], current_message_size, remote_address_, remote_port_);
                     if (res.first) {
-                        its_host->on_message(&res.second[0], static_cast<std::uint32_t>(res.second.size()), this, remote_address_,
-                                             remote_port_, false);
+                        its_host->on_message(&res.second[0], static_cast<uint32_t>(res.second.size()), this, remote_address_, remote_port_,
+                                             false);
                     }
                 } else {
                     its_host->on_message(&(*_recv_buffer)[i], current_message_size, this, remote_address_, remote_port_, false);
@@ -394,8 +394,8 @@ std::string udp_client_endpoint_impl::get_address_port_local() const {
 }
 
 void udp_client_endpoint_impl::print_status() {
-    std::size_t its_data_size(0);
-    std::size_t its_queue_size(0);
+    size_t its_data_size(0);
+    size_t its_queue_size(0);
     {
         std::scoped_lock its_lock(mutex_);
         its_queue_size = queue_.size();
@@ -410,8 +410,7 @@ std::string udp_client_endpoint_impl::get_remote_information() const {
     return remote_.address().to_string() + ":" + std::to_string(remote_.port());
 }
 
-void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error, std::size_t _bytes,
-                                        const message_buffer_ptr_t& _sent_msg) {
+void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error, size_t _bytes, const message_buffer_ptr_t& _sent_msg) {
     (void)_bytes;
     if (!_error) {
         std::scoped_lock its_lock(mutex_);
@@ -421,9 +420,9 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
 
             update_last_departure();
 
-            if (queue_.empty())
+            if (queue_.empty()) {
                 is_sending_ = false;
-            else {
+            } else {
                 auto its_entry = get_front();
                 if (its_entry.first) {
                     send_queued(its_entry);
@@ -514,7 +513,7 @@ bool udp_client_endpoint_impl::is_reliable() const {
     return false;
 }
 
-std::uint32_t udp_client_endpoint_impl::get_max_allowed_reconnects() const {
+uint32_t udp_client_endpoint_impl::get_max_allowed_reconnects() const {
     return MAX_RECONNECTS_UNLIMITED;
 }
 

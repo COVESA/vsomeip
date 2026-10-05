@@ -54,10 +54,11 @@ bool profile_05_checker::verify_counter(instance_t _instance, uint8_t _received_
     auto find_counter = counter_.find(_instance);
     if (find_counter != counter_.end()) {
         uint8_t its_counter = find_counter->second;
-        if (its_counter < _received_counter)
+        if (its_counter < _received_counter) {
             its_delta = uint8_t(_received_counter - its_counter);
-        else
+        } else {
             its_delta = uint8_t(uint8_t(0xff) - its_counter + _received_counter);
+        }
 
         find_counter->second = _received_counter;
     } else {

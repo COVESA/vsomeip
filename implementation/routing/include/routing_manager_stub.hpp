@@ -113,10 +113,13 @@ public:
 
     void lazy_load(const std::string& _client_host) override;
 
+    std::shared_ptr<policy_manager_impl> get_policy_manager() const override;
+    std::shared_ptr<security> get_security() const override;
+
     void send_suspend() const;
 
 private:
-    void broadcast(protocol::simple_command_data const& _command) const;
+    [[nodiscard]] std::string get_client_info(client_t _client) const;
 
     void on_deregister_application(client_t _client);
 
@@ -160,8 +163,6 @@ private:
     void add_pending_security_update_handler(pending_security_update_id_t _id, const security_update_handler_t& _handler);
     void add_pending_security_update_timer(pending_security_update_id_t _id);
 
-    bool has_client_requested(client_t _client, service_t _service, instance_t _instance) const;
-
     std::shared_ptr<local_endpoint> find_local_routing_endpoint(client_t _client) const;
     static bool send_local(std::shared_ptr<local_endpoint> const& _ep, std::vector<byte_t> const& _data);
 
@@ -184,8 +185,6 @@ private:
     boost::asio::steady_timer pinged_clients_timer_;
     std::mutex pinged_clients_mutex_;
     std::map<client_t, boost::asio::steady_timer::time_point> pinged_clients_;
-
-    std::map<client_t, service_instance_map<std::pair<major_version_t, minor_version_t>>> service_requests_;
 
     std::mutex pending_security_updates_mutex_;
     pending_security_update_id_t pending_security_update_id_;

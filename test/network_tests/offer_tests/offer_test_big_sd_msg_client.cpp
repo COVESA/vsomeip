@@ -44,7 +44,7 @@ public:
                                             0x1, 0x1);
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(offer_test::big_msg_eventgroup_id);
-        for (std::uint16_t s = 1; s <= offer_test::big_msg_number_services; s++) {
+        for (uint16_t s = 1; s <= offer_test::big_msg_number_services; s++) {
             app_->request_service(s, 0x1, 0x1, 0x1);
             app_->request_event(s, 0x1, offer_test::big_msg_event_id, its_eventgroups, vsomeip::event_type_e::ET_EVENT,
                                 vsomeip::reliability_type_e::RT_UNKNOWN);
@@ -133,7 +133,7 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
 
-    typedef std::map<vsomeip::service_t, std::pair<bool, std::uint32_t>> services_available_subscribed_t;
+    typedef std::map<vsomeip::service_t, std::pair<bool, uint32_t>> services_available_subscribed_t;
     services_available_subscribed_t services_available_subscribed_;
     std::thread shutdown_thread_;
 };

@@ -11,23 +11,35 @@
 
   RM --\ SP : REQUEST MEMORY_START_METHOD
 
-  loop repeat TEST_MESSAGE_NUMBER times
-    loop repeat TEST_EVENT_NUMBER times
-      SP -> RM : send  notification for (MEMORY_EVENT + i)\nwith payload1
-    end
-    SP -> SP : sleep for 1 millisecond
+  SP -> SP : capture pre-traffic RSS baseline (reference only)
 
+  loop until MESSAGE_SENDER_DURATION elapsed
+    note over SP
+      Flow control: wait while
+      (sent - acked) >= FLOW_CONTROL_WINDOW
+    endnote
     loop repeat TEST_EVENT_NUMBER times
-      SP -> RM : send  notification for (MEMORY_EVENT + i)\nwith payload2
+      SP -> RM : send notification for (MEMORY_EVENT + i)\nwith payload1
     end
-    SP -> SP : sleep for 1 millisecond
+    SP -> SP : sleep MESSAGE_SENDER_INTERVAL
+
+    note over SP
+      Flow control: wait while
+      (sent - acked) >= FLOW_CONTROL_WINDOW
+    endnote
+    loop repeat TEST_EVENT_NUMBER times
+      SP -> RM : send notification for (MEMORY_EVENT + i)\nwith payload2
+    end
+    SP -> SP : sleep MESSAGE_SENDER_INTERVAL
   end
 
   note across
-    Wait for MEMORY_STOP_METHOD request
+    Client sends a cumulative ack every ACK_INTERVAL
+    messages via MEMORY_ACK_METHOD; the service updates
+    its acked high-water mark in the background.
   endnote
 
-  RM --\ SP : REQUEST MEMORY_STOP_METHOD
+  RM --\ SP : REQUEST MEMORY_ACK_METHOD (cumulative count)
 
   note across
     This happens in background during the test
@@ -36,12 +48,20 @@
   loop while stop_checking_ is false
     SP -> SP : sleep for 5 seconds
 
-    SP -> SP : read /proc/self/statm
+    SP -> SP : read /proc/self/statm (skip failed reads)
 
     SP -> SP : save Resident set size * page size
   end
 
-  SP -> SP : calculate the average memory used
+  note across
+    Evaluated on the main thread after the checker joins
+  endnote
 
-  SP -> SP : make sure that every element in\ntest_memory_array is smaller than\n115% of the calculated average
+  SP -> SP : make sure the peak sample in\ntest_memory_array is smaller than\n115% of the steady-state floor\n(min sample, first one excluded)
+
+  note across
+    Wait for MEMORY_STOP_METHOD request, then exit
+  endnote
+
+  RM --\ SP : REQUEST MEMORY_STOP_METHOD
 @enduml

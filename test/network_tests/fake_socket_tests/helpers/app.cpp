@@ -54,10 +54,10 @@ bool app::is_router() const {
 }
 void app::offer(interface const& _interface) {
     for (auto const& event : _interface.events_) {
-        offer_event(event);
+        offer_event(_interface.instance_, event);
     }
     for (auto const& field : _interface.fields_) {
-        offer_field(field);
+        offer_field(_interface.instance_, field);
     }
     offer(_interface.instance_);
 }
@@ -80,24 +80,28 @@ void app::set_offer_service_hook(offer_service_hook_t hook) {
     offer_service_hook_ = std::move(hook);
 }
 
-void app::offer_event(event_ids const& _ei) {
+void app::offer_event(service_instance _si, event_spec const& _ei) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
-    offer(_ei, vsomeip::event_type_e::ET_EVENT);
+    offer(_si, _ei, vsomeip::event_type_e::ET_EVENT);
 }
 
-void app::offer_field(event_ids const& _ei) {
+void app::offer_field(service_instance _si, event_spec const& _ei) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
-    offer(_ei, vsomeip::event_type_e::ET_FIELD);
+    offer(_si, _ei, vsomeip::event_type_e::ET_FIELD);
 }
 
 void app::subscribe(interface const& _interface) {
     request_service(_interface.instance_);
 
     for (auto const& event : _interface.events_) {
-        subscribe_event(event);
+        for (auto const& eventgroup : event.eventgroup_id_) {
+            subscribe_event(event_ids{_interface.instance_, event.event_id_, eventgroup, event.reliability_});
+        }
     }
     for (auto const& field : _interface.fields_) {
-        subscribe_field(field);
+        for (auto const& eventgroup : field.eventgroup_id_) {
+            subscribe_field(event_ids{_interface.instance_, field.event_id_, eventgroup, field.reliability_});
+        }
     }
 }
 
@@ -171,6 +175,13 @@ void app::release_service(service_instance _si) {
     app_->release_service(_si.service_, _si.instance_);
 }
 
+void app::register_availability_bool_handler(service_instance _si) {
+    // Explicitly-typed function disambiguates the overload (bool vs. availability_state_e).
+    vsomeip::availability_handler_t const handler =
+            std::bind(&app::on_availability_bool, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+    app_->register_availability_handler(_si.service_, _si.instance_, handler, _si.major_, _si.minor_);
+}
+
 void app::send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is sending: " << _ei;
     auto payload = vsomeip::runtime::get()->create_payload();
@@ -197,11 +208,16 @@ void app::stop_offer(service_instance const& _si) {
     app_->stop_offer_service(_si.service_, _si.instance_, _si.major_, _si.minor_);
 }
 
+void app::stop_offer_event(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is no longer offering event: " << _ei;
+    app_->stop_offer_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_);
+}
+
 void app::update_security_policy_configuration(uid_t _uid, gid_t _gid) {
     auto policy_ = std::make_shared<vsomeip::policy>();
     auto its_payload = vsomeip::runtime::get()->create_payload();
     app_->update_security_policy_configuration(_uid, _gid, policy_, its_payload,
-                                               [this](vsomeip_v3::security_update_state_e /*_status*/) { /* no reaction required*/ });
+                                               [](vsomeip_v3::security_update_state_e /*_status*/) { /* no reaction required*/ });
 }
 
 void app::on_state(vsomeip::state_type_e _state) {
@@ -230,6 +246,12 @@ void app::on_availability(vsomeip::service_t _service, vsomeip::instance_t _inst
         TEST_LOG << "[app] \"" << app_->get_name() << "\" availability changed: " << avail;
         availability_record_.record(avail);
     }
+}
+
+void app::on_availability_bool(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+    auto const state = service_state{{_service, _instance}, _is_available};
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" availability changed (bool): " << state;
+    bool_availability_record_.record(state);
 }
 
 void app::on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,
@@ -284,12 +306,10 @@ void app::subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _e
     app_->subscribe_with_debounce(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.si_.major_, _ei.event_id_, filter);
 }
 
-void app::offer(event_ids const& _ei, vsomeip::event_type_e _et) {
+void app::offer(service_instance _si, event_spec const& _ei, vsomeip::event_type_e _et) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
-    std::set<vsomeip::eventgroup_t> its_eventgroups;
-    its_eventgroups.insert(_ei.eventgroup_id_);
-    app_->offer_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, std::chrono::milliseconds::zero(), false,
-                      true, nullptr, _ei.reliability_);
+    app_->offer_event(_si.service_, _si.instance_, _ei.event_id_, _ei.eventgroup_id_, _et, std::chrono::milliseconds::zero(), false, true,
+                      nullptr, _ei.reliability_);
 }
 
 void app::set_routing_state(vsomeip::routing_state_e _state) {

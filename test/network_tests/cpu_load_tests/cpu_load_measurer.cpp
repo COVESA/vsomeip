@@ -18,7 +18,7 @@
 
 cpu_load_measurer::~cpu_load_measurer() { }
 
-cpu_load_measurer::cpu_load_measurer(std::uint32_t _pid) :
+cpu_load_measurer::cpu_load_measurer(uint32_t _pid) :
     pid_(_pid), jiffies_complete_start_(0), jiffies_idle_start_(0), jiffies_complete_stop_(0), jiffies_idle_stop_(0), clock_ticks_(0),
     jiffies_passed_pid_start_(0), jiffies_passed_pid_stop_(0), cpu_load_pid_(0.0), cpu_load_overall_(0.0), cpu_load_pid_wo_idle_(0.0) { }
 
@@ -69,7 +69,7 @@ double cpu_load_measurer::get_cpu_load() const {
     return cpu_load_pid_;
 }
 
-std::uint64_t cpu_load_measurer::read_proc_pid_stat() {
+uint64_t cpu_load_measurer::read_proc_pid_stat() {
     std::string path("/proc/" + std::to_string(pid_) + "/stat");
     FILE* f = std::fopen(path.c_str(), "r");
     if (!f) {
@@ -80,10 +80,10 @@ std::uint64_t cpu_load_measurer::read_proc_pid_stat() {
     // at
     // https://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/tree/Documentation/filesystems/proc.txt?id=refs/tags/v3.10.98
     // and man proc (for conversion specifier)
-    std::uint64_t utime(0);
-    std::uint64_t stime(0);
-    std::int64_t cutime(0);
-    std::int64_t cstime(0);
+    uint64_t utime(0);
+    uint64_t stime(0);
+    int64_t cutime(0);
+    int64_t cstime(0);
     if (std::fscanf(f,
                     "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u "
                     "%lu %lu %ld %ld", // utime, stime, cutime, cstime
@@ -93,10 +93,10 @@ std::uint64_t cpu_load_measurer::read_proc_pid_stat() {
         exit(1);
     }
     std::fclose(f);
-    return utime + stime + static_cast<std::uint64_t>(cutime) + static_cast<std::uint64_t>(cstime);
+    return utime + stime + static_cast<uint64_t>(cutime) + static_cast<uint64_t>(cstime);
 }
 
-std::uint64_t cpu_load_measurer::read_proc_stat(std::uint64_t* _idle) {
+uint64_t cpu_load_measurer::read_proc_stat(uint64_t* _idle) {
     FILE* f = std::fopen("/proc/stat", "r");
     if (!f) {
         std::perror("Failed to open /proc/stat");
@@ -106,16 +106,16 @@ std::uint64_t cpu_load_measurer::read_proc_stat(std::uint64_t* _idle) {
     // see 1.8 Miscellaneous kernel statistics in /proc/stat
     // at
     // https://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/tree/Documentation/filesystems/proc.txt?id=refs/tags/v3.10.98
-    std::uint64_t user(0);
-    std::uint64_t nice(0);
-    std::uint64_t system(0);
-    std::uint64_t idle(0);
-    std::uint64_t iowait(0);
-    std::uint64_t irq(0);
-    std::uint64_t softirq(0);
-    std::uint64_t steal(0);
-    std::uint64_t guest(0);
-    std::uint64_t guest_nice(0);
+    uint64_t user(0);
+    uint64_t nice(0);
+    uint64_t system(0);
+    uint64_t idle(0);
+    uint64_t iowait(0);
+    uint64_t irq(0);
+    uint64_t softirq(0);
+    uint64_t steal(0);
+    uint64_t guest(0);
+    uint64_t guest_nice(0);
     if (std::fscanf(f, "%*s %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu", &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest,
                     &guest_nice)
         == EOF) {
@@ -133,6 +133,6 @@ bool cpu_load_measurer::read_clock_ticks() {
         std::perror(__func__);
         return false;
     }
-    clock_ticks_ = static_cast<std::uint64_t>(val);
+    clock_ticks_ = static_cast<uint64_t>(val);
     return true;
 }

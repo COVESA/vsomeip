@@ -200,15 +200,15 @@ void tcp_client_endpoint_impl::connect() {
                                        << " remote:" << get_address_port_remote();
                     }
                 }
-                std::size_t operations_cancelled;
+                size_t operations_cancelled;
                 {
                     std::scoped_lock its_lock_inner{connecting_timer_mutex_};
                     operations_cancelled = connecting_timer_.cancel();
                 }
                 if (operations_cancelled != 0) {
                     try {
-                        VSOMEIP_WARNING_P << "Connecting to: local:" << this->get_address_port_local()
-                                          << " remote: " << this->get_address_port_remote();
+                        VSOMEIP_INFO_P << "Connecting to: local:" << this->get_address_port_local()
+                                       << " remote: " << this->get_address_port_remote();
                         // don't connect on bind error to avoid using a random port
                         boost::asio::post(strand_, std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(), its_bind_error));
                     } catch (const std::exception& e) {
@@ -233,13 +233,13 @@ void tcp_client_endpoint_impl::connect() {
         state_ = cei_state_e::CONNECTING;
         connect_timepoint_ = std::chrono::steady_clock::now();
         aborted_restart_count_ = 0;
-        VSOMEIP_WARNING_P << "Connecting to: local:" << this->get_address_port_local() << " remote: " << this->get_address_port_remote();
+        VSOMEIP_INFO_P << "Connecting to: local:" << this->get_address_port_local() << " remote: " << this->get_address_port_remote();
         auto self = std::dynamic_pointer_cast<tcp_client_endpoint_impl>(shared_from_this());
         socket_->async_connect(remote_,
                                boost::asio::bind_executor(strand_, [self](const auto& _error) { self->cancel_and_connect_cbk(_error); }));
     } else {
         VSOMEIP_WARNING_P << "Could not connect (" << its_error.value() << "): " << its_error.message();
-        std::size_t operations_cancelled;
+        size_t operations_cancelled;
         {
             std::scoped_lock its_lock_inner{connecting_timer_mutex_};
             operations_cancelled = connecting_timer_.cancel();
@@ -263,10 +263,10 @@ void tcp_client_endpoint_impl::receive() {
     boost::asio::dispatch(strand_, [self, its_recv_buffer]() { self->receive(its_recv_buffer, 0, 0); });
 }
 
-void tcp_client_endpoint_impl::receive(message_buffer_ptr_t _recv_buffer, std::size_t _recv_buffer_size, std::size_t _missing_capacity) {
+void tcp_client_endpoint_impl::receive(message_buffer_ptr_t _recv_buffer, size_t _recv_buffer_size, size_t _missing_capacity) {
     std::unique_lock its_lock{socket_mutex_};
     if (socket_->is_open()) {
-        const std::size_t its_capacity(_recv_buffer->capacity());
+        const size_t its_capacity(_recv_buffer->capacity());
         size_t buffer_size = its_capacity - _recv_buffer_size;
         try {
             if (_missing_capacity) {
@@ -277,7 +277,7 @@ void tcp_client_endpoint_impl::receive(message_buffer_ptr_t _recv_buffer, std::s
                     wait_until_sent(boost::asio::error::operation_aborted);
                     return;
                 }
-                const std::size_t its_required_capacity(_recv_buffer_size + _missing_capacity);
+                const size_t its_required_capacity(_recv_buffer_size + _missing_capacity);
                 if (its_capacity < its_required_capacity) {
                     _recv_buffer->reserve(its_required_capacity);
                     _recv_buffer->resize(its_required_capacity, 0x0);
@@ -366,16 +366,14 @@ uint16_t tcp_client_endpoint_impl::get_local_port() const {
     return local_.port();
 }
 
-std::size_t tcp_client_endpoint_impl::write_completion_condition(const boost::system::error_code& _error, std::size_t _bytes_transferred,
-                                                                 std::size_t _bytes_to_send, service_t _service, method_t _method,
-                                                                 client_t _client, session_t _session,
-                                                                 const std::chrono::steady_clock::time_point _start) {
+size_t tcp_client_endpoint_impl::write_completion_condition(const boost::system::error_code& _error, size_t _bytes_transferred,
+                                                            size_t _bytes_to_send, service_t _service, method_t _method, client_t _client,
+                                                            session_t _session, const std::chrono::steady_clock::time_point _start) {
 
     if (_error) {
         VSOMEIP_ERROR_P << _error.message() << "(" << _error.value() << ") bytes transferred: " << _bytes_transferred
-                        << " bytes to sent: " << _bytes_to_send << " "
-                        << "remote:" << get_address_port_remote() << " (" << hex4(_client) << "): [" << hex4(_service) << "."
-                        << hex4(_method) << "." << hex4(_session) << "]";
+                        << " bytes to sent: " << _bytes_to_send << " " << "remote:" << get_address_port_remote() << " (" << hex4(_client)
+                        << "): [" << hex4(_service) << "." << hex4(_method) << "." << hex4(_session) << "]";
         return 0;
     }
 
@@ -397,7 +395,7 @@ std::size_t tcp_client_endpoint_impl::write_completion_condition(const boost::sy
     return _bytes_to_send - _bytes_transferred;
 }
 
-std::uint16_t tcp_client_endpoint_impl::get_remote_port() const {
+uint16_t tcp_client_endpoint_impl::get_remote_port() const {
     return remote_port_;
 }
 
@@ -419,8 +417,8 @@ void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t& _buffer) 
     }
 }
 
-void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes,
-                                           const message_buffer_ptr_t& _recv_buffer, std::size_t _recv_buffer_size) {
+void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _error, size_t _bytes, const message_buffer_ptr_t& _recv_buffer,
+                                           size_t _recv_buffer_size) {
     if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
         return;
@@ -429,7 +427,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
     std::unique_lock its_lock(socket_mutex_);
 
     if (std::shared_ptr<boardnet_routing_host> its_host = routing_host_.lock(); its_host) {
-        std::uint32_t its_missing_capacity(0);
+        uint32_t its_missing_capacity(0);
         if (!_error && 0 < _bytes) {
             if (_recv_buffer_size + _bytes > _recv_buffer->size()) {
                 VSOMEIP_ERROR << "receive buffer overflow in tcp client endpoint ~> abort!";
@@ -551,8 +549,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                         _recv_buffer->shrink_to_fit();
                         if (use_magic_cookies_) {
                             VSOMEIP_ERROR << "Received a TCP message which exceeds maximum message size (" << current_message_size
-                                          << "). Magic Cookies are enabled: "
-                                          << "Resetting receiver. local: " << get_address_port_local()
+                                          << "). Magic Cookies are enabled: " << "Resetting receiver. local: " << get_address_port_local()
                                           << " remote: " << get_address_port_remote();
                         } else {
                             VSOMEIP_ERROR << "Received a TCP message which exceeds maximum message size (" << current_message_size
@@ -567,9 +564,9 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                             return;
                         }
                     } else if (current_message_size > _recv_buffer_size) {
-                        its_missing_capacity = current_message_size - static_cast<std::uint32_t>(_recv_buffer_size);
+                        its_missing_capacity = current_message_size - static_cast<uint32_t>(_recv_buffer_size);
                     } else if (VSOMEIP_SOMEIP_HEADER_SIZE > _recv_buffer_size) {
-                        its_missing_capacity = VSOMEIP_SOMEIP_HEADER_SIZE - static_cast<std::uint32_t>(_recv_buffer_size);
+                        its_missing_capacity = VSOMEIP_SOMEIP_HEADER_SIZE - static_cast<uint32_t>(_recv_buffer_size);
                     } else if (use_magic_cookies_ && _recv_buffer_size > 0) {
                         // no need to check for magic cookie here again: has_full_message
                         // would have been set to true if there was one present in the data
@@ -638,7 +635,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
     }
 }
 
-void tcp_client_endpoint_impl::calculate_shrink_count(const message_buffer_ptr_t& _recv_buffer, std::size_t _recv_buffer_size) {
+void tcp_client_endpoint_impl::calculate_shrink_count(const message_buffer_ptr_t& _recv_buffer, size_t _recv_buffer_size) {
     if (buffer_shrink_threshold_) {
         if (_recv_buffer->capacity() != recv_buffer_size_initial_) {
             if (_recv_buffer_size < (_recv_buffer->capacity() >> 1)) {
@@ -680,13 +677,13 @@ std::string tcp_client_endpoint_impl::get_address_port_local() const {
 }
 
 void tcp_client_endpoint_impl::handle_recv_buffer_exception(const std::exception& _e, const message_buffer_ptr_t& _recv_buffer,
-                                                            std::size_t _recv_buffer_size) {
+                                                            size_t _recv_buffer_size) {
 
     std::stringstream its_message;
     its_message << "Caught exception" << _e.what() << " local: " << get_address_port_local() << " remote: " << get_address_port_remote()
                 << " shutting down connection. Start of buffer: ";
 
-    for (std::size_t i = 0; i < _recv_buffer_size && i < 16; i++) {
+    for (size_t i = 0; i < _recv_buffer_size && i < 16; i++) {
         its_message << hex2((*_recv_buffer)[i]) << " ";
     }
 
@@ -699,9 +696,9 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(const std::exception
 }
 
 void tcp_client_endpoint_impl::print_status() {
-    std::size_t its_data_size(0);
-    std::size_t its_queue_size(0);
-    std::size_t its_receive_buffer_capacity(0);
+    size_t its_data_size(0);
+    size_t its_queue_size(0);
+    size_t its_receive_buffer_capacity(0);
     {
         std::scoped_lock its_lock(mutex_);
         its_queue_size = queue_.size();
@@ -722,11 +719,10 @@ std::string tcp_client_endpoint_impl::get_remote_information() const {
     return remote_.address().to_string() + ":" + std::to_string(remote_.port());
 }
 
-void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error, std::size_t _bytes,
-                                        const message_buffer_ptr_t& _sent_msg) {
+void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error, size_t _bytes, const message_buffer_ptr_t& _sent_msg) {
     (void)_bytes;
 
-    std::scoped_lock its_lock(mutex_);
+    std::unique_lock<std::recursive_mutex> its_lock(mutex_);
     sent_timer_.cancel();
 
     if (!_error) {
@@ -736,9 +732,9 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
 
             update_last_departure();
 
-            if (queue_.empty())
+            if (queue_.empty()) {
                 is_sending_ = false;
-            else {
+            } else {
                 auto its_entry = get_front();
                 if (its_entry.first) {
                     auto self = std::dynamic_pointer_cast<tcp_client_endpoint_impl>(shared_from_this());
@@ -754,12 +750,6 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
             // endpoint was stopped
             close_socket(false, false);
         } else {
-            if (state_ == cei_state_e::CONNECTING) {
-                VSOMEIP_WARNING_P << "Already restarting" << get_remote_information();
-            } else {
-                notify_disconnect();
-                restart(true);
-            }
             service_t its_service(0);
             method_t its_method(0);
             client_t its_client(0);
@@ -770,14 +760,25 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
                 its_client = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
                 its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
             }
+            // Capture queue statistics for the log below before releasing mutex_.
+            const size_t its_queue_size = queue_.size();
+            const size_t its_queue_data_size = queue_size_;
+            if (state_ == cei_state_e::CONNECTING) {
+                VSOMEIP_WARNING_P << "Already restarting" << get_remote_information();
+            } else {
+                // Release mutex_ before notify_disconnect() to avoid lock-order-inversion
+                its_lock.unlock();
+                notify_disconnect();
+                restart(true);
+            }
             VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information() << " "
-                              << queue_.size() << " " << queue_size_ << " (" << hex4(its_client) << "): [" << hex4(its_service) << "."
-                              << hex4(its_method) << "." << hex4(its_session) << "]";
+                              << its_queue_size << " " << its_queue_data_size << " (" << hex4(its_client) << "): [" << hex4(its_service)
+                              << "." << hex4(its_method) << "." << hex4(its_session) << "]";
         }
     }
 }
 
-std::uint32_t tcp_client_endpoint_impl::get_max_allowed_reconnects() const {
+uint32_t tcp_client_endpoint_impl::get_max_allowed_reconnects() const {
     return MAX_RECONNECTS_UNLIMITED;
 }
 
@@ -794,8 +795,9 @@ void tcp_client_endpoint_impl::wait_until_sent(const boost::system::error_code& 
     std::unique_lock<std::recursive_mutex> its_lock(mutex_);
     if (!is_sending_ || !_error) {
         its_lock.unlock();
-        if (!_error)
+        if (!_error) {
             VSOMEIP_WARNING_P << "Maximum wait time for send operation exceeded for tce.";
+        }
 
         notify_disconnect();
         restart(true);

@@ -1,7 +1,7 @@
 # Security Test
 
 This test assures that the security polices set on the config file are being respected. The test can run for an allowed or not allowed remote client and local client.
-The service provider offers one service with 2 events (0x8001 and 0x8002) both on unreliable endpoints one of which (0x8002) is not allowed byt the client.
+The service provider offers one service with 2 events (0x8001 and 0x8002) both on unreliable endpoints one of which (0x8002) is not allowed by the client.
 
 ## Purpose
 
@@ -9,6 +9,10 @@ Depending on security policies configuration:
 - Assure that remote_clients are allowed
 - Assure that remote_clients are not allowed
 - Assure that only allowed methodIDs notifications are received
+- Assure that the receive-side offer check is enforced: a consumer only accepts
+  responses/notifications from a provider it is authorized to see offering the
+  service.
+- Assure that single process clients follow the security policies
 
 ## Test Logic
 

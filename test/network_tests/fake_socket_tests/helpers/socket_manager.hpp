@@ -8,6 +8,7 @@
 #include "sockets/fake_tcp_socket_handle.hpp"
 #include "sockets/fake_udp_socket_handle.hpp"
 #include "fake_netlink_connector.hpp"
+#include "app_connection.hpp"
 
 #include <boost/asio/ip/address.hpp>
 #include <cstdint>
@@ -110,6 +111,14 @@ public:
      * Counts how often the directed connection was established.
      */
     size_t count_established_connections(std::string const& _client, std::string const& _server);
+
+    /**
+     * Returns the bound TCP server (acceptor) port of guest application @p _app — the port the
+     * routing manager advertises for it and that peers connect to. A peer's accepted endpoint sees
+     * @p _app at (its address, server_port + 1).
+     * @return the port if @p _app has a bound TCP acceptor, empty optional otherwise.
+     */
+    [[nodiscard]] std::optional<port_t> server_port(std::string const& _app);
 
     /**
      * Retrieves the socket type used by the connection between _client and _server.
@@ -258,13 +267,9 @@ public:
                                              protocol::id_e _id, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
-     * Waits for the _client -> _server connection to be dropped.
-     * If there is no record of this connection it first awaited to have this connection established,
-     * If there is currently a connection it is waited until one socket disconnects,
-     * If there is no longer any connection true is returned.
+     * Watches for a drop on _client -> _server. Create before the trigger, then watch.wait().
      **/
-    [[nodiscard]] bool wait_for_connection_drop(std::string const& _client, std::string const& _server,
-                                                std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+    connection_drop_watch watch_connection_drop(std::string const& _client, std::string const& _server);
 
     /**
      * Set whether a write on a disconnected socket should result in a silent error, or a broken pipe
@@ -387,7 +392,7 @@ public:
      * Invoked by a connected socket upon closing the connection, if the connection
      * does no longer contain connected sockets connection drop will be notified
      **/
-    void check_connection(std::string const& _one, std::string const& _two, socket_role _closing);
+    void on_disconnect(std::string const& _one, std::string const& _two, socket_role _closing);
 
     /**
      * @brief Waits until @param _multicast group has at least @param _min_count sockets joined, or @param _timeout elapses.

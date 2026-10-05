@@ -31,7 +31,7 @@ class VSOMEIP_IMPORT_EXPORT policy_manager_impl
 #endif // !VSOMEIP_DISABLE_SECURITY
 {
 public:
-    enum class policy_loaded_e : std::uint8_t {
+    enum class policy_loaded_e : uint8_t {
         POLICY_PATH_FOUND_AND_LOADED = 0x0,
         POLICY_PATH_FOUND_AND_NOT_LOADED = 0x1,
         POLICY_PATH_INEXISTENT = 0x2
@@ -66,6 +66,13 @@ public:
     std::string get_policy_extension_path(const std::string& _client_host) const;
 
     void set_policy_extension_base_path(const std::string& _path);
+
+    // Copy compiled immutable policy state from _base into this PM.
+    // Per-app runtime maps (client/sec_client mappings, permission cache) are NOT copied.
+    // Policy objects are deep-copied so that runtime policy updates applied to
+    // one application never become visible to another one, or to the base.
+    // Call this instead of re-reading raw config elements for every new application.
+    void init_from_base(const policy_manager_impl& _base);
     std::string get_security_config_folder(const std::string& its_folder) const;
     std::string get_policy_extension_path_unlocked(const std::string& _client_host) const;
 

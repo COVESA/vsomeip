@@ -89,8 +89,7 @@ bool plugin_manager_impl::unload_plugin(plugin_type_e _type) {
 #endif
         }
     } else {
-        VSOMEIP_ERROR << "plugin_manager_impl::unload_plugin didn't find plugin"
-                      << " type:" << static_cast<int>(_type);
+        VSOMEIP_ERROR << "plugin_manager_impl::unload_plugin didn't find plugin" << " type:" << static_cast<int>(_type);
         return false;
     }
     return plugins_.erase(_type);

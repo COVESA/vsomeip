@@ -19,6 +19,7 @@
 #define protected public
 #include "../../../implementation/endpoints/include/udp_server_endpoint_impl.hpp"
 #include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
+#include "../../../implementation/endpoints/include/steady_clock.hpp"
 #include "../../../implementation/endpoints/include/asio_udp_socket.hpp"
 #include "../../../implementation/endpoints/include/boardnet_endpoint_host.hpp"
 #include "../../../implementation/routing/include/routing_host.hpp"
@@ -43,7 +44,7 @@ void vsomeip_v3::endpoint_impl<Protocol>::remove_default_target(service_t) { }
 
 template<typename Protocol>
 vsomeip_v3::instance_t vsomeip_v3::endpoint_impl<Protocol>::get_instance(service_t /*_service*/) {
-    return 0xFFFF;
+    return ANY_INSTANCE;
 }
 
 template<typename Protocol>
@@ -121,8 +122,8 @@ bool vsomeip_v3::server_endpoint_impl<Protocol>::tp_segmentation_enabled(service
 }
 
 template<typename Protocol>
-void vsomeip_v3::server_endpoint_impl<Protocol>::send_segments(const tp::tp_split_messages_t& /*_segments*/,
-                                                               std::uint32_t /*_separation_time*/, const endpoint_type& /*_target*/) { }
+void vsomeip_v3::server_endpoint_impl<Protocol>::send_segments(const tp::tp_split_messages_t& /*_segments*/, uint32_t /*_separation_time*/,
+                                                               const endpoint_type& /*_target*/) { }
 
 template<typename Protocol>
 typename vsomeip_v3::server_endpoint_impl<Protocol>::target_data_iterator_type
@@ -134,13 +135,13 @@ template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::schedule_train(endpoint_data_type& /*_data*/) { }
 
 template<typename Protocol>
-bool vsomeip_v3::server_endpoint_impl<Protocol>::check_message_size(std::uint32_t /*_size*/) const {
+bool vsomeip_v3::server_endpoint_impl<Protocol>::check_message_size(uint32_t /*_size*/) const {
     return true;
 }
 
 template<typename Protocol>
 typename vsomeip_v3::endpoint_impl<Protocol>::cms_ret_e
-vsomeip_v3::server_endpoint_impl<Protocol>::segment_message(const std::uint8_t* const /*_data*/, std::uint32_t /*_size*/,
+vsomeip_v3::server_endpoint_impl<Protocol>::segment_message(const uint8_t* const /*_data*/, uint32_t /*_size*/,
                                                             const endpoint_type& /*_target*/) {
     return endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
 }
@@ -149,7 +150,7 @@ template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::recalculate_queue_size(endpoint_data_type& /*_data*/) const { }
 
 template<typename Protocol>
-bool vsomeip_v3::server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* /*_data*/, std::uint32_t /*_size*/,
+bool vsomeip_v3::server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* /*_data*/, uint32_t /*_size*/,
                                                                    endpoint_data_type& /*_endpoint_data*/) const {
     return true;
 }
@@ -169,7 +170,7 @@ void vsomeip_v3::server_endpoint_impl<Protocol>::connect_cbk(boost::system::erro
 
 template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::send_cbk(const endpoint_type /*_key*/, boost::system::error_code const& /*_error*/,
-                                                          std::size_t /*_bytes*/) { }
+                                                          size_t /*_bytes*/) { }
 
 template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::flush_cbk(endpoint_type /*_key*/, const boost::system::error_code& /*_error_code*/) { }
@@ -210,6 +211,11 @@ struct mocked_socket_factory : public vsomeip_v3::abstract_socket_factory {
 #endif
 
     std::unique_ptr<vsomeip_v3::abstract_timer> create_timer(boost::asio::io_context&) { return nullptr; }
+
+    std::shared_ptr<vsomeip_v3::abstract_clock> get_clock() override {
+        static auto clock = std::make_shared<vsomeip_v3::steady_clock>();
+        return clock;
+    }
 };
 
 vsomeip_v3::abstract_socket_factory* vsomeip_v3::abstract_socket_factory::get() {
@@ -228,7 +234,7 @@ struct mock_endpoint_host : public vsomeip_v3::boardnet_endpoint_host {
                       uint16_t _remote_port, uint16_t& _local_port));
     MOCK_METHOD5(on_error,
                  void(const vsomeip_v3::byte_t* _data, vsomeip_v3::length_t _length, vsomeip_v3::boardnet_endpoint* const _receiver,
-                      const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port));
+                      const boost::asio::ip::address& _remote_address, uint16_t _remote_port));
     MOCK_METHOD2(release_port, void(uint16_t _port, bool _reliable));
     MOCK_CONST_METHOD0(get_client, vsomeip_v3::client_t());
     MOCK_CONST_METHOD0(get_client_host, std::string());

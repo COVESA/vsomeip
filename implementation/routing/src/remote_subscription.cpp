@@ -37,10 +37,12 @@ bool remote_subscription::address_equals(const std::shared_ptr<remote_subscripti
     bool relibale_address_equals(false);
     bool unrelibale_address_equals(false);
 
-    if (reliable_ && (*_other).reliable_)
+    if (reliable_ && (*_other).reliable_) {
         relibale_address_equals = (reliable_->get_address() == (*_other).reliable_->get_address());
-    if (unreliable_ && (*_other).unreliable_)
+    }
+    if (unreliable_ && (*_other).unreliable_) {
         unrelibale_address_equals = (unreliable_->get_address() == (*_other).unreliable_->get_address());
+    }
     return (relibale_address_equals || unrelibale_address_equals);
 }
 
@@ -49,8 +51,9 @@ void remote_subscription::reset(const std::set<client_t>& _clients) {
     if (_clients.empty()) {
         clients_[0] = its_client_state;
     } else {
-        for (const auto& its_client : _clients)
+        for (const auto& its_client : _clients) {
             clients_[its_client] = its_client_state;
+        }
     }
 }
 
@@ -113,8 +116,9 @@ void remote_subscription::set_counter(uint8_t _counter) {
 std::set<client_t> remote_subscription::get_clients() const {
     std::scoped_lock its_lock(mutex_);
     std::set<client_t> its_clients;
-    for (const auto& its_item : clients_)
+    for (const auto& its_item : clients_) {
         its_clients.insert(its_item.first);
+    }
     return its_clients;
 }
 
@@ -156,8 +160,9 @@ void remote_subscription::set_client_state(const client_t _client, remote_subscr
 
 void remote_subscription::set_all_client_states(remote_subscription_state_e _state) {
     std::scoped_lock its_lock(mutex_);
-    for (auto& its_item : clients_)
+    for (auto& its_item : clients_) {
         its_item.second.first = _state;
+    }
 }
 
 std::shared_ptr<endpoint_definition> remote_subscription::get_subscriber() const {
@@ -252,11 +257,11 @@ void remote_subscription::set_parent(const std::shared_ptr<remote_subscription>&
     parent_ = _parent;
 }
 
-std::uint32_t remote_subscription::get_answers() const {
+uint32_t remote_subscription::get_answers() const {
     return answers_;
 }
 
-void remote_subscription::set_answers(const std::uint32_t _answers) {
+void remote_subscription::set_answers(const uint32_t _answers) {
     answers_ = _answers;
 }
 

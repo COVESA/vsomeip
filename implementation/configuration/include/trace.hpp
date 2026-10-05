@@ -5,12 +5,16 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip/trace.hpp>
+
+#include "../../tracing/include/defines.hpp"
 #include "../../tracing/include/enumeration_types.hpp"
+#include "../../tracing/include/types.hpp"
 
 namespace vsomeip_v3 {
 namespace cfg {
@@ -30,10 +34,15 @@ struct trace_filter {
 };
 
 struct trace {
-    trace() : is_enabled_(false), is_sd_enabled_(false), channels_(), filters_() { }
+    trace() :
+        is_enabled_(false), is_sd_enabled_(false), full_logging_threshold_(VSOMEIP_TC_DEFAULT_FULL_LOGGING_THRESHOLD), channels_(),
+        filters_() { }
 
     bool is_enabled_;
     bool is_sd_enabled_;
+
+    // Full-logging size threshold in bytes; see VSOMEIP_TC_DEFAULT_FULL_LOGGING_THRESHOLD.
+    uint32_t full_logging_threshold_;
 
     std::vector<std::shared_ptr<trace_channel>> channels_;
     std::vector<std::shared_ptr<trace_filter>> filters_;

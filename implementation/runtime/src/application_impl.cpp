@@ -38,6 +38,7 @@
 #include "../../endpoints/include/boardnet_endpoint.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_manager_client.hpp"
+#include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 #include "../../tracing/include/connector_impl.hpp"
 #include "../../thread_manager/include/thread_manager.hpp"
@@ -66,20 +67,6 @@ application_impl::application_impl(const std::string& _name, const std::string& 
 
 application_impl::~application_impl() {
     runtime_->remove_application(name_);
-#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-    if (configuration_ && plugin_manager_) {
-        auto its_plugin = plugin_manager_->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
-        if (its_plugin) {
-            auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
-            if (its_configuration_plugin) {
-                bool its_removed = its_configuration_plugin->remove_configuration(name_);
-                if (!its_removed) {
-                    VSOMEIP_WARNING_P << "Unable to remove configuration entry stored for " << name_;
-                }
-            }
-        }
-    }
-#endif
 }
 
 bool application_impl::init() {
@@ -126,15 +113,23 @@ bool application_impl::init() {
     VSOMEIP_INFO << "Configuration loaded with Multiple Routing Managers ENABLED.";
 #endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 
+    // Elect the routing host before init() queries the configuration: load()
+    // parsed the mandatory files only, and the optional pass can still change
+    // any value they define.
+    if (!determine_routing_host()) {
+        return false;
+    }
+
+#ifdef __unix__
+    sec_client_.user = getuid();
+    sec_client_.group = getgid();
+#else
+    sec_client_.user = ANY_UID;
+    sec_client_.group = ANY_GID;
+#endif
+
     if (configuration_->is_local_routing()) {
         sec_client_.port = VSOMEIP_SEC_PORT_UNUSED;
-#ifdef __unix__
-        sec_client_.user = getuid();
-        sec_client_.group = getgid();
-#else
-        sec_client_.user = ANY_UID;
-        sec_client_.group = ANY_GID;
-#endif
     } else {
         auto its_guest_address = configuration_->get_routing_guest_address();
         if (its_guest_address.is_v4()) {
@@ -143,19 +138,28 @@ bool application_impl::init() {
         sec_client_.port = VSOMEIP_SEC_PORT_UNSET;
     }
 
+    // Create per-app policy manager and security, then load policies from the shared config
+    policy_manager_ = std::make_shared<policy_manager_impl>();
+    security_ = std::make_shared<security>(policy_manager_);
+#ifndef VSOMEIP_DISABLE_SECURITY
+    configuration_->load_security_policies(*policy_manager_);
+#endif
+
     // Set security mode
     if (configuration_->is_security_enabled()) {
         if (configuration_->is_security_external()) {
-            if (configuration_->get_security()->load()) {
+            if (security_->load()) {
                 VSOMEIP_INFO << "Using external security implementation!";
-                auto its_result = configuration_->get_security()->initialize();
-                if (VSOMEIP_SEC_POLICY_OK != its_result)
+                auto its_result = security_->initialize();
+                if (VSOMEIP_SEC_POLICY_OK != its_result) {
                     VSOMEIP_ERROR << "Initializing external security implementation failed (" << its_result << ')';
+                }
             }
         } else {
             VSOMEIP_INFO << "Using internal security implementation!";
-            if (configuration_->is_security_audit())
+            if (configuration_->is_security_audit()) {
                 security_mode_ = security_mode_e::SM_AUDIT;
+            }
         }
     } else {
         security_mode_ = security_mode_e::SM_OFF;
@@ -214,27 +218,8 @@ bool application_impl::init() {
         max_dispatch_time_ = its_configuration->get_max_dispatch_time(name_);
 
         has_session_handling_ = its_configuration->has_session_handling(name_);
-        if (!has_session_handling_)
+        if (!has_session_handling_) {
             VSOMEIP_INFO << "Application: " << name_ << " has session handling switched off!";
-
-        std::string its_routing_host = its_configuration->get_routing_host_name();
-        if (its_routing_host != "") {
-            is_routing_manager_host_ = (its_routing_host == name_);
-            if (is_routing_manager_host_ && !utility::is_routing_manager(configuration_->get_network())) {
-#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-                VSOMEIP_ERROR << "Application: " << name_
-                              << " configured as routing but other routing manager present. Won't instantiate routing";
-                is_routing_manager_host_ = false;
-                return false;
-#else
-                is_routing_manager_host_ = true;
-#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-            }
-        } else {
-            auto its_routing_address = its_configuration->get_routing_host_address();
-            auto its_routing_port = its_configuration->get_routing_host_port();
-            if (its_routing_address.is_unspecified() || is_local_endpoint(its_routing_address, its_routing_port))
-                is_routing_manager_host_ = utility::is_routing_manager(configuration_->get_network());
         }
 
         if (is_routing_manager_host_) {
@@ -243,7 +228,7 @@ bool application_impl::init() {
                 client_ = static_cast<client_t>((configuration_->get_diagnosis_address() << 8) & configuration_->get_diagnosis_mask());
                 utility::request_client_id(configuration_, name_, client_);
             }
-            routing_app_ = std::make_unique<routing_application>(io_, configuration_, name_);
+            routing_app_ = std::make_unique<routing_application>(io_, configuration_, name_, policy_manager_, security_);
         }
         VSOMEIP_INFO << "Instantiating routing manager [Proxy].";
         routing_ = std::make_shared<routing_manager_client>(this, client_side_logging_, client_side_logging_filter_);
@@ -359,8 +344,9 @@ void application_impl::start() {
         if (routing_app_) {
             routing_app_->start();
         }
-        if (routing_)
+        if (routing_) {
             routing_->start();
+        }
 
         for (size_t i = 0; i < io_thread_count - 1; i++) {
             auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
@@ -437,8 +423,8 @@ void application_impl::start() {
     try {
         io_.run();
         if (!stopping_) {
-            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io00"
-                          << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io00" << ", application '" << name_
+                          << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                           << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -454,8 +440,8 @@ void application_impl::start() {
         VSOMEIP_TERMINATE("io_context exited due to exception");
     }
 
-    VSOMEIP_INFO_P << ": io_.run() end for app(" << name_ << ", " << hex4(client_) << ")"
-                   << "; Join Dispatcher threads for app(" << name_ << ", " << hex4(client_) << ")";
+    VSOMEIP_INFO_P << ": io_.run() end for app(" << name_ << ", " << hex4(client_) << ")" << "; Join Dispatcher threads for app(" << name_
+                   << ", " << hex4(client_) << ")";
 
     try {
         std::unique_lock its_lock_start_stop{handlers_mutex_};
@@ -604,23 +590,27 @@ security_mode_e application_impl::get_security_mode() const {
 }
 
 void application_impl::offer_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    if (routing_)
+    if (routing_) {
         routing_->offer_service(client_, _service, _instance, _major, _minor);
+    }
 }
 
 void application_impl::stop_offer_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    if (routing_)
+    if (routing_) {
         routing_->stop_offer_service(client_, _service, _instance, _major, _minor);
+    }
 }
 
 void application_impl::request_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    if (routing_)
+    if (routing_) {
         routing_->request_service(client_, _service, _instance, _major, _minor);
+    }
 }
 
 void application_impl::release_service(service_t _service, instance_t _instance) {
-    if (routing_)
+    if (routing_) {
         routing_->release_service(client_, _service, _instance);
+    }
 }
 
 void application_impl::subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
@@ -632,25 +622,29 @@ void application_impl::subscribe(service_t _service, instance_t _instance, event
 }
 
 void application_impl::unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
-    if (routing_)
+    if (routing_) {
         routing_->unsubscribe(client_, _service, _instance, _eventgroup, ANY_EVENT);
+    }
 }
 
 void application_impl::unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
-    if (routing_)
+    if (routing_) {
         routing_->unsubscribe(client_, _service, _instance, _eventgroup, _event);
+    }
 }
 
 bool application_impl::is_available(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) const {
-    if (!routing_)
+    if (!routing_) {
         return false;
+    }
     return routing_->is_available(_service, _instance, _major, _minor);
 }
 
 bool application_impl::are_available(available_t& _available, service_t _service, instance_t _instance, major_version_t _major,
                                      minor_version_t _minor) const {
-    if (!routing_)
+    if (!routing_) {
         return false;
+    }
     return routing_->are_available(_available, _service, _instance, _major, _minor);
 }
 
@@ -672,7 +666,7 @@ void application_impl::send(std::shared_ptr<message> _message) {
         VSOMEIP_INFO_P << "(" << hex4(client_) << "): [" << hex4(_message->get_service()) << "." << hex4(_message->get_instance()) << "."
                        << hex4(_message->get_method()) << ":" << hex4(is_request ? session_ : _message->get_session()) << ":"
                        << hex4(is_request ? client_.load() : _message->get_client()) << "] "
-                       << "type=" << static_cast<std::uint32_t>(_message->get_message_type()) << " thread=" << std::this_thread::get_id();
+                       << "type=" << static_cast<uint32_t>(_message->get_message_type()) << " thread=" << std::this_thread::get_id();
     }
     if (routing_) {
         // in case of requests set the request-id (client-id|session-id)
@@ -712,9 +706,43 @@ void application_impl::unregister_state_handler() {
     handler_ = nullptr;
 }
 
+void application_impl::warn_late_registration(const char* _what, service_t _service, instance_t _instance, const char* _context) const {
+    VSOMEIP_ERROR_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "] registered after " << _context
+                    << "; register handlers first.";
+}
+
+void application_impl::warn_late_registration(const char* _what, service_t _service, instance_t _instance, uint16_t _sub_id,
+                                              const char* _context) const {
+    VSOMEIP_ERROR_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_sub_id) << "] registered after "
+                    << _context << "; register handlers first.";
+}
+
+void application_impl::warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, major_version_t _major,
+                                                   minor_version_t _minor) const {
+    VSOMEIP_WARNING_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "." << static_cast<uint32_t>(_major) << "." << _minor
+                      << "] registered more than once; the previous handler is replaced.";
+}
+
+void application_impl::warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, uint16_t _sub_id) const {
+    VSOMEIP_WARNING_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_sub_id)
+                      << "] registered more than once; the previous handler is replaced.";
+}
+
 void application_impl::register_availability_handler(service_t _service, instance_t _instance, const availability_handler_t& _handler,
                                                      major_version_t _major, minor_version_t _minor) {
 
+    {
+        std::scoped_lock availability_lock{availability_mutex_};
+        // A pre-existing handler for this service/instance and major is silently replaced, so warn users.
+        if (auto its_service = availability_.find({_service, _instance}); its_service != availability_.end()) {
+            if (its_service->second.find(_major) != its_service->second.end()) {
+                warn_duplicate_registration("Availability handler", _service, _instance, _major, _minor);
+            }
+        }
+    }
+    if (routing_ && routing_->is_requested(_service, _instance)) {
+        warn_late_registration("Availability handler", _service, _instance, "request");
+    }
     auto its_handler_ext = [_handler](service_t _service_inner, instance_t _instance_inner, availability_state_e _state) {
         _handler(_service_inner, _instance_inner, (_state == availability_state_e::AS_AVAILABLE));
     };
@@ -724,7 +752,17 @@ void application_impl::register_availability_handler(service_t _service, instanc
 
 void application_impl::register_availability_handler(service_t _service, instance_t _instance, const availability_state_handler_t& _handler,
                                                      major_version_t _major, minor_version_t _minor) {
-
+    {
+        std::scoped_lock availability_lock{availability_mutex_};
+        if (auto its_service = availability_.find({_service, _instance}); its_service != availability_.end()) {
+            if (its_service->second.find(_major) != its_service->second.end()) {
+                warn_duplicate_registration("Availability handler", _service, _instance, _major, _minor);
+            }
+        }
+    }
+    if (routing_ && routing_->is_requested(_service, _instance)) {
+        warn_late_registration("Availability handler", _service, _instance, "request");
+    }
     register_availability_handler_internal(_service, _instance, _handler, _major, _minor);
 }
 
@@ -863,7 +901,16 @@ void application_impl::register_subscription_handler(service_t _service, instanc
 
     VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
 
+    const bool offered = routing_ && routing_->is_offered(_service, _instance);
+
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
+    if (auto found = subscription_.find({_service, _instance});
+        found != subscription_.end() && found->second.find(_eventgroup) != found->second.end()) {
+        warn_duplicate_registration("Subscription handler", _service, _instance, _eventgroup);
+    }
+    if (offered) {
+        warn_late_registration("Subscription handler", _service, _instance, "offer");
+    }
     subscription_[{_service, _instance}][_eventgroup] = std::make_pair(_handler, nullptr);
 }
 
@@ -880,14 +927,7 @@ void application_impl::unregister_subscription_handler(service_t _service, insta
 }
 
 void application_impl::on_subscription_status(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                              uint16_t _error) {
-
-    deliver_subscription_state(_service, _instance, _eventgroup, _event, _error);
-}
-
-void application_impl::deliver_subscription_state(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                                  uint16_t _error) {
-
+                                              subscription_outcome_e _outcome) {
     std::vector<subscription_status_handler_t> handlers;
     {
         std::scoped_lock its_lock{subscription_status_handlers_mutex_};
@@ -901,12 +941,14 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
 
             auto do_eventgroup = [&](auto& found_eg) {
                 if (auto found_event = found_eg->second.find(_event); found_event != found_eg->second.end()) {
-                    if (!_error || (_error && found_event->second.second)) {
+                    if (_outcome == subscription_outcome_e::OK
+                        || (_outcome == subscription_outcome_e::REJECTED && found_event->second.second /*is-selective*/)) {
                         handlers.push_back(found_event->second.first);
                     }
                 }
                 if (auto found_any_event = found_eg->second.find(ANY_EVENT); found_any_event != found_eg->second.end()) {
-                    if (!_error || (_error && found_any_event->second.second)) {
+                    if (_outcome == subscription_outcome_e::OK
+                        || (_outcome == subscription_outcome_e::REJECTED && found_any_event->second.second /*is-selective*/)) {
                         handlers.push_back(found_any_event->second.first);
                     }
                 }
@@ -928,8 +970,9 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
     {
         std::unique_lock handlers_lock(handlers_mutex_);
         for (auto& handler : handlers) {
-            auto its_sync_handler = std::make_shared<sync_handler>([handler, _service, _instance, _eventgroup, _event, _error]() {
-                handler(_service, _instance, _eventgroup, _event, _error);
+            auto its_sync_handler = std::make_shared<sync_handler>([handler, _service, _instance, _eventgroup, _event, _outcome]() {
+                // NOTE: unavoidable cast, the API takes a uint16_t..
+                handler(_service, _instance, _eventgroup, _event, static_cast<uint16_t>(_outcome));
             });
             its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
             its_sync_handler->service_id_ = _service;
@@ -946,8 +989,18 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
 
 void application_impl::register_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                             event_t _event, subscription_status_handler_t _handler, bool _is_selective) {
+    const bool subscribed = routing_ && routing_->is_subscribed(_service, _instance, _eventgroup, _event);
+
     std::scoped_lock its_lock{subscription_status_handlers_mutex_};
     if (_handler) {
+        if (auto found_si = subscription_status_handlers_.find({_service, _instance}); found_si != subscription_status_handlers_.end()
+            && found_si->second.find(_eventgroup) != found_si->second.end()
+            && found_si->second.at(_eventgroup).find(_event) != found_si->second.at(_eventgroup).end()) {
+            warn_duplicate_registration("Subscription status handler", _service, _instance, _eventgroup);
+        }
+        if (subscribed) {
+            warn_late_registration("Subscription status handler", _service, _instance, _eventgroup, "subscribe");
+        }
         subscription_status_handlers_[{_service, _instance}][_eventgroup][_event] = std::make_pair(_handler, _is_selective);
     } else {
         VSOMEIP_WARNING_P << "_handler is null, for unregistration please use application_impl::unregister_subscription_status_handler ["
@@ -1002,20 +1055,23 @@ void application_impl::offer_event(service_t _service, instance_t _instance, eve
 }
 
 void application_impl::stop_offer_event(service_t _service, instance_t _instance, event_t _event) {
-    if (routing_)
+    if (routing_) {
         routing_->unregister_event(client_, _service, _instance, _event, true);
+    }
 }
 
 void application_impl::request_event(service_t _service, instance_t _instance, event_t _event, const std::set<eventgroup_t>& _eventgroups,
                                      event_type_e _type, reliability_type_e _reliability) {
-    if (routing_)
+    if (routing_) {
         routing_->register_event(client_, _service, _instance, _event, _eventgroups, _type, _reliability, std::chrono::milliseconds::zero(),
                                  false, true, nullptr, false);
+    }
 }
 
 void application_impl::release_event(service_t _service, instance_t _instance, event_t _event) {
-    if (routing_)
+    if (routing_) {
         routing_->unregister_event(client_, _service, _instance, _event, false);
+    }
 }
 
 // Interface "routing_manager_host"
@@ -1073,8 +1129,9 @@ void application_impl::set_client(const client_t& _client) {
 
 session_t application_impl::get_session(bool _is_request) {
 
-    if (!has_session_handling_ && !_is_request)
+    if (!has_session_handling_ && !_is_request) {
         return 0;
+    }
 
     std::scoped_lock its_lock{session_mutex_};
     if (0 == ++session_) {
@@ -1089,9 +1146,44 @@ vsomeip_sec_client_t application_impl::get_sec_client() const {
     return sec_client_;
 }
 
+uid_t application_impl::get_sec_client_uid() const {
+    return sec_client_.user;
+}
+
 void application_impl::set_sec_client_port(port_t _port) {
 
     sec_client_.port = htons(_port);
+}
+
+bool application_impl::determine_routing_host() {
+    const std::string its_routing_host = configuration_->get_routing_host_name();
+    if (its_routing_host != "") {
+        is_routing_manager_host_ = (its_routing_host == name_);
+        if (is_routing_manager_host_ && !utility::is_routing_manager(configuration_->get_network())) {
+#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+            VSOMEIP_ERROR << "Application: " << name_
+                          << " configured as routing but other routing manager present. Won't instantiate routing";
+            is_routing_manager_host_ = false;
+            return false;
+#else
+            is_routing_manager_host_ = true;
+#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+        }
+    } else {
+        auto its_routing_address = configuration_->get_routing_host_address();
+        auto its_routing_port = configuration_->get_routing_host_port();
+        if (its_routing_address.is_unspecified() || is_local_endpoint(its_routing_address, its_routing_port)) {
+            is_routing_manager_host_ = utility::is_routing_manager(configuration_->get_network());
+        }
+    }
+
+    // The optional configuration is routing-manager exclusive, and the election
+    // is settled now: a plain application never parses it.
+    if (is_routing_manager_host_) {
+        configuration_->load_optional();
+    }
+
+    return true;
 }
 
 std::shared_ptr<configuration> application_impl::get_configuration() const {
@@ -1100,11 +1192,19 @@ std::shared_ptr<configuration> application_impl::get_configuration() const {
 
 std::shared_ptr<policy_manager> application_impl::get_policy_manager() const {
 #ifndef VSOMEIP_DISABLE_SECURITY
-    return configuration_->get_policy_manager();
+    return policy_manager_;
 #else
     VSOMEIP_WARNING_P << "Manager is not available when security is disabled.";
-    return {};
+    return nullptr;
 #endif
+}
+
+std::shared_ptr<policy_manager_impl> application_impl::get_policy_manager_impl() const {
+    return policy_manager_;
+}
+
+std::shared_ptr<security> application_impl::get_security() const {
+    return security_;
 }
 
 diagnosis_t application_impl::get_diagnosis() const {
@@ -1167,7 +1267,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         auto find_matching_handler = [&](availability_major_minor_t& _av_ma_mi_it) {
             auto found_major = _av_ma_mi_it.find(_major);
             if (found_major != _av_ma_mi_it.end()) {
-                for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
+                for (int32_t mi = static_cast<int32_t>(_minor); mi >= 0; mi--) {
                     auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
                     if (found_minor != found_major->second.end()) {
                         if (get_availability_state(found_minor->second.second, _service, _instance, _major, _minor) != _state) {
@@ -1186,7 +1286,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
             }
             found_major = _av_ma_mi_it.find(ANY_MAJOR);
             if (found_major != _av_ma_mi_it.end()) {
-                for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
+                for (int32_t mi = static_cast<int32_t>(_minor); mi >= 0; mi--) {
                     auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
                     if (found_minor != found_major->second.end()) {
                         if (get_availability_state(found_minor->second.second, _service, _instance, _major, _minor) != _state) {
@@ -1227,6 +1327,50 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     if (its_handlers.size()) {
         std::scoped_lock handlers_lock{handlers_mutex_};
         dispatcher_condition_.notify_all();
+    }
+}
+
+void application_impl::reset_availability_state(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
+    std::scoped_lock availability_lock{availability_mutex_};
+
+    auto reset_availability_states = [this, _service, _instance, _major, _minor](availability_major_minor_t& _av_ma_mi_it) {
+        auto found_major = _av_ma_mi_it.find(_major);
+        if (found_major != _av_ma_mi_it.end()) {
+            for (int32_t mi = static_cast<int32_t>(_minor); mi >= 0; mi--) {
+                auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
+                if (found_minor != found_major->second.end()) {
+                    set_availability_state(found_minor->second.second, _service, _instance, _major, _minor,
+                                           availability_state_e::AS_UNKNOWN);
+                }
+            }
+            auto found_any_minor = found_major->second.find(ANY_MINOR);
+            if (found_any_minor != found_major->second.end()) {
+                set_availability_state(found_any_minor->second.second, _service, _instance, _major, _minor,
+                                       availability_state_e::AS_UNKNOWN);
+            }
+        }
+        found_major = _av_ma_mi_it.find(ANY_MAJOR);
+        if (found_major != _av_ma_mi_it.end()) {
+            for (int32_t mi = static_cast<int32_t>(_minor); mi >= 0; mi--) {
+                auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
+                if (found_minor != found_major->second.end()) {
+                    set_availability_state(found_minor->second.second, _service, _instance, _major, _minor,
+                                           availability_state_e::AS_UNKNOWN);
+                }
+            }
+            auto found_any_minor = found_major->second.find(ANY_MINOR);
+            if (found_any_minor != found_major->second.end()) {
+                set_availability_state(found_any_minor->second.second, _service, _instance, _major, _minor,
+                                       availability_state_e::AS_UNKNOWN);
+            }
+        }
+    };
+
+    for (const service_instance_t si : {service_instance_t{_service, _instance}, service_instance_t{_service, ANY_INSTANCE},
+                                        service_instance_t{ANY_SERVICE, _instance}, service_instance_t{ANY_SERVICE, ANY_INSTANCE}}) {
+        if (auto found = availability_.find(si); found != availability_.end()) {
+            reset_availability_states(found->second);
+        }
     }
 }
 
@@ -1312,8 +1456,9 @@ void application_impl::main_dispatch() {
             while (is_dispatching_ && is_active_dispatcher(its_id) && (its_handler = get_next_handler())) {
                 invoke_handler(its_lock, its_handler);
 
-                if (!is_dispatching_)
+                if (!is_dispatching_) {
                     break;
+                }
 
                 reschedule_availability_handler(its_handler);
                 reschedule_subscription_handler(its_handler);
@@ -1363,8 +1508,9 @@ void application_impl::dispatch() {
             while (is_dispatching_ && is_active_dispatcher(its_id) && (its_handler = get_next_handler())) {
                 invoke_handler(its_lock, its_handler);
 
-                if (!is_dispatching_)
+                if (!is_dispatching_) {
                     return;
+                }
 
                 reschedule_availability_handler(its_handler);
                 reschedule_subscription_handler(its_handler);
@@ -1510,7 +1656,7 @@ void application_impl::invoke_handler(std::unique_lock<std::mutex>& _lock, std::
         VSOMEIP_INFO << "Invoking handler: (" << hex4(client_) << "): [" << hex4(its_sync_handler->service_id_) << "."
                      << hex4(its_sync_handler->instance_id_) << "." << hex4(its_sync_handler->method_id_) << ":"
                      << hex4(its_sync_handler->session_id_) << "] "
-                     << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_) << " thread=" << std::hex << its_id;
+                     << "type=" << static_cast<uint32_t>(its_sync_handler->handler_type_) << " thread=" << std::hex << its_id;
     }
 
     running_dispatchers_.insert(its_id);
@@ -1753,7 +1899,16 @@ void application_impl::register_async_subscription_handler(service_t _service, i
 
     VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
 
+    const bool offered = routing_ && routing_->is_offered(_service, _instance);
+
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
+    if (auto found = subscription_.find({_service, _instance});
+        found != subscription_.end() && found->second.find(_eventgroup) != found->second.end()) {
+        warn_duplicate_registration("Async subscription handler", _service, _instance, _eventgroup);
+    }
+    if (offered) {
+        warn_late_registration("Async subscription handler", _service, _instance, "offer");
+    }
     subscription_[{_service, _instance}][_eventgroup] = std::make_pair(nullptr, _handler);
 }
 
@@ -1848,7 +2003,7 @@ void application_impl::register_routing_state_handler(const routing_state_handle
     }
 }
 
-bool application_impl::update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+bool application_impl::update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                     bool _magic_cookies_enabled, bool _offer) {
     bool ret = false;
     if (!routing_app_) {
@@ -1935,10 +2090,20 @@ std::map<std::string, std::string> application_impl::get_additional_data(const s
 
 void application_impl::register_message_handler_ext(service_t _service, instance_t _instance, method_t _method,
                                                     const message_handler_t& _handler, handler_registration_type_e _type) {
+    const bool late = routing_ && routing_->is_offered(_service, _instance);
 
     const auto key = to_members_key(_service, _instance, _method);
 
     std::scoped_lock its_lock{members_mutex_};
+    // If the handler is already registered and type is HRT_REPLACE, warn about duplicate registration.
+    if (members_.find(key) != members_.end() && _type == handler_registration_type_e::HRT_REPLACE) {
+        warn_duplicate_registration("Message handler", _service, _instance, _method);
+    }
+    // If the handler is being registered after the service has been offered, warn about late registration.
+    if (late) {
+        warn_late_registration("Message handler", _service, _instance, _method, "offer");
+    }
+
     switch (_type) {
     case handler_registration_type_e::HRT_REPLACE:
         members_[key].clear();

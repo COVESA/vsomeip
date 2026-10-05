@@ -86,11 +86,11 @@ bool virtual_server_endpoint_impl::get_remote_address(boost::asio::ip::address& 
     return false;
 }
 
-std::uint16_t virtual_server_endpoint_impl::get_local_port() const {
+uint16_t virtual_server_endpoint_impl::get_local_port() const {
     return port_;
 }
 
-std::uint16_t virtual_server_endpoint_impl::get_remote_port() const {
+uint16_t virtual_server_endpoint_impl::get_remote_port() const {
     return ILLEGAL_PORT;
 }
 

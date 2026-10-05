@@ -13,10 +13,10 @@
 
 namespace vsomeip_v3 {
 
-deserializer::deserializer(std::uint32_t _buffer_shrink_threshold) :
+deserializer::deserializer(uint32_t _buffer_shrink_threshold) :
     position_(data_.begin()), remaining_(0), buffer_shrink_threshold_(_buffer_shrink_threshold), shrink_count_(0) { }
 
-deserializer::deserializer(byte_t* _data, std::size_t _length, std::uint32_t _buffer_shrink_threshold) :
+deserializer::deserializer(byte_t* _data, size_t _length, uint32_t _buffer_shrink_threshold) :
     data_(_data, _data + _length), position_(data_.begin()), remaining_(_length), buffer_shrink_threshold_(_buffer_shrink_threshold),
     shrink_count_(0) { }
 
@@ -26,21 +26,22 @@ deserializer::deserializer(const deserializer& _other) :
 
 deserializer::~deserializer() { }
 
-std::size_t deserializer::get_available() const {
+size_t deserializer::get_available() const {
     return data_.size();
 }
 
-std::size_t deserializer::get_remaining() const {
+size_t deserializer::get_remaining() const {
     return remaining_;
 }
 
-void deserializer::set_remaining(std::size_t _remaining) {
+void deserializer::set_remaining(size_t _remaining) {
     remaining_ = _remaining;
 }
 
 bool deserializer::deserialize(uint8_t& _value) {
-    if (0 == remaining_)
+    if (0 == remaining_) {
         return false;
+    }
 
     _value = *position_++;
 
@@ -49,8 +50,9 @@ bool deserializer::deserialize(uint8_t& _value) {
 }
 
 bool deserializer::deserialize(uint16_t& _value) {
-    if (2 > remaining_)
+    if (2 > remaining_) {
         return false;
+    }
 
     uint8_t byte0, byte1;
     byte0 = *position_++;
@@ -64,8 +66,9 @@ bool deserializer::deserialize(uint16_t& _value) {
 }
 
 bool deserializer::deserialize(uint32_t& _value, bool _omit_last_byte) {
-    if (3 > remaining_ || (!_omit_last_byte && 4 > remaining_))
+    if (3 > remaining_ || (!_omit_last_byte && 4 > remaining_)) {
         return false;
+    }
 
     uint8_t byte0 = 0, byte1, byte2, byte3;
     if (!_omit_last_byte) {
@@ -83,9 +86,10 @@ bool deserializer::deserialize(uint32_t& _value, bool _omit_last_byte) {
     return true;
 }
 
-bool deserializer::deserialize(uint8_t* _data, std::size_t _length) {
-    if (_length > remaining_)
+bool deserializer::deserialize(uint8_t* _data, size_t _length) {
+    if (_length > remaining_) {
         return false;
+    }
 
     std::memcpy(_data, &data_[static_cast<std::vector<byte_t>::size_type>(position_ - data_.begin())], _length);
     position_ += static_cast<std::vector<byte_t>::difference_type>(_length);
@@ -94,7 +98,7 @@ bool deserializer::deserialize(uint8_t* _data, std::size_t _length) {
     return true;
 }
 
-bool deserializer::deserialize(std::string& _target, std::size_t _length) {
+bool deserializer::deserialize(std::string& _target, size_t _length) {
     if (_length > remaining_ || _length > _target.capacity()) {
         return false;
     }
@@ -106,8 +110,9 @@ bool deserializer::deserialize(std::string& _target, std::size_t _length) {
 }
 
 bool deserializer::deserialize(std::vector<uint8_t>& _value) {
-    if (_value.capacity() > remaining_)
+    if (_value.capacity() > remaining_) {
         return false;
+    }
 
     _value.assign(position_, position_ + static_cast<std::vector<byte_t>::difference_type>(_value.capacity()));
     position_ += static_cast<std::vector<byte_t>::difference_type>(_value.capacity());
@@ -116,18 +121,20 @@ bool deserializer::deserialize(std::vector<uint8_t>& _value) {
     return true;
 }
 
-bool deserializer::look_ahead(std::size_t _index, uint8_t& _value) const {
-    if (_index > remaining_)
+bool deserializer::look_ahead(size_t _index, uint8_t& _value) const {
+    if (_index > remaining_) {
         return false;
+    }
 
     _value = *(position_ + static_cast<std::vector<byte_t>::difference_type>(_index));
 
     return true;
 }
 
-bool deserializer::look_ahead(std::size_t _index, uint16_t& _value) const {
-    if (_index + 1 > remaining_)
+bool deserializer::look_ahead(size_t _index, uint16_t& _value) const {
+    if (_index + 1 > remaining_) {
         return false;
+    }
 
     std::vector<uint8_t>::iterator i = position_ + static_cast<std::vector<byte_t>::difference_type>(_index);
     _value = bithelper::read_uint16_be(&(*i));
@@ -135,9 +142,10 @@ bool deserializer::look_ahead(std::size_t _index, uint16_t& _value) const {
     return true;
 }
 
-bool deserializer::look_ahead(std::size_t _index, uint32_t& _value) const {
-    if (_index + 3 > remaining_)
+bool deserializer::look_ahead(size_t _index, uint32_t& _value) const {
+    if (_index + 3 > remaining_) {
         return false;
+    }
 
     std::vector<uint8_t>::const_iterator i = position_ + static_cast<std::vector<byte_t>::difference_type>(_index);
     _value = bithelper::read_uint32_be(&(*i));
@@ -160,7 +168,7 @@ std::shared_ptr<message_impl> deserializer::deserialize_message() {
     }
 }
 
-void deserializer::set_data(const byte_t* _data, std::size_t _length) {
+void deserializer::set_data(const byte_t* _data, size_t _length) {
     if (0 != _data) {
         data_.assign(_data, _data + _length);
         position_ = data_.begin();
@@ -179,18 +187,19 @@ void deserializer::set_data(const std::vector<byte_t>& _data) {
     remaining_ = data_.size();
 }
 
-void deserializer::append_data(const byte_t* _data, std::size_t _length) {
+void deserializer::append_data(const byte_t* _data, size_t _length) {
     std::vector<byte_t>::difference_type offset = (position_ - data_.begin());
     data_.insert(data_.end(), _data, _data + _length);
     position_ = data_.begin() + offset;
     remaining_ += _length;
 }
 
-void deserializer::drop_data(std::size_t _length) {
-    if (position_ + static_cast<std::vector<byte_t>::difference_type>(_length) < data_.end())
+void deserializer::drop_data(size_t _length) {
+    if (position_ + static_cast<std::vector<byte_t>::difference_type>(_length) < data_.end()) {
         position_ += static_cast<std::vector<byte_t>::difference_type>(_length);
-    else
+    } else {
         position_ = data_.end();
+    }
 }
 
 void deserializer::reset() {

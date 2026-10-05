@@ -25,15 +25,16 @@
 namespace vsomeip_v3 {
 namespace tp {
 
-tp_message::tp_message(const byte_t* const _data, std::uint32_t _data_length, std::uint32_t _max_message_size) :
+tp_message::tp_message(const byte_t* const _data, uint32_t _data_length, uint32_t _max_message_size) :
     timepoint_creation_(std::chrono::steady_clock::now()), max_message_size_(_max_message_size), current_message_size_(0),
-    last_segment_received_(false) {
+    last_segment_received_(false), header_received_(false) {
     if (_data_length < VSOMEIP_FULL_HEADER_SIZE + VSOMEIP_TP_HEADER_SIZE) {
         VSOMEIP_ERROR_P << "Received too short SOME/IP-TP message " << get_message_id(_data, _data_length);
         return;
     }
     // copy header
     message_.insert(message_.end(), _data, _data + VSOMEIP_FULL_HEADER_SIZE);
+    header_received_ = true;
     // remove TP flag
     message_[VSOMEIP_MESSAGE_TYPE_POS] = static_cast<byte_t>(tp::tp_flag_unset(message_[VSOMEIP_MESSAGE_TYPE_POS]));
 
@@ -56,9 +57,14 @@ tp_message::tp_message(const byte_t* const _data, std::uint32_t _data_length, st
     }
 }
 
-bool tp_message::add_segment(const byte_t* const _data, std::uint32_t _data_length) {
+bool tp_message::add_segment(const byte_t* const _data, uint32_t _data_length) {
     if (_data_length < VSOMEIP_FULL_HEADER_SIZE + VSOMEIP_TP_HEADER_SIZE) {
         VSOMEIP_ERROR_P << "Received too short SOME/IP-TP message " << get_message_id(_data, _data_length);
+        return false;
+    }
+    if (!header_received_) {
+        VSOMEIP_ERROR_P << "Received segment for a SOME/IP-TP message whose header was never received. "
+                        << "The message can't be completed anymore: " << get_message_id(_data, _data_length);
         return false;
     }
     bool ret = false;
@@ -120,7 +126,7 @@ bool tp_message::add_segment(const byte_t* const _data, std::uint32_t _data_leng
                         message_.insert(message_.end(), &_data[VSOMEIP_TP_PAYLOAD_POS] + ((seg_prev->end_ + 1) - seg_current->start_),
                                         &_data[VSOMEIP_TP_PAYLOAD_POS] + its_segment_size);
                         // update start of current segment
-                        const std::uint32_t current_end = seg_current->end_;
+                        const uint32_t current_end = seg_current->end_;
                         segments_.erase(seg_current);
                         segments_.emplace(segment_t(seg_prev->end_ + 1, current_end));
                         current_message_size_ += current_end - seg_prev->end_;
@@ -144,7 +150,7 @@ bool tp_message::add_segment(const byte_t* const _data, std::uint32_t _data_leng
                         std::memcpy(&message_[VSOMEIP_FULL_HEADER_SIZE + its_offset], &_data[VSOMEIP_TP_PAYLOAD_POS],
                                     seg_next->start_ - its_offset);
                         // update current segment length to match size of memory
-                        std::uint32_t current_start = seg_current->start_;
+                        uint32_t current_start = seg_current->start_;
                         segments_.erase(seg_current);
                         segments_.emplace(segment_t(current_start, seg_next->start_ - 1));
                         current_message_size_ += seg_next->start_ - current_start;
@@ -158,14 +164,26 @@ bool tp_message::add_segment(const byte_t* const _data, std::uint32_t _data_leng
                                       << get_message_id(_data, _data_length) << "previous segment end: " << seg_prev->end_
                                       << " this segment start: " << seg_current->start_;
                     const length_t its_corrected_offset = seg_prev->end_ + 1;
-                    std::memcpy(&message_[VSOMEIP_FULL_HEADER_SIZE + its_corrected_offset],
-                                &_data[VSOMEIP_TP_PAYLOAD_POS] + its_corrected_offset - its_offset,
-                                seg_next->start_ - its_corrected_offset);
-                    // update current segment length to match size of memory
-                    std::uint32_t current_end = seg_current->end_;
-                    segments_.erase(seg_current);
-                    segments_.emplace(segment_t(seg_prev->end_ + 1, current_end));
-                    current_message_size_ += current_end - seg_prev->end_;
+                    if (seg_current->end_ < its_corrected_offset) {
+                        // the segment is fully overlapped by the previous one -> ignore it
+                        VSOMEIP_WARNING_P << "Received segment that fully overlaps with previous segment "
+                                          << get_message_id(_data, _data_length) << " going to ignore segment";
+                        segments_.erase(seg_current);
+                    } else {
+                        // Only copy the bytes that actually belong to this segment. The length
+                        // must be bounded by the current segment's own end, not by the next
+                        // segment's start, because this branch explicitly allows a gap before
+                        // the next segment. Using seg_next->start_ here would read past the
+                        // received datagram buffer.
+                        std::memcpy(&message_[VSOMEIP_FULL_HEADER_SIZE + its_corrected_offset],
+                                    &_data[VSOMEIP_TP_PAYLOAD_POS] + its_corrected_offset - its_offset,
+                                    (seg_current->end_ + 1) - its_corrected_offset);
+                        // update current segment length to match size of memory
+                        const uint32_t current_end = seg_current->end_;
+                        segments_.erase(seg_current);
+                        segments_.emplace(segment_t(seg_prev->end_ + 1, current_end));
+                        current_message_size_ += current_end - seg_prev->end_;
+                    }
                 } else {
                     // this segment starts before the end of the previous and
                     // ends after the start of the next segment and would
@@ -190,7 +208,7 @@ bool tp_message::add_segment(const byte_t* const _data, std::uint32_t _data_leng
             }
             if (last_segment_received_) {
                 // check if all segments are present
-                std::uint32_t last_end = std::numeric_limits<std::uint32_t>::max();
+                uint32_t last_end = std::numeric_limits<uint32_t>::max();
                 bool complete(true);
                 for (const auto& seg : segments_) {
                     if (last_end + 1 != seg.start_) {
@@ -222,7 +240,7 @@ std::chrono::steady_clock::time_point tp_message::get_creation_time() const {
     return timepoint_creation_;
 }
 
-std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t _data_length) {
+std::string tp_message::get_message_id(const byte_t* const _data, uint32_t _data_length) {
     std::stringstream ss;
     if (_data_length >= VSOMEIP_FULL_HEADER_SIZE) {
 
@@ -245,7 +263,7 @@ std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t 
     return ss.str();
 }
 
-bool tp_message::check_lengths(const byte_t* const _data, std::uint32_t _data_length, length_t _segment_size, bool _more_fragments) {
+bool tp_message::check_lengths(const byte_t* const _data, uint32_t _data_length, length_t _segment_size, bool _more_fragments) {
 
     const length_t its_length = bithelper::read_uint32_be(&_data[VSOMEIP_LENGTH_POS_MIN]);
     const tp_header_t its_tp_header = bithelper::read_uint32_be(&_data[VSOMEIP_TP_HEADER_POS_MIN]);
@@ -261,6 +279,12 @@ bool tp_message::check_lengths(const byte_t* const _data, std::uint32_t _data_le
     } else if (_segment_size != its_length - VSOMEIP_TP_HEADER_SIZE - (VSOMEIP_FULL_HEADER_SIZE - VSOMEIP_SOMEIP_HEADER_SIZE)) {
         VSOMEIP_ERROR_P << "Segment size doesn't align with header length field" << get_message_id(_data, _data_length)
                         << "segment size: " << _segment_size << " data: " << _data_length << " header: " << its_length;
+        ret = false;
+    } else if (_segment_size == 0) {
+        // A zero-length segment would create the inverted/underflowed segment_t
+        // (offset, offset - 1), breaking the "segments never overlap and start_ <= end_"
+        VSOMEIP_ERROR_P << "Zero-length segment " << get_message_id(_data, _data_length) << " data: " << _data_length
+                        << " header: " << its_length;
         ret = false;
     } else if (_segment_size > tp::tp_max_segment_length_) {
         VSOMEIP_ERROR_P << "Segment exceeds allowed size " << get_message_id(_data, _data_length) << "segment size: " << _segment_size

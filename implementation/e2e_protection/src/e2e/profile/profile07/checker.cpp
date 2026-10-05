@@ -67,10 +67,11 @@ bool profile_07_checker::verify_counter(instance_t _instance, uint32_t _received
     auto find_counter = counter_.find(_instance);
     if (find_counter != counter_.end()) {
         uint32_t its_counter = find_counter->second;
-        if (its_counter < _received_counter)
+        if (its_counter < _received_counter) {
             its_delta = uint32_t(_received_counter - its_counter);
-        else
+        } else {
             its_delta = uint32_t(uint32_t(0xffffffff) - its_counter + _received_counter);
+        }
 
         find_counter->second = _received_counter;
     } else {

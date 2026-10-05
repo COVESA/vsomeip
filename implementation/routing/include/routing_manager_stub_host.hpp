@@ -11,7 +11,12 @@
 #include <vsomeip/vsomeip_sec.h>
 #include "types.hpp"
 
+#include <memory>
+
 namespace vsomeip_v3 {
+
+class policy_manager_impl;
+class security;
 
 struct debounce_filter_impl_t;
 class endpoint_manager_impl;
@@ -53,7 +58,7 @@ public:
     virtual void on_unsubscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                     remote_subscription_id_t _unsubscription_id) = 0;
 
-    virtual void on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable,
+    virtual bool on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable,
                             client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _status_check = 0,
                             bool _is_from_remote = false) = 0;
 
@@ -92,10 +97,22 @@ public:
 
     virtual std::vector<protocol::service> get_requested_services(client_t _client) const = 0;
 
+    /// @brief Has _client requested the concrete instance [_service._instance]?
+    ///
+    /// Concrete-only lookup in the host's requested_services_ (no ANY_SERVICE / ANY_INSTANCE widening).
+    virtual bool has_client_requested(client_t _client, service_t _service, instance_t _instance) = 0;
+
+    /// @brief Collect all clients requesting [_service._instance], unioned with the
+    /// [_service.ANY_INSTANCE] wildcard, filtered by _major (ANY_MAJOR = every major).
+    virtual std::set<client_t> collect_requesters(service_t _service, instance_t _instance, major_version_t _major) = 0;
+
     virtual bool handle_service_rerequest(client_t _client, service_t _service, instance_t _instance, major_version_t _major) = 0;
 
     virtual void remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,
                                          instance_t _instance = ANY_INSTANCE) = 0;
+
+    virtual std::shared_ptr<policy_manager_impl> get_policy_manager() const = 0;
+    virtual std::shared_ptr<security> get_security() const = 0;
 };
 
 } // namespace vsomeip_v3

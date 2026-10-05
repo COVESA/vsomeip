@@ -44,7 +44,7 @@ public:
     virtual bool is_reliable() const = 0;
     virtual bool is_local() const = 0;
 
-    virtual std::uint16_t get_local_port() const = 0;
+    virtual uint16_t get_local_port() const = 0;
 
     virtual void print_status() = 0;
     virtual size_t get_queue_size() const = 0;

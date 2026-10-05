@@ -31,7 +31,7 @@ TEST_F(start_stop_start_test_manager, start_stop_start_with_one_application) {
             shared_memory_master_t<start_stop_start::state_t>(std::string(start_stop_start::TEST_NAME), start_stop_start::N_COMPONENTS_T1);
 
     auto& app1_queue = shm.get_queue(start_stop_start::APP1_IDX);
-    int receiver_timeout_ms = 10000;
+    size_t receiver_timeout_ms = 10000;
 
     process_group_t group;
     group.define_type("application1", "./start_stop_start_test_app1",
@@ -77,7 +77,7 @@ TEST_F(start_stop_start_test_manager, start_stop_start_with_two_application) {
 
     auto& app1_queue = shm.get_queue(start_stop_start::APP1_IDX);
     auto& app2_queue = shm.get_queue(start_stop_start::APP2_IDX);
-    int receiver_timeout_ms = 10000;
+    size_t receiver_timeout_ms = 10000;
 
     process_group_t group;
     group.define_type("application1", "./start_stop_start_test_app1",

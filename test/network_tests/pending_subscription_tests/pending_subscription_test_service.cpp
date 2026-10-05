@@ -160,7 +160,7 @@ public:
         stop();
     }
 
-    void subscription_handler_async(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed,
+    void subscription_handler_async(vsomeip::client_t _client, uint32_t _uid, uint32_t _gid, bool _subscribed,
                                     const std::function<void(const bool)>& _cbk) {
         (void)_uid;
         (void)_gid;
@@ -240,7 +240,7 @@ public:
         }
     }
 
-    bool subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
+    bool subscription_handler(vsomeip::client_t _client, uint32_t _uid, uint32_t _gid, bool _subscribed) {
         (void)_subscribed;
         (void)_uid;
         (void)_gid;

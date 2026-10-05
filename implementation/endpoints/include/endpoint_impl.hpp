@@ -21,8 +21,8 @@ namespace vsomeip_v3 {
 class boardnet_endpoint_host;
 class boardnet_routing_host;
 
-std::string make_buffer_dump(const std::string& _local, const std::string& _remote, std::size_t _offset, uint32_t _current_message_size,
-                             std::size_t _remaining_bytes, const byte_t* _pdu, std::size_t _pdu_size);
+std::string make_buffer_dump(const std::string& _local, const std::string& _remote, size_t _offset, uint32_t _current_message_size,
+                             size_t _remaining_bytes, const byte_t* _pdu, size_t _pdu_size);
 
 template<typename Protocol>
 class endpoint_impl : public boardnet_endpoint {
@@ -39,7 +39,7 @@ public:
     void add_default_target(service_t, const std::string&, uint16_t) override;
     void remove_default_target(service_t) override;
 
-    virtual std::uint16_t get_local_port() const = 0;
+    virtual uint16_t get_local_port() const = 0;
     virtual bool is_reliable() const = 0;
 
     virtual void print_status() = 0;
@@ -66,7 +66,7 @@ protected:
     std::weak_ptr<boardnet_endpoint_host> endpoint_host_;
     std::weak_ptr<boardnet_routing_host> routing_host_;
 
-    std::uint32_t max_message_size_;
+    uint32_t max_message_size_;
 
     std::atomic<bool> sending_blocked_;
 

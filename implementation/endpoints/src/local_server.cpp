@@ -211,7 +211,7 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                     ss << " @ " << peer_endpoint.address() << ":" << peer_endpoint.port();
                 } else {
                     vsomeip_sec_client_t sec_client{};
-                    _socket->update(sec_client, *configuration_);
+                    _socket->update(sec_client, *configuration_, nullptr);
                     ss << " @ " << sec_client.user << "/" << sec_client.group;
                     if (!_routing_address.is_unspecified() && _routing_port != ILLEGAL_PORT) {
                         ss << " (guest: " << _routing_address.to_string() << ":" << _routing_port << ")";

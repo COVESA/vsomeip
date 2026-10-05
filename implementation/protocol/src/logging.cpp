@@ -74,8 +74,6 @@ char const* to_string(id_e _id) {
         return "UPDATE_SECURITY_POLICY_INT_ID";
     case protocol::id_e::EXPIRE_ID:
         return "EXPIRE_ID";
-    case protocol::id_e::SUSPEND_ID:
-        return "SUSPEND_ID";
     case protocol::id_e::CONFIG_ID:
         return "CONFIG_ID";
     case protocol::id_e::UNKNOWN_ID:

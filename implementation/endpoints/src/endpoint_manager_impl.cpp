@@ -187,9 +187,11 @@ void endpoint_manager_impl::find_or_create_remote_client(service_t _service, ins
 
 void endpoint_manager_impl::is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major,
                                                     minor_version_t _minor, const boost::asio::ip::address& _reliable_address,
-                                                    uint16_t _reliable_port, bool* _reliable_known,
+                                                    uint16_t _reliable_port, bool& _reliable_known,
                                                     const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
-                                                    bool* _unreliable_known) const {
+                                                    bool& _unreliable_known, bool& _drop_offer) const {
+
+    _drop_offer = false;
 
     std::scoped_lock its_lock(endpoint_mutex_);
     if (auto found_si = remote_service_info_.find({_service, _instance}); found_si != remote_service_info_.end()) {
@@ -198,26 +200,40 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
             if (auto found_reliable = found_si->second.find(true); found_reliable != found_si->second.end()) {
                 its_definition = found_reliable->second;
                 if (its_definition->get_address() == _reliable_address && its_definition->get_port() == _reliable_port) {
-                    *_reliable_known = true;
+                    _reliable_known = true;
                 } else {
-                    VSOMEIP_WARNING << "Reliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
-                                    << static_cast<std::uint32_t>(_major) << "." << _minor
-                                    << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
-                                    << " new: " << _reliable_address.to_string() << ":" << _reliable_port;
+                    VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                      << static_cast<uint32_t>(_major) << "." << _minor
+                                      << "] with different endpoint: " << _reliable_address.to_string() << ":" << _reliable_port << ":"
+                                      << its_definition->is_reliable() << ", dropping the offer";
+                    _drop_offer = true;
                 }
+            } else {
+                VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                  << static_cast<uint32_t>(_major) << "." << _minor
+                                  << "] with different endpoint: " << _reliable_address.to_string() << ":" << _reliable_port
+                                  << ", dropping the offer";
+                _drop_offer = true;
             }
         }
         if (_unreliable_port != ILLEGAL_PORT) {
             if (auto found_unreliable = found_si->second.find(false); found_unreliable != found_si->second.end()) {
                 its_definition = found_unreliable->second;
                 if (its_definition->get_address() == _unreliable_address && its_definition->get_port() == _unreliable_port) {
-                    *_unreliable_known = true;
+                    _unreliable_known = true;
                 } else {
-                    VSOMEIP_WARNING << "Unreliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
-                                    << static_cast<std::uint32_t>(_major) << "." << _minor
-                                    << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
-                                    << " new: " << _unreliable_address.to_string() << ":" << _unreliable_port;
+                    VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                      << static_cast<uint32_t>(_major) << "." << _minor
+                                      << "] with different endpoint: " << _unreliable_address.to_string() << ":" << _unreliable_port << ":"
+                                      << its_definition->is_reliable() << ", dropping the offer";
+                    _drop_offer = true;
                 }
+            } else {
+                VSOMEIP_WARNING_P << "Received offer for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                  << static_cast<uint32_t>(_major) << "." << _minor
+                                  << "] with different endpoint: " << _unreliable_address.to_string() << ":" << _unreliable_port
+                                  << ", dropping the offer";
+                _drop_offer = true;
             }
         }
     }
@@ -241,8 +257,9 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
         }
     }
 
-    if (must_report)
+    if (must_report && its_info) {
         router_->service_endpoint_connected(_service, _instance, its_info->get_major(), its_info->get_minor(), its_endpoint);
+    }
 }
 
 void endpoint_manager_impl::add_remote_service_info(service_t _service, instance_t _instance,
@@ -269,7 +286,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
         }
     }
 
-    if (must_report) {
+    if (must_report && its_info) {
         router_->service_endpoint_connected(_service, _instance, its_info->get_major(), its_info->get_minor(), its_unreliable);
         router_->service_endpoint_connected(_service, _instance, its_info->get_major(), its_info->get_minor(), its_reliable);
     }
@@ -523,8 +540,9 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(service_t _service
         }
 
         auto its_udp_server_endpoint = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_endpoint);
-        if (its_udp_server_endpoint)
+        if (its_udp_server_endpoint) {
             its_udp_server_endpoint->join(_address.to_string());
+        }
     } else {
         VSOMEIP_ERROR << "Could not find/create multicast endpoint!";
     }
@@ -555,11 +573,13 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
     }
     if (its_multicast_endpoint) {
         auto its_udp_server_endpoint = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_multicast_endpoint);
-        if (its_udp_server_endpoint)
+        if (its_udp_server_endpoint) {
             its_udp_server_endpoint->leave(its_address);
+        }
 
-        if (!is_used_endpoint(its_multicast_endpoint.get()))
+        if (!is_used_endpoint(its_multicast_endpoint.get())) {
             its_multicast_endpoint->stop(false);
+        }
     }
 }
 
@@ -595,7 +615,7 @@ void endpoint_manager_impl::print_status() const {
             its_server_endpoints = server_endpoints_;
         }
         VSOMEIP_INFO << "status start remote client endpoints:";
-        std::uint32_t num_remote_client_endpoints(0);
+        uint32_t num_remote_client_endpoints(0);
         // normal endpoints
         for (const auto& its_address : its_client_endpoints) {
             for (const auto& its_port : its_address.second) {
@@ -610,7 +630,7 @@ void endpoint_manager_impl::print_status() const {
         VSOMEIP_INFO << "status end remote client endpoints: " << num_remote_client_endpoints;
 
         VSOMEIP_INFO << "status start server endpoints:";
-        std::uint32_t num_server_endpoints(1);
+        uint32_t num_server_endpoints(1);
 
         // server endpoints
         for (const auto& p : its_server_endpoints) {
@@ -801,7 +821,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
 }
 
 instance_t endpoint_manager_impl::find_instance(service_t _service, boardnet_endpoint* const _endpoint) const {
-    instance_t its_instance(0xFFFF);
+    instance_t its_instance = ANY_INSTANCE;
     std::scoped_lock its_lock(endpoint_mutex_);
     auto found_service = service_instances_.find(_service);
     if (found_service != service_instances_.end()) {
@@ -814,7 +834,7 @@ instance_t endpoint_manager_impl::find_instance(service_t _service, boardnet_end
 }
 
 instance_t endpoint_manager_impl::find_instance_multicast(service_t _service, const boost::asio::ip::address& _sender) const {
-    instance_t its_instance(0xFFFF);
+    instance_t its_instance = ANY_INSTANCE;
     std::scoped_lock its_lock(endpoint_mutex_);
     auto found_service = service_instances_multicast_.find(_service);
     if (found_service != service_instances_multicast_.end()) {
@@ -930,7 +950,7 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _en
 }
 
 bool endpoint_manager_impl::on_bind_error(std::shared_ptr<boardnet_endpoint> _endpoint, const boost::asio::ip::address& _remote_address,
-                                          std::uint16_t _remote_port, uint16_t& _local_port) {
+                                          uint16_t _remote_port, uint16_t& _local_port) {
 
     std::scoped_lock its_ep_lock{endpoint_mutex_};
     for (auto& [its_si, its_reliability_map] : remote_services_) {
@@ -959,8 +979,9 @@ void endpoint_manager_impl::get_used_client_ports(const boost::asio::ip::address
     auto find_address = used_client_ports_.find(_remote_address);
     if (find_address != used_client_ports_.end()) {
         auto find_port = find_address->second.find(_remote_port);
-        if (find_port != find_address->second.end())
+        if (find_port != find_address->second.end()) {
             _used_ports = find_port->second;
+        }
     }
 }
 
@@ -980,8 +1001,9 @@ void endpoint_manager_impl::release_used_client_port(const boost::asio::ip::addr
         auto find_port = find_address->second.find(_remote_port);
         if (find_port != find_address->second.end()) {
             auto find_reliable = find_port->second.find(_reliable);
-            if (find_reliable != find_port->second.end())
+            if (find_reliable != find_port->second.end()) {
                 find_reliable->second.erase(_local_port);
+            }
         }
     }
 }
@@ -1124,9 +1146,10 @@ void endpoint_manager_impl::log_client_states() const {
             for (const auto& its_reliability : its_port.second) {
                 for (const auto& its_partition : its_reliability.second) {
                     size_t its_queue_size = its_partition.second->get_queue_size();
-                    if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE)
+                    if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE) {
                         its_client_queue_sizes.push_back(
                                 std::make_pair(std::make_tuple(its_address.first, its_port.first, its_reliability.first), its_queue_size));
+                    }
                 }
             }
         }
@@ -1141,12 +1164,14 @@ void endpoint_manager_impl::log_client_states() const {
     for (size_t i = 0; i < its_max; i++) {
         its_log << std::get<0>(its_client_queue_sizes[i].first).to_string() << ":" << std::get<1>(its_client_queue_sizes[i].first) << "("
                 << (std::get<2>(its_client_queue_sizes[i].first) ? "tcp" : "udp") << "):" << its_client_queue_sizes[i].second;
-        if (i < its_max - 1)
+        if (i < its_max - 1) {
             its_log << ", ";
+        }
     }
 
-    if (its_log.str().length() > 0)
+    if (its_log.str().length() > 0) {
         VSOMEIP_INFO << "ECQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
+    }
 }
 
 void endpoint_manager_impl::log_server_states() const {
@@ -1162,8 +1187,9 @@ void endpoint_manager_impl::log_server_states() const {
     for (const auto& its_port : its_server_endpoints) {
         for (const auto& its_reliability : its_port.second) {
             size_t its_queue_size = its_reliability.second->get_queue_size();
-            if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE)
+            if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE) {
                 its_client_queue_sizes.push_back(std::make_pair(std::make_pair(its_port.first, its_reliability.first), its_queue_size));
+            }
         }
     }
 
@@ -1177,12 +1203,14 @@ void endpoint_manager_impl::log_server_states() const {
     for (size_t i = 0; i < its_max; i++) {
         its_log << its_client_queue_sizes[i].first.first << "(" << (its_client_queue_sizes[i].first.second ? "tcp" : "udp")
                 << "):" << its_client_queue_sizes[i].second;
-        if (i < its_max - 1)
+        if (i < its_max - 1) {
             its_log << ", ";
+        }
     }
 
-    if (its_log.str().length() > 0)
+    if (its_log.str().length() > 0) {
         VSOMEIP_INFO << "ESQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
+    }
 }
 
 void endpoint_manager_impl::add_multicast_option(const multicast_option_t& _option) {
@@ -1248,15 +1276,18 @@ bool endpoint_manager_impl::is_used_endpoint(boardnet_endpoint* const _endpoint)
     {
         std::scoped_lock its_lock(endpoint_mutex_);
         // Do we still use the endpoint to offer a service instance?
-        for (const auto& si : service_instances_)
-            if (si.second.count(_endpoint) > 0)
+        for (const auto& si : service_instances_) {
+            if (si.second.count(_endpoint) > 0) {
                 return true;
+            }
+        }
     }
 
     // Do we still use the endpoint to join a multicast address=
     auto its_udp_server_endpoint = dynamic_cast<udp_server_endpoint_impl*>(_endpoint);
-    if (its_udp_server_endpoint)
+    if (its_udp_server_endpoint) {
         return its_udp_server_endpoint->is_joining();
+    }
 
     return false;
 }
@@ -1527,13 +1558,6 @@ bool endpoint_manager_impl::get_guest(client_t _client, boost::asio::ip::address
         }
     }
     return false;
-}
-
-void endpoint_manager_impl::broadcast_locally(protocol::simple_command_data const& _command) {
-    std::scoped_lock its_lock{routing_endpoint_mtx_};
-    for (auto const& [id, ep] : routing_endpoints_) {
-        ep->send(_command);
-    }
 }
 
 } // namespace vsomeip_v3

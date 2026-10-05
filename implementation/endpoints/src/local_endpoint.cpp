@@ -9,12 +9,14 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
+#include "../../security/include/security.hpp"
 #include "../../utility/include/is_value.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../protocol/include/command_types.hpp"
 #include "../../protocol/include/serialize.hpp"
 #include "../../protocol/include/deserialize.hpp"
 #include "../../protocol/include/logging.hpp"
+#include "../../tracing/include/header.hpp"
 #include "../../tracing/include/connector_impl.hpp"
 #include "logger_ext.hpp"
 
@@ -228,6 +230,35 @@ bool local_endpoint::send(T const& _in, [[maybe_unused]] std::shared_ptr<trace::
             }
         }
     }
+    send_unlock();
+    return true;
+}
+
+bool local_endpoint::send(command_batch const& _batch) {
+    if (_batch.buffer_.empty()) {
+        return true;
+    }
+    std::scoped_lock const lock{mutex_};
+    auto const wire_size = _batch.buffer_.size();
+    if (is_flushing_) {
+        VSOMEIP_WARNING_P << "Dropping command batch of size: " << wire_size << ", due to the current state: " << status_unlock();
+        return false;
+    }
+    if (std::numeric_limits<size_t>::max() - wire_size < send_queue_.size()) {
+        VSOMEIP_ERROR_P << "Dropping command batch of size: " << wire_size << ", to avoid buffer overflow, state: " << status_unlock();
+        return false;
+    }
+    if (queue_limit_ != QUEUE_SIZE_UNLIMITED && queue_limit_ - send_queue_.size() < wire_size) {
+        VSOMEIP_ERROR_P << "Dropping command batch of size: " << wire_size << ", because the queue limit (" << queue_limit_
+                        << ") would be exceeded, state: " << status_unlock();
+        return false;
+    }
+    if (max_message_size_ < _batch.largest_command_) {
+        VSOMEIP_ERROR_P << "Dropping command batch because a command size (" << _batch.largest_command_ << ") exceeded the limit ("
+                        << max_message_size_ << "), state: " << status_unlock();
+        return false;
+    }
+    send_queue_.insert(send_queue_.end(), _batch.buffer_.begin(), _batch.buffer_.end());
     send_unlock();
     return true;
 }
@@ -566,27 +597,37 @@ bool local_endpoint::is_allowed() {
     if (!config) {
         return end();
     }
-    if (!socket_->update(peer_data_.sec_client_, *config)) {
+    auto routing = routing_host_.lock();
+    if (!routing) {
+        VSOMEIP_ERROR_P << "is_allowed: routing host unavailable, rejecting client 0x" << hex4(peer_data_.id_) << status_unlock();
+        return end();
+    }
+    auto its_pm = routing->get_policy_manager();
+    auto its_sec = routing->get_security();
+
+    if (!socket_->update(peer_data_.sec_client_, *config, its_sec.get())) {
         VSOMEIP_WARNING_P << "Escalating after a failed sec_client update, socket > " << status_unlock();
         return end();
     }
     if (config->is_security_enabled()) {
-        if (!config->check_routing_credentials(peer_data_.id_, &peer_data_.sec_client_)) {
-            VSOMEIP_WARNING_P << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x" << hex4(peer_data_.id_)
-                              << " uid/gid= " << peer_data_.sec_client_.user << "/" << peer_data_.sec_client_.group
-                              << " because passed credentials do not match with routing manager credentials! " << status_unlock();
+        if (const bool is_routing_host = (peer_data_.id_ == config->get_id(config->get_routing_host_name()));
+            !config->check_routing_credentials(peer_data_.id_, peer_data_.sec_client_)
+            || (is_routing_host && its_sec && VSOMEIP_SEC_OK != its_sec->authenticate_router(&peer_data_.sec_client_))) {
+            VSOMEIP_ERROR_P << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x" << hex4(peer_data_.id_)
+                            << " uid/gid= " << peer_data_.sec_client_.user << "/" << peer_data_.sec_client_.group
+                            << " because passed credentials do not match with routing manager credentials! " << status_unlock();
             return end();
         }
 
-        if (!config->get_policy_manager()->check_credentials(peer_data_.id_, &peer_data_.sec_client_)) {
-            VSOMEIP_WARNING_P << "vSomeIP Security: Client 0x" << hex4(own_) << " received client credentials from client 0x"
-                              << hex4(peer_data_.id_) << " which violates the security policy : uid/gid=" << peer_data_.sec_client_.user
-                              << "/" << peer_data_.sec_client_.group;
+        if (!its_pm->check_credentials(peer_data_.id_, &peer_data_.sec_client_)) {
+            VSOMEIP_ERROR_P << "vSomeIP Security: Client 0x" << hex4(own_) << " received client credentials from client 0x"
+                            << hex4(peer_data_.id_) << " which violates the security policy : uid/gid=" << peer_data_.sec_client_.user
+                            << "/" << peer_data_.sec_client_.group;
             return end();
         }
     } else {
-        config->get_policy_manager()->store_client_to_sec_client_mapping(peer_data_.id_, &peer_data_.sec_client_);
-        config->get_policy_manager()->store_sec_client_to_client_mapping(&peer_data_.sec_client_, peer_data_.id_);
+        its_pm->store_client_to_sec_client_mapping(peer_data_.id_, &peer_data_.sec_client_);
+        its_pm->store_sec_client_to_client_mapping(&peer_data_.sec_client_, peer_data_.id_);
     }
 
     // For UDS clients that advertised a routing address/port in assign_client_command,
@@ -659,7 +700,7 @@ vsomeip_sec_client_t local_endpoint::get_sec_client() const {
     return peer_data_.sec_client_;
 }
 
-std::uint16_t local_endpoint::get_local_port() const {
+uint16_t local_endpoint::get_local_port() const {
     return socket_->own_port();
 }
 boost::asio::ip::tcp::endpoint local_endpoint::peer_endpoint() const {

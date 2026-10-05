@@ -51,7 +51,7 @@ void local_socket_tcp_impl::stop(bool _force) {
     VSOMEIP_INFO_P << name_ << ", force: " << (_force ? "true" : "false");
 #if defined(__linux__) || defined(__QNX__)
     boost::system::error_code its_error;
-    io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
+    io_control_operation<size_t> send_buffer_size_cmd(TIOCOUTQ);
 
     uint32_t retry_count(0);
     while (true) {
@@ -166,7 +166,8 @@ std::string local_socket_tcp_impl::to_string() const {
     return name_ + ", fd: " + std::to_string(socket_->native_handle());
 }
 
-bool local_socket_tcp_impl::update(vsomeip_sec_client_t& _client, configuration const& _configuration) {
+bool local_socket_tcp_impl::update(vsomeip_sec_client_t& _client, [[maybe_unused]] configuration const& _configuration,
+                                   security const* _security) {
     auto address = peer_endpoint_.address();
     auto port = peer_endpoint_.port();
 
@@ -181,7 +182,9 @@ bool local_socket_tcp_impl::update(vsomeip_sec_client_t& _client, configuration 
     }
     _client.port = htons(port);
 
-    _configuration.get_security()->sync_client(&_client);
+    if (_security) {
+        _security->sync_client(&_client);
+    }
     return true;
 }
 port_t local_socket_tcp_impl::own_port() const {

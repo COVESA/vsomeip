@@ -34,6 +34,11 @@ public:
                                uint16_t _remote_port, uint16_t& _local_port) = 0;
     virtual client_t get_client() const = 0;
     virtual std::string get_client_host() const = 0;
+    /**
+     * @brief Find instance for a given service+endpoint pair
+     *
+     * @return instance_t the instance id, or ANY_INSTANCE if not found
+     */
     virtual instance_t find_instance(service_t _service, boardnet_endpoint* const _endpoint) const = 0;
     virtual void add_multicast_option(const multicast_option_t& _option) = 0;
 };

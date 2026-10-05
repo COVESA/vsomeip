@@ -11,37 +11,6 @@
 #include "common/test_main.hpp"
 #include "memory_test_client.hpp"
 
-void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& stop_checking_) {
-    while (!stop_checking_) {
-        std::this_thread::sleep_for(MEMORY_CHECKER_INTERVAL);
-
-        static const std::uint32_t its_pagesize = static_cast<std::uint32_t>(getpagesize() / 1024);
-
-        std::FILE* its_file = std::fopen("/proc/self/statm", "r");
-        if (!its_file) {
-            VSOMEIP_ERROR << "check_memory: couldn't open: errno " << errno;
-            return;
-        }
-        std::uint64_t its_size(0);
-        std::uint64_t its_rsssize(0);
-        std::uint64_t its_sharedpages(0);
-        std::uint64_t its_text(0);
-        std::uint64_t its_lib(0);
-        std::uint64_t its_data(0);
-        std::uint64_t its_dirtypages(0);
-
-        if (EOF
-            == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib,
-                           &its_data, &its_dirtypages)) {
-            VSOMEIP_ERROR << "check_memory: error reading: errno " << errno;
-        }
-        std::fclose(its_file);
-
-        test_memory_.push_back(its_rsssize * its_pagesize);
-        VSOMEIP_INFO << "logged client: " << its_rsssize * its_pagesize;
-    }
-}
-
 // Flag the desired event availability
 void memory_test_client::on_availability(vsomeip::service_t service_, vsomeip::instance_t instance_, bool is_available_) {
     if (is_available_ && service_ == MEMORY_SERVICE && instance_ == MEMORY_INSTANCE) {
@@ -54,19 +23,42 @@ void memory_test_client::on_availability(vsomeip::service_t service_, vsomeip::i
 void memory_test_client::on_message(const std::shared_ptr<vsomeip::message>& message_) {
     if (MEMORY_SERVICE == message_->get_service() && message_->get_method() <= MEMORY_EVENT + TEST_EVENT_NUMBER
         && message_->get_method() >= MEMORY_EVENT) {
-        auto its_runtime = vsomeip::runtime::get();
-        auto its_message = its_runtime->create_request(false);
-        its_message->set_service(message_->get_service());
-        its_message->set_instance(message_->get_instance());
-        its_message->set_method(message_->get_method());
-        its_message->set_interface_version(message_->get_interface_version());
-        its_message->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
-        its_message->set_payload(message_->get_payload());
-        _app->send(its_message);
-        std::scoped_lock lk(event_counter_mutex);
-        received_messages_counter++;
-        sec = std::chrono::system_clock::now();
+        uint64_t count{0};
+        {
+            std::scoped_lock lk(event_counter_mutex);
+            received_messages_counter++;
+            count = received_messages_counter;
+            sec = std::chrono::system_clock::now();
+        }
+        // Report progress back to the service so it can bound the amount of
+        // data in flight. Acking every ACK_INTERVAL messages (with only an
+        // 8-byte cumulative count) keeps the return channel light instead of
+        // echoing every full 4 KB payload back.
+        if (count % ACK_INTERVAL == 0) {
+            send_ack(count);
+        }
     }
+}
+
+void memory_test_client::send_ack(uint64_t received_count_) {
+    auto its_runtime = vsomeip::runtime::get();
+    auto its_message = its_runtime->create_request(false);
+    its_message->set_service(MEMORY_SERVICE);
+    its_message->set_instance(MEMORY_INSTANCE);
+    its_message->set_method(MEMORY_ACK_METHOD);
+    its_message->set_interface_version(MEMORY_MAJOR);
+    its_message->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
+
+    auto its_payload = its_runtime->create_payload();
+    std::vector<vsomeip::byte_t> data(sizeof(received_count_));
+    // Raw host-order copy of the counter; the service reads it back the same way
+    // in on_ack(). Both endpoints run on the same architecture in CI, so this
+    // loopback ack needs no byte-order conversion.
+    std::memcpy(data.data(), &received_count_, sizeof(received_count_));
+    its_payload->set_data(std::move(data));
+    its_message->set_payload(its_payload);
+
+    _app->send(its_message);
 }
 
 memory_test_client::memory_test_client(const char* app_name_, std::map<vsomeip::event_t, int> map_events_) :
@@ -93,6 +85,10 @@ void memory_test_client::send_request(std::atomic<bool>& stop_checking_) {
     // Only send the requests when the service availability is secured
     if (condition_availability.wait_for(lk, WAIT_AVAILABILITY, [this] { return availability; })) {
 
+        // Baseline captured while the app is warm and subscribed but before any
+        // events flow, so the memory evaluation measures growth under traffic.
+        baseline_rss_ = read_rss_kib();
+
         // Trigger the test
         auto its_message = vsomeip_utilities::create_standard_vsip_request(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_START_METHOD,
                                                                            MEMORY_MAJOR, vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
@@ -116,7 +112,7 @@ void memory_test_client::send_request(std::atomic<bool>& stop_checking_) {
         {
             std::scoped_lock lk(event_counter_mutex);
             current_counter = received_messages_counter;
-            timed_out = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - sec).count() > 10;
+            timed_out = (std::chrono::system_clock::now() - sec) > CONSUMER_IDLE_TIMEOUT;
         }
 
         uint64_t delta = current_counter - prev_counter;
@@ -133,7 +129,12 @@ void memory_test_client::send_request(std::atomic<bool>& stop_checking_) {
             stop_watchdog = true;
         }
     }
-    VSOMEIP_INFO << "received " << received_messages_counter;
+    uint64_t final_count{0};
+    {
+        std::scoped_lock lk(event_counter_mutex);
+        final_count = received_messages_counter;
+    }
+    VSOMEIP_INFO << "received " << final_count;
     stop_checking_ = true;
 }
 
@@ -145,7 +146,12 @@ void memory_test_client::stop_service() {
     auto its_message = vsomeip_utilities::create_standard_vsip_request(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_STOP_METHOD, MEMORY_MAJOR,
                                                                        vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
     _app->send(its_message);
-    VSOMEIP_INFO << "sending stop " << received_messages_counter;
+    uint64_t count{0};
+    {
+        std::scoped_lock lk(event_counter_mutex);
+        count = received_messages_counter;
+    }
+    VSOMEIP_INFO << "sending stop " << count;
 }
 
 memory_test_client::~memory_test_client() {
@@ -156,12 +162,12 @@ memory_test_client::~memory_test_client() {
 TEST(memory_tests, receive_messages) {
 
     // Test steps:
-    //      1: Start measuring memory load
-    //      2: Send requests for 20 different events
-    //      3: Wait for receiving all responses from service
-    //      4: Stop measuring load and evaluate load increase
-    //
-    // At the end evaluate if the threshold of 5% increase in memory load was not surpassed
+    //      1: Start sampling memory
+    //      2: Subscribe to 20 events and trigger the service (baseline captured
+    //         in send_request once the service is available)
+    //      3: Receive notifications, acking progress back to the service
+    //      4: On the main thread, evaluate that peak memory stayed within
+    //         MEMORY_LOAD_LIMIT of the steady-state floor
 
     std::map<vsomeip::event_t, int> events_to_subscribe;
 
@@ -172,35 +178,20 @@ TEST(memory_tests, receive_messages) {
     memory_test_client memory_test_client("memory_tests_client", events_to_subscribe);
 
     std::atomic<bool> stop_checking{false};
+    std::vector<uint64_t> test_memory_array;
 
     // 1. Measure load until stop_checking is triggered
-    std::thread memory_checker_thread;
-    memory_checker_thread = std::thread([&stop_checking] {
-        std::vector<std::uint64_t> test_memory_array;
-        std::uint64_t sum{0};
+    std::thread memory_checker_thread([&stop_checking, &test_memory_array] { check_memory(test_memory_array, stop_checking); });
 
-        check_memory(test_memory_array, stop_checking);
-
-        for (auto memory_stat : test_memory_array) {
-            sum += memory_stat;
-            VSOMEIP_INFO << memory_stat;
-        }
-        double memory_average = static_cast<double>(sum) / static_cast<double>(test_memory_array.size());
-        VSOMEIP_INFO << memory_average;
-
-        // 4. Evaluate memory load increase
-        for (auto memory_stat : test_memory_array) {
-            EXPECT_LT(static_cast<double>(memory_stat), (static_cast<double>(memory_average) * MEMORY_LOAD_LIMIT))
-                    << "memory not lesser than " << (static_cast<double>(memory_average) * MEMORY_LOAD_LIMIT);
-        }
-    });
-
-    // 2. Send a request and wait until all the messages are sent by the service
+    // 2./3. Send a request and wait until all the messages are sent by the service
     memory_test_client.send_request(stop_checking);
 
     if (memory_checker_thread.joinable()) {
         memory_checker_thread.join();
     }
+
+    // 4. Evaluate memory load increase on the main thread.
+    evaluate_memory(test_memory_array, memory_test_client.baseline_rss());
 }
 
 int main(int argc, char** argv) {

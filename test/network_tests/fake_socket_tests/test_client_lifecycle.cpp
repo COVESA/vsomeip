@@ -17,6 +17,8 @@
 #include "common/timeout_scale.hpp" // common::scaled_timeout
 
 #include "../../../implementation/utility/include/utility.hpp"
+#include "../../../implementation/protocol/include/command_types.hpp"
+#include "../../../implementation/protocol/include/serialize.hpp"
 
 #include "sample_interfaces.hpp"
 
@@ -51,8 +53,8 @@ struct test_client_lifecycle : public base_fake_socket_fixture {
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         server_->offer(service_instance_);
-        server_->offer_event(offered_event_);
-        server_->offer_field(offered_field_);
+        server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+        server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     }
 
     void start_client_app() {
@@ -101,9 +103,8 @@ struct test_client_lifecycle : public base_fake_socket_fixture {
             client_session{0, 1}, service_instance_, offered_event_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
     event_ids offered_field_{service_instance_, 0x8003, 0x6};
     std::vector<unsigned char> field_payload_{0x42, 0x13};
-    message first_expected_field_message_{client_session{0, 2}, // todo, why is the session a two here?
-                                          service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
-                                          field_payload_};
+    message first_expected_field_message_{client_session{0, 1}, service_instance_, offered_field_.event_id_,
+                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
     message_checker const field_checker_{std::nullopt, service_instance_, offered_field_.event_id_,
                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
     message_checker const event_checker_{std::nullopt, service_instance_, offered_event_.event_id_,
@@ -174,7 +175,7 @@ TEST_F(test_client_lifecycle, router_consumes_field_before_service_tries_to_offe
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
     server_->offer(service_instance_);
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     send_field_message();
 
     ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
@@ -190,7 +191,7 @@ TEST_F(test_client_lifecycle, router_consumes_field_before_service_tries_to_offe
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
     server_->offer(service_instance_);
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
     send_field_message();
     EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(field_checker_));
@@ -201,7 +202,7 @@ TEST_F(test_client_lifecycle, router_consumes_field_after_service_tries_to_offer
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
     server_->offer(service_instance_);
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     send_field_message();
 
     start_router();
@@ -247,9 +248,9 @@ TEST_F(test_client_lifecycle, mutual_offerings_and_consumptions_with_router) {
     // only offer now, otherwise the routing_manager will encounter
     // data race in the sec_client usage :/
     routingmanagerd_->offer(interfaces::beef);
-    routingmanagerd_->send_event(interfaces::beef.fields_[0], beef_payload);
+    routingmanagerd_->send_event({interfaces::beef.instance_, interfaces::beef.fields_[0]}, beef_payload);
     server_->offer(interfaces::cafe);
-    server_->send_event(interfaces::cafe.fields_[0], cafe_payload);
+    server_->send_event({interfaces::cafe.instance_, interfaces::cafe.fields_[0]}, cafe_payload);
 
     // ensure setup is fully operational
     client_ = start_client(client_name_);
@@ -274,8 +275,8 @@ TEST_F(test_client_lifecycle, cached_field) {
     other_service.service_ += 2;
     event_ids field_one{other_service, 0x8010, 0x2};
     event_ids field_two{other_service, 0x8011, 0x2};
-    server_->offer_event(field_one);
-    server_->offer_field(field_two);
+    server_->offer_event(field_one.si_, field_one.to_event_spec());
+    server_->offer_field(field_two.si_, field_two.to_event_spec());
     server_->offer(other_service);
 
     // subscribing on the server side for both fields,
@@ -339,8 +340,8 @@ TEST_F(test_client_lifecycle, field_subscription_before_field_offering) {
     ASSERT_NE(server_, nullptr);
     ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
-    server_->offer_event(offered_event_);
-    server_->offer_field(offered_field_);
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     server_->offer(service_instance_);
     ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 
@@ -362,8 +363,8 @@ TEST_F(test_client_lifecycle, field_subscription_between_service_and_field_offer
     server_->offer(service_instance_);
     ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
 
-    server_->offer_event(offered_event_);
-    server_->offer_field(offered_field_);
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 
     send_field_message();
@@ -371,12 +372,35 @@ TEST_F(test_client_lifecycle, field_subscription_between_service_and_field_offer
     EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
 }
 
+TEST_F(test_client_lifecycle, early_group_subscriptions_to_a_single_service_are_supported) {
+    // It is a pain, but for now we should support this use case...?
+    start_router();
+    start_client_app();
+    client_->request_service(service_instance_); // eventgroup-level (wire ANY_EVENT) subscriptions to two distinct eventgroups
+    client_->subscribe_eventgroup_field(offered_field_); // eventgroup 0x6
+    client_->subscribe_eventgroup_event(offered_event_); // eventgroup 0x1
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    server_->offer(service_instance_); // both eventgroup subscriptions must reach the provider (creating/accumulating the placeholder)
+                                       // before the events are offered — this is the window in which the clobber used to happen
+    ASSERT_TRUE(client_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_field_)));
+    ASSERT_TRUE(client_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_event_)));
+    // // offering the real events triggers adoption of the placeholder's subscribers
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    send_field_message();
+    send_first_message();
+    EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
+    EXPECT_TRUE(client_->message_record_.wait_for(event_checker_)) << client_->message_record_;
+}
+
 TEST_F(test_client_lifecycle, router_offers_field) {
     start_router();
     start_client_app();
     routingmanagerd_->offer(service_instance_);
-    routingmanagerd_->offer_event(offered_event_);
-    routingmanagerd_->offer_field(offered_field_);
+    routingmanagerd_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    routingmanagerd_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     routingmanagerd_->send_event(offered_field_, field_payload_);
 
     ASSERT_TRUE(subscribe_to_field());
@@ -553,8 +577,8 @@ TEST_F(test_client_lifecycle, missing_initial_events) {
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     // 3.
     server_->offer(service_instance_);
-    server_->offer_event(offered_event_);
-    server_->offer_field(offered_field_);
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     // 4.
     send_field_message();
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -636,6 +660,11 @@ TEST_F(test_client_lifecycle, test_subscription_for_ghost_service) {
 TEST_F(test_client_lifecycle, test_partial_read_leads_to_connection_drop) {
     start_apps();
     ASSERT_TRUE(subscribe_to_event());
+
+    // Watch before injecting: the consumer reconnects within ~1ms of the drop, so a level-based
+    // check can miss it. The watch latches the drop regardless of reconnect timing.
+    auto drop_watch = watch_connection_drop(client_name_, server_name_);
+
     auto subscription_payload = construct_basic_raw_command(protocol::id_e::SUBSCRIBE_ID, // command
                                                             static_cast<uint16_t>(0), // version
                                                             static_cast<client_t>(0x3490), // client id
@@ -645,7 +674,7 @@ TEST_F(test_client_lifecycle, test_partial_read_leads_to_connection_drop) {
                                                             // to not finish the message
     );
     inject_command_tcp(client_name_, server_name_, subscription_payload);
-    EXPECT_TRUE(wait_for_connection_drop(client_name_, server_name_, std::chrono::seconds(6)));
+    EXPECT_TRUE(drop_watch.wait()) << "connection drop was not detected";
 }
 
 TEST_F(test_client_lifecycle, availability_callback_is_only_called_once_on_stop) {
@@ -680,28 +709,72 @@ TEST_F(test_client_lifecycle, availability_callback_is_only_called_once_on_stop)
     })) << client_->availability_record_;
 }
 
-TEST_F(test_client_lifecycle, release_then_request_blocks_duplicate_available) {
+TEST_F(test_client_lifecycle, bool_availability_handler_reports_available_and_unavailable) {
     /**
-     * After release_service(), the handler shadow remains AS_AVAILABLE.
-     * When request_service() is called again (service still offered), replay_availability()
-     * and the subsequent RIE_ADD from the routing manager both hit on_availability(AS_AVAILABLE).
-     * The shadow check (shadow == state) suppresses both — no second callback fires.
+     * Covers the bool availability_handler_t overload (and its enum->bool adapter):
+     * AS_AVAILABLE maps to true, everything else to false.
      **/
     start_apps();
+    client_->register_availability_bool_handler(service_instance_);
     request_service();
-    ASSERT_TRUE(await_service());
 
-    clear_command_record(client_name_, routingmanager_name_);
-    client_->release_service(service_instance_);
-    client_->request_service(service_instance_);
+    EXPECT_TRUE(client_->bool_availability_record_.wait_for_last(service_state{service_instance_, true}))
+            << client_->bool_availability_record_;
 
-    // Wait for the routing manager to receive the re-registration, ensuring RIE_ADD has had time to arrive
-    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::REQUEST_SERVICE_ID, socket_role::server));
+    stop_offer();
+    EXPECT_TRUE(client_->bool_availability_record_.wait_for_last(service_state{service_instance_, false}))
+            << client_->bool_availability_record_;
+}
 
-    // The dedup guard must suppress the duplicate AS_AVAILABLE — no second entry must appear
-    ASSERT_FALSE(client_->availability_record_.wait_for([](const auto& _r) { return _r.size() > 1; }, std::chrono::milliseconds(300)))
+TEST_F(test_client_lifecycle, both_availability_handlers_fire_consistently) {
+    /**
+     * The bool handler (specific service) and the default enum handler (ANY/ANY) coexist:
+     * both fire and stay in sync across an available/unavailable cycle.
+     **/
+    start_apps();
+    client_->register_availability_bool_handler(service_instance_);
+    request_service();
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)))
             << client_->availability_record_;
-    ASSERT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}));
+    ASSERT_TRUE(client_->bool_availability_record_.wait_for_last(service_state{service_instance_, true}))
+            << client_->bool_availability_record_;
+
+    stop_offer();
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)))
+            << client_->availability_record_;
+    ASSERT_TRUE(client_->bool_availability_record_.wait_for_last(service_state{service_instance_, false}))
+            << client_->bool_availability_record_;
+}
+
+TEST_F(test_client_lifecycle, release_then_offer_blocks_request_available) {
+    /*
+     * Client requests an unoffered service, and releases it at the same time that it is being offered
+     * The client should not receive an AVAILABLE for the released service
+     */
+    start_router();
+    start_client_app();
+    request_service();
+    auto _server = start_client(server_name_);
+    ASSERT_TRUE(_server->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::client));
+
+    client_->release_service(service_instance_);
+
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::RELEASE_SERVICE_ID, socket_role::server));
+    _server->offer(service_instance_);
+
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::client));
+
+    // Verify client did not receive ROUTING_INFO (with RIE_ADD_SERVICE_INSTANCE) for released service
+    ASSERT_FALSE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::ROUTING_INFO_ID, socket_role::client,
+                                  std::chrono::milliseconds(200)))
+            << "Should not receive ROUTING_INFO for released service";
+
+    // The availability record stays empty: the released service never became available to the client.
+    EXPECT_TRUE(client_->availability_record_.equals({})) << client_->availability_record_;
 }
 
 TEST_F(test_client_lifecycle, reoffer_after_stop_fires_available) {
@@ -788,7 +861,7 @@ TEST_F(test_client_lifecycle, subscribe_before_event_offering) {
     ASSERT_TRUE(client_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_event_)));
 
     // only now offer the field
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     send_field_message();
     EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
 }
@@ -844,6 +917,163 @@ TEST_F(test_client_lifecycle, empty_field_is_received) {
     // Try to resend empty field, should fail due to caching, as the value is the same as before and event is already set.
     server_->send_event(offered_field_, {});
     EXPECT_FALSE(client_->message_record_.wait_for(checker, std::chrono::milliseconds(200))) << client_->message_record_;
+}
+
+TEST_F(test_client_lifecycle, request_release_request_forwards_available) {
+    start_apps();
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}));
+    client_->release_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}));
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_), 2));
+    EXPECT_TRUE(client_->availability_record_.equals(
+            {service_availability::available(service_instance_), service_availability::available(service_instance_)}));
+}
+
+TEST_F(test_client_lifecycle, release_before_rie_add_still_ends_available) {
+    start_apps();
+
+    // Hold back messages FROM router TO client so that release_service() runs while available_services_ is still empty.
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::client));
+
+    // Rapid sequence: request → release → re-request
+    request_service();
+    client_->release_service(service_instance_);
+    client_->request_service(service_instance_);
+
+    // While messages are held, nothing has reached the client yet.
+    ASSERT_TRUE(client_->availability_record_.equals({})) << client_->availability_record_;
+
+    // Release the held messages
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::client));
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    EXPECT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}))
+            << client_->availability_record_;
+}
+
+TEST_F(test_client_lifecycle, release_and_rerequest_one_service_among_many_ends_all_available) {
+    /**
+     * Multi-service analogue of release_before_rie_add_still_ends_available:
+     * three services are requested by the same client while router->client
+     * messages are held. Only the middle one is released then
+     * re-requested; the other two are steady bystanders.
+     */
+    service_instance const service_instance_three_{0x3346, 0x1};
+
+    start_apps();
+    server_->offer(service_instance_two_);
+    server_->offer(service_instance_three_);
+
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::client));
+
+    client_->request_service(service_instance_);
+    client_->request_service(service_instance_two_);
+    client_->request_service(service_instance_three_);
+    client_->release_service(service_instance_two_);
+    client_->request_service(service_instance_two_);
+
+    ASSERT_TRUE(client_->availability_record_.equals({})) << client_->availability_record_;
+
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::client));
+
+    // Every requested service ends AVAILABLE...
+    ASSERT_TRUE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_), 1));
+    ASSERT_TRUE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_two_), 1));
+    ASSERT_TRUE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_three_), 1));
+    // ...each exactly once: the stale RIE_ADD from the released request of service_instance_two_ must
+    // not produce a duplicate AVAILABLE(service_instance_two_).
+    EXPECT_FALSE(client_->availability_record_.wait_for_count(service_availability::available(service_instance_two_), 2,
+                                                              std::chrono::milliseconds(200)))
+            << client_->availability_record_;
+}
+
+TEST_F(test_client_lifecycle, release_one_service_blocks_only_its_availability) {
+    /**
+     * Multi-service analogue of release_then_offer_blocks_request_available:
+     * the client requests two services and releases one of them before the
+     * server offers, ensuring the release reaches the router first so no
+     * RIE_ADD is ever generated for it.
+     */
+
+    start_router();
+    start_client_app();
+
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    client_->request_service(service_instance_);
+    client_->request_service(service_instance_two_);
+
+    // Release A and make sure the router processed the release before A is offered.
+    client_->release_service(service_instance_);
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::RELEASE_SERVICE_ID, socket_role::server));
+
+    server_->offer(service_instance_);
+    server_->offer(service_instance_two_);
+
+    // The still-requested sibling becomes available...
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_two_)));
+    // ...and the released service never does.
+    EXPECT_FALSE(client_->availability_record_.wait_for_any(service_availability::available(service_instance_),
+                                                            common::scaled_timeout(std::chrono::milliseconds(300))))
+            << client_->availability_record_;
+    EXPECT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_two_)}))
+            << client_->availability_record_;
+}
+
+TEST_F(test_client_lifecycle, rerequest_one_service_does_not_disturb_sibling) {
+    /**
+     * request_release_request_forwards_available, but with a sibling service:
+     * two services are available to the same client, only one is released then re-requested
+     */
+
+    start_apps();
+    server_->offer(service_instance_two_);
+
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    client_->request_service(service_instance_two_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_two_)));
+
+    client_->availability_record_.clear();
+
+    client_->release_service(service_instance_);
+    client_->request_service(service_instance_);
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    // We expect to only see service_instance_ available because the availability_record_ was cleared before
+    EXPECT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}))
+            << client_->availability_record_;
+}
+
+TEST_F(test_client_lifecycle, release_of_concrete_instance_does_not_block_wildcard_watcher) {
+    /**
+     * This mirrors the CommonAPI "managed interfaces" pattern, where a
+     * ProxyManager requests a service with ANY_INSTANCE to track every matching instance while
+     * a separately built proxy concretely requests one specific instance and is released once
+     * it's no longer needed - independently of the ProxyManager's ongoing interest.
+     **/
+    start_apps();
+
+    service_instance const wildcard_instance{service_instance_.service_, vsomeip::ANY_INSTANCE};
+    client_->request_service(wildcard_instance);
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_->availability_record_.equals({service_availability::available(service_instance_)}))
+            << client_->availability_record_;
+
+    client_->release_service(service_instance_);
+    server_->stop_offer(service_instance_);
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+    EXPECT_TRUE(client_->availability_record_.equals(
+            {service_availability::available(service_instance_), service_availability::unavailable(service_instance_)}))
+            << client_->availability_record_;
 }
 
 TEST_F(test_restart_clients, test_assignment_timeout_recover) {
@@ -963,6 +1193,51 @@ TEST_F(test_restart_clients, block_registration_process) {
 
     // and that application eventually registers
     EXPECT_TRUE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+}
+
+TEST_F(test_restart_clients, second_client_unaffected_by_first_release) {
+    /**
+     * Regression test: remove_client_request() must only affect the releasing client.
+     * Setup: two clients both requesting the same service.
+     * Action: client A releases and re-requests.
+     * Expected: client B's availability_record_ gets no new entries; client A gets available again.
+     **/
+    start_router();
+    start_server();
+
+    create_app(client_one_);
+    create_app(client_two_);
+
+    auto* client_a = start_client(client_one_);
+    ASSERT_TRUE(client_a->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    auto* client_b = start_client(client_two_);
+    ASSERT_TRUE(client_b->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // Both clients request the service
+    client_a->request_service(service_instance_);
+    ASSERT_TRUE(client_a->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_a->availability_record_.equals({service_availability::available(service_instance_)}))
+            << "Client A: " << client_a->availability_record_;
+
+    client_b->request_service(service_instance_);
+    ASSERT_TRUE(client_b->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_b->availability_record_.equals({service_availability::available(service_instance_)}))
+            << "Client B: " << client_b->availability_record_;
+
+    // Client A releases and re-requests
+    client_a->release_service(service_instance_);
+    client_a->request_service(service_instance_);
+
+    // Client A should see available again
+    ASSERT_TRUE(client_a->availability_record_.wait_for_count(service_availability::available(service_instance_), 2));
+    EXPECT_TRUE(client_a->availability_record_.equals(
+            {service_availability::available(service_instance_), service_availability::available(service_instance_)}))
+            << "Client A: " << client_a->availability_record_;
+
+    // Client B should see NO new entries
+    EXPECT_TRUE(client_b->availability_record_.equals({service_availability::available(service_instance_)}))
+            << "Client B should not be notified: " << client_b->availability_record_;
 }
 
 /**
@@ -1220,7 +1495,7 @@ TEST_F(test_client_lifecycle, resubscribe_after_service_restart_delivers_fresh_n
     message_checker const field_checker_v2{std::nullopt, service_instance_, offered_field_.event_id_,
                                            vsomeip::message_type_e::MT_NOTIFICATION, payload_v2};
 
-    server_->offer_field(offered_field_);
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     server_->send_event(offered_field_, payload_v2);
     server_->offer(service_instance_);
 
@@ -1233,6 +1508,31 @@ TEST_F(test_client_lifecycle, resubscribe_after_service_restart_delivers_fresh_n
     EXPECT_TRUE(client_->message_record_.wait_for(field_checker_v2));
     // The last recorded message must be v2, not the stale v1.
     EXPECT_TRUE(client_->message_record_.wait_for_last(field_checker_v2));
+}
+
+// A provider-side cyclic FIELD must keep poking its subscribers over time. The provider_event owns
+// the cyclic timer; routing_manager_client::periodic_notify does the actual sending. Driven only by
+// the timer, a subscriber must receive more than the single on-change value.
+TEST_F(test_client_lifecycle, cyclic_field_keeps_poking_subscriber) {
+    start_apps();
+
+    event_ids const cyclic_field{service_instance_, 0x8005, 0x8};
+    auto const cycle = common::scaled_timeout(std::chrono::milliseconds(5));
+
+    server_->get_application()->offer_event(cyclic_field.si_.service_, cyclic_field.si_.instance_, cyclic_field.event_id_,
+                                            {cyclic_field.eventgroup_id_}, vsomeip::event_type_e::ET_FIELD, cycle,
+                                            false /*change_resets_cycle*/, true /*update_on_change*/, nullptr, cyclic_field.reliability_);
+
+    request_service();
+    client_->subscribe_field(cyclic_field);
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(cyclic_field)));
+
+    // Set the field once: this stores the value and starts the cycle.
+    server_->send_event(cyclic_field, {0x00});
+
+    // Solely driven by the cyclic timer, more than two notifications must arrive within a scaled 30ms window.
+    ASSERT_TRUE(client_->message_record_.wait_for([](auto const& record) { return record.size() > 2; },
+                                                  common::scaled_timeout(std::chrono::milliseconds(30))));
 }
 
 /**
@@ -1293,7 +1593,7 @@ TEST_F(test_single_io_thread, stop_flushes_queued_messages_with_one_io_thread) {
     ASSERT_TRUE(server->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
     ASSERT_TRUE(client->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
-    server->offer_field(field_);
+    server->offer_field(field_.si_, field_.to_event_spec());
     server->offer(service_);
 
     client->request_service(service_);
@@ -1341,12 +1641,15 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
         create_app(routingmanager_name_);
         create_app(a_name_);
         create_app(b_name_);
+        create_app(c_name_);
     }
 
     // A: offers S1, consumes S2 (bound to the file-scope server/client names).
     std::string const& a_name_{server_name_};
     // B: offers S2, consumes S1.
     std::string const& b_name_{client_name_};
+    // C: a second consumer of S1 that offers nothing (models a new, live provider peer).
+    std::string const& c_name_{client_name_two_};
 
     // S1 is offered by A and consumed by B.
     service_instance s1_{0x3344, 0x1};
@@ -1366,6 +1669,7 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
     app* rm_{};
     app* a_{};
     app* b_{};
+    app* c_{};
 
     // Brings the bidirectional provider/consumer relationship into a verified
     // steady state: both directed local sockets exist and both directions
@@ -1384,9 +1688,9 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
 
         // A offers S1, B offers S2.
         a_->offer(s1_);
-        a_->offer_event(ev1_);
+        a_->offer_event(ev1_.si_, ev1_.to_event_spec());
         b_->offer(s2_);
-        b_->offer_event(ev2_);
+        b_->offer_event(ev2_.si_, ev2_.to_event_spec());
 
         // B consumes S1 (provider connection B -> A).
         b_->request_service(s1_);
@@ -1415,6 +1719,22 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
                 << "baseline S1 notification not received by B: " << b_->message_record_;
         ASSERT_TRUE(a_->message_record_.wait_for(notification_checker(s2_, ev2_.event_id_, s2_payload_)))
                 << "baseline S2 notification not received by A: " << a_->message_record_;
+    }
+
+    // Injects into @p _target a routing_info RIE_ADD as if the routing manager announced that
+    // @p _client offers @p _si at (@p _address, @p _port).
+    [[nodiscard]] bool inject_routing_info_add(std::string const& _target, client_t _client, service_instance const& _si,
+                                               boost::asio::ip::address_v4 const& _address, port_t _port) {
+        protocol::routing_info_entry_data entry;
+        entry.type_ = protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
+        entry.client_ = _client;
+        entry.address_ = _address;
+        entry.port_ = _port;
+        entry.services_.push_back({_si.service_, _si.instance_, major_version_t{0x1}, minor_version_t{0x0}});
+        auto const cmd = protocol::create_routing_info_cmd(client_t{0x0} /* VSOMEIP_ROUTING_CLIENT */, {entry});
+        std::vector<unsigned char> payload(protocol::wire_size(cmd));
+        protocol::serialize(cmd, payload.data());
+        return inject_command_tcp(_target, routingmanager_name_, payload, socket_role::client);
     }
 };
 
@@ -1502,5 +1822,309 @@ TEST_F(test_provider_consumer_error_isolation, provider_socket_failure_does_not_
     EXPECT_FALSE(a_->availability_record_.wait_for_any(service_availability::unavailable(s2_),
                                                        common::scaled_timeout(std::chrono::milliseconds(200))))
             << "A wrongly marked the consumed service S2 unavailable on a provider-socket failure: " << a_->availability_record_;
+}
+
+// Test 4 (routing-info path, live provider of a NEW client survives):
+// The old client is stale on the CONSUMER side only; its provider slot at address:(port + 1) has
+// been taken over by a new, live client (here C, which only consumes our S1, so A keeps no consumer
+// entry for it). A new routing_info at address:port must drop ONLY the stale consumer entry and
+// MUST NOT tear down the live provider connection of the new client.
+TEST_F(test_provider_consumer_error_isolation, stale_consumer_does_not_tear_down_live_provider_of_new_client) {
+
+    rm_ = start_client(routingmanager_name_);
+    ASSERT_NE(rm_, nullptr);
+    ASSERT_TRUE(await_connectable(routingmanager_name_));
+    a_ = start_client(a_name_);
+    ASSERT_NE(a_, nullptr);
+    ASSERT_TRUE(a_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    a_->offer(s1_);
+    a_->offer_event(ev1_.si_, ev1_.to_event_spec());
+
+    // C is the new, live client: it only CONSUMES S1 (offers nothing), so A holds no consumer_
+    // entry for C — only its accepted provider endpoint C -> A at (127.0.0.1, C_port + 1).
+    c_ = start_client(c_name_);
+    ASSERT_NE(c_, nullptr);
+    ASSERT_TRUE(c_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    c_->request_service(s1_);
+    ASSERT_TRUE(c_->availability_record_.wait_for_last(service_availability::available(s1_)));
+    c_->subscribe_event(ev1_);
+    ASSERT_TRUE(c_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)));
+    ASSERT_TRUE(await_connection(c_name_, a_name_)); // provider connection C -> A
+
+    a_->send_event(ev1_, s1_payload_);
+    ASSERT_TRUE(c_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "baseline S1 notification not received by C: " << c_->message_record_;
+
+    auto const c_port = server_port(c_name_);
+    ASSERT_TRUE(c_port.has_value()) << "could not resolve C's server port";
+    auto const localhost = boost::asio::ip::make_address_v4("127.0.0.1");
+
+    // Fabricated stale old client and the new client; keep both distinct from C's real id.
+    client_t const old_client = 0x6001;
+    client_t const new_client = 0x7777;
+    ASSERT_NE(c_->get_client_id(), old_client);
+    ASSERT_NE(c_->get_client_id(), new_client);
+    service_instance const stale_service{0x7A01, 0x1};
+    service_instance const new_service{0x7A02, 0x1};
+    a_->request_service(stale_service);
+
+    // 1. Plant a STALE consumer mapping on A: the old client "offers" S_STALE at (127.0.0.1, C_port).
+    //    C offers nothing, so this is the only consumer_ entry at that address:port -> unambiguous.
+    ASSERT_TRUE(inject_routing_info_add(a_name_, old_client, stale_service, localhost, *c_port));
+    ASSERT_TRUE(a_->availability_record_.wait_for_any(service_availability::available(stale_service)))
+            << "stale consumer mapping was not installed on A: " << a_->availability_record_;
+
+    // Only observe post-trigger effects.
+    c_->availability_record_.clear();
+    c_->message_record_.clear();
+    a_->availability_record_.clear();
+
+    // 2. A new client id shows up at that same address:port. get_client_by_address resolves the OLD
+    //    stale client => its consumer entry is dropped; but the provider endpoint at C_port + 1 is
+    //    bound to C (a different, live client) => it must survive.
+    ASSERT_TRUE(inject_routing_info_add(a_name_, new_client, new_service, localhost, *c_port));
+
+    // Barrier: the stale consumer mapping is gone => the old-client cleanup ran.
+    ASSERT_TRUE(a_->availability_record_.wait_for_any(service_availability::unavailable(stale_service)))
+            << "old-client consumer cleanup barrier not reached on A: " << a_->availability_record_;
+
+    // The live provider connection C -> A must be untouched: C must NOT see S1 go unavailable.
+    EXPECT_FALSE(c_->availability_record_.wait_for_any(service_availability::unavailable(s1_),
+                                                       common::scaled_timeout(std::chrono::milliseconds(300))))
+            << "C's live provider connection was wrongly torn down (S1 went unavailable): " << c_->availability_record_;
+
+    // And the untouched provider connection still delivers fresh S1 to C.
+    std::vector<unsigned char> const fresh{0xAB, 0xCD};
+    a_->send_event(ev1_, fresh);
+    EXPECT_TRUE(c_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, fresh)))
+            << "C stopped receiving S1 after an unrelated new-client routing_info: " << c_->message_record_;
+}
+
+// Test 5 (routing-info path, stale provider of the OLD client is torn down):
+// The old client (B) is stale on BOTH roles as A sees it: A still has a consumer entry for it (A
+// consumes S2 from B) AND its accepted provider endpoint B -> A at address:(port + 1) is still
+// bound to B. A new routing_info at address:port must drop the consumer entry AND tear down that
+// stale provider endpoint.
+TEST_F(test_provider_consumer_error_isolation, stale_consumer_and_provider_of_old_client_are_both_dropped) {
+    bring_up_bidirectional();
+
+    auto const b_port = server_port(b_name_);
+    ASSERT_TRUE(b_port.has_value()) << "could not resolve B's server port";
+    auto const localhost = boost::asio::ip::make_address_v4("127.0.0.1");
+
+    client_t const new_client = 0x7777;
+    ASSERT_NE(b_->get_client_id(), new_client);
+    service_instance const new_service{0x7A02, 0x1};
+
+    // Only observe post-trigger effects.
+    a_->availability_record_.clear();
+    b_->availability_record_.clear();
+
+    // A new client id shows up at B's exact address:port (B gone, a new app took its slot, while B's
+    // stale routing state on A has not been cleaned yet).
+    ASSERT_TRUE(inject_routing_info_add(a_name_, new_client, new_service, localhost, *b_port));
+
+    // Consumer cleanup barrier: A drops the service B offered (S2) => the old-client block ran.
+    ASSERT_TRUE(a_->availability_record_.wait_for_any(service_availability::unavailable(s2_)))
+            << "old-client consumer cleanup barrier not reached on A: " << a_->availability_record_;
+
+    // The stale provider endpoint B -> A was torn down by the guard's trigger_error(): B's consumer
+    // connection to A breaks, so B sees the service it consumes there (S1) go unavailable.
+    EXPECT_TRUE(b_->availability_record_.wait_for_any(service_availability::unavailable(s1_)))
+            << "stale provider endpoint of old client B was not torn down (B kept S1): " << b_->availability_record_;
+}
+
+// Regression tests "Split the event registration set into producer vs. consumer sets"
+// Pending_event_registrations_ was split into a PROVIDER set (provider_mutex_) and a CONSUMER set
+// (consumer_mutex_). Each app is both provider and consumer, so both sets are populated, covering
+// register_event() (push + direct send), unregister_event() (erase), and resend_provided_event_registrations()
+// (resends only the provider set). A offers S1/ev1 + consumes S2/ev2; B offers S2/ev2 + consumes S1/ev1.
+struct test_pending_event_registration_split : public base_fake_socket_fixture {
+    test_pending_event_registration_split() {
+        use_configuration("multiple_client_one_process.json");
+        create_app(routingmanager_name_);
+        create_app(a_name_);
+        create_app(b_name_);
+    }
+
+    std::string const& a_name_{server_name_};
+    std::string const& b_name_{client_name_};
+
+    // S1 is offered by A and consumed by B; S2 is offered by B and consumed by A.
+    service_instance s1_{0x3344, 0x1};
+    event_ids ev1_{s1_, 0x8002, 0x1};
+    service_instance s2_{0x3345, 0x1};
+    event_ids ev2_{s2_, 0x8002, 0x1};
+
+    std::vector<unsigned char> s1_payload_{0x11, 0x22};
+    std::vector<unsigned char> s2_payload_{0x33, 0x44};
+
+    static message_checker notification_checker(service_instance const& _si, vsomeip::event_t _event,
+                                                std::vector<unsigned char> const& _payload) {
+        return message_checker{std::nullopt, _si, _event, vsomeip::message_type_e::MT_NOTIFICATION, _payload};
+    }
+
+    app* rm_{};
+    app* a_{};
+    app* b_{};
+
+    // Builds a raw RESEND_PROVIDED_EVENTS command as the routing manager would send it, so it can be
+    // injected onto A's connection to drive resend_provided_event_registrations().
+    static std::vector<unsigned char> make_resend_provided_events_command(vsomeip::client_t _sender) {
+        return construct_basic_raw_command(protocol::id_e::RESEND_PROVIDED_EVENTS_ID,
+                                           static_cast<uint16_t>(0), // command version
+                                           _sender, // sender (routing manager)
+                                           static_cast<uint32_t>(sizeof(vsomeip::pending_remote_offer_id_t)), // payload size
+                                           static_cast<vsomeip::pending_remote_offer_id_t>(0x0000ABCD)); // pending remote offer id
+    }
+
+    // Brings A into a state where it holds BOTH a provided event registration (ev1) and a
+    // consumed event registration (ev2), each verified to work.
+    void bring_up() {
+        rm_ = start_client(routingmanager_name_);
+        ASSERT_NE(rm_, nullptr);
+        ASSERT_TRUE(await_connectable(routingmanager_name_));
+
+        a_ = start_client(a_name_);
+        ASSERT_NE(a_, nullptr);
+        ASSERT_TRUE(a_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        b_ = start_client(b_name_);
+        ASSERT_NE(b_, nullptr);
+        ASSERT_TRUE(b_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+        a_->offer(s1_);
+        a_->offer_event(ev1_.si_, ev1_.to_event_spec());
+        b_->offer(s2_);
+        b_->offer_event(ev2_.si_, ev2_.to_event_spec());
+
+        b_->request_service(s1_);
+        ASSERT_TRUE(b_->availability_record_.wait_for_last(service_availability::available(s1_)));
+        b_->subscribe_event(ev1_);
+        ASSERT_TRUE(b_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)));
+
+        a_->request_service(s2_);
+        ASSERT_TRUE(a_->availability_record_.wait_for_last(service_availability::available(s2_)));
+        a_->subscribe_event(ev2_);
+        ASSERT_TRUE(a_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev2_)));
+    }
+
+    // Asserts a fresh notification currently flows in BOTH directions: A -> B for the
+    // provided event (ev1) and B -> A for the consumed event (ev2).
+    void assert_both_directions_deliver(std::vector<unsigned char> const& _s1, std::vector<unsigned char> const& _s2) {
+        a_->send_event(ev1_, _s1);
+        b_->send_event(ev2_, _s2);
+        ASSERT_TRUE(b_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, _s1)))
+                << "provided event ev1 not delivered to B: " << b_->message_record_;
+        ASSERT_TRUE(a_->message_record_.wait_for(notification_checker(s2_, ev2_.event_id_, _s2)))
+                << "consumed event ev2 not delivered to A: " << a_->message_record_;
+    }
+};
+
+// Test 1 (happy path, both sets populated via register_event):
+// An app that both provides ev1 and consumes ev2 registers each event into its role-matching
+// pending set; both registrations are honored end-to-end.
+TEST_F(test_pending_event_registration_split, provider_and_consumer_registrations_are_both_honored) {
+    bring_up();
+    assert_both_directions_deliver(s1_payload_, s2_payload_);
+}
+
+// Test 2 (edge case, role-scoped unregister_event):
+// Stopping the OFFER of ev1 (is_provided=true) must erase it from the provider set ONLY, leaving
+// the consumed ev2 registration untouched and still delivering.
+TEST_F(test_pending_event_registration_split, stopping_provided_event_does_not_disturb_consumed_registration) {
+    bring_up();
+    assert_both_directions_deliver(s1_payload_, s2_payload_);
+
+    // Provider-side unregister -> erases ev1 from pending_provided_event_registrations_.
+    a_->get_application()->stop_offer_event(s1_.service_, s1_.instance_, ev1_.event_id_);
+
+    // The consumer-side registration (ev2) must be unaffected: A still receives fresh S2.
+    a_->message_record_.clear();
+    std::vector<unsigned char> const next_s2{0x9A, 0xBC};
+    b_->send_event(ev2_, next_s2);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s2_, ev2_.event_id_, next_s2)))
+            << "A stopped receiving consumed S2 after stopping its provided ev1: " << a_->message_record_;
+}
+
+// Test 3 (different code path, the consumer branch of unregister_event):
+// Mirror of Test 2: releasing the CONSUMED event ev2 (is_provided=false) must erase it from the
+// consumer set ONLY, leaving the provided ev1 registration untouched and still delivering to B.
+TEST_F(test_pending_event_registration_split, releasing_consumed_event_does_not_disturb_provided_registration) {
+    bring_up();
+    assert_both_directions_deliver(s1_payload_, s2_payload_);
+
+    // Consumer-side unregister -> erases ev2 from pending_consumed_event_registrations_.
+    a_->get_application()->release_event(s2_.service_, s2_.instance_, ev2_.event_id_);
+
+    // The provider-side registration (ev1) must be unaffected: B still receives fresh S1.
+    b_->message_record_.clear();
+    std::vector<unsigned char> const next_s1{0xDE, 0xF0};
+    a_->send_event(ev1_, next_s1);
+    EXPECT_TRUE(b_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, next_s1)))
+            << "B stopped receiving provided S1 after A released its consumed ev2: " << b_->message_record_;
+}
+
+// Test 4 (resend path + observable erase):
+// A RESEND_PROVIDED_EVENTS command drives resend_provided_event_registrations(), which resends the
+// provided registration (ev1) as REGISTER_EVENT. After the offer stops the provider set is empty, so a
+// second resend emits nothing — proving both the resend and the provider-side erase read the split set.
+TEST_F(test_pending_event_registration_split, resend_provided_events_resends_only_the_provider_set) {
+    bring_up();
+
+    // Observe only what A sends to the routing manager from here on.
+    clear_command_record(a_name_, routingmanager_name_);
+    auto resend = make_resend_provided_events_command(rm_->get_client());
+    ASSERT_TRUE(inject_command_tcp(a_name_, routingmanager_name_, resend, socket_role::client));
+    EXPECT_TRUE(wait_for_command(a_name_, routingmanager_name_, protocol::id_e::REGISTER_EVENT_ID, socket_role::server))
+            << "A did not resend its provided event registration on RESEND_PROVIDED_EVENTS";
+
+    // Stop offering ev1 -> pending_provided_event_registrations_ becomes empty.
+    a_->get_application()->stop_offer_event(s1_.service_, s1_.instance_, ev1_.event_id_);
+    clear_command_record(a_name_, routingmanager_name_);
+    auto resend_again = make_resend_provided_events_command(rm_->get_client());
+    ASSERT_TRUE(inject_command_tcp(a_name_, routingmanager_name_, resend_again, socket_role::client));
+    EXPECT_FALSE(wait_for_command(a_name_, routingmanager_name_, protocol::id_e::REGISTER_EVENT_ID, socket_role::server,
+                                  common::scaled_timeout(std::chrono::milliseconds(300))))
+            << "A resent a provided registration that had been stopped (provider-set erase failed)";
+}
+
+// Test 5 (same event in BOTH split sets — the CommonAPI "stub + proxy in one process" pattern):
+// A single app A offers ev1 (populating the PROVIDER set) and also subscribes to its OWN ev1
+// (populating the CONSUMER set), so the identical (service, instance, event) lives in both split sets
+// at once. An external consumer B subscribes to the same ev1. A single notification from A must reach
+// BOTH A (self-consumption) and B (regular provider -> consumer delivery).
+TEST_F(test_pending_event_registration_split, same_event_offered_and_consumed_by_one_app) {
+    rm_ = start_client(routingmanager_name_);
+    ASSERT_NE(rm_, nullptr);
+    ASSERT_TRUE(await_connectable(routingmanager_name_));
+
+    a_ = start_client(a_name_);
+    ASSERT_NE(a_, nullptr);
+    ASSERT_TRUE(a_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    b_ = start_client(b_name_);
+    ASSERT_NE(b_, nullptr);
+    ASSERT_TRUE(b_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // A offers ev1 (provider set) and subscribes to its OWN ev1 (consumer set): same event, both sets.
+    a_->offer(s1_);
+    a_->offer_event(ev1_.si_, ev1_.to_event_spec());
+    a_->request_service(s1_);
+    a_->subscribe_event(ev1_);
+    ASSERT_TRUE(a_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)))
+            << "A failed to subscribe to its own offered ev1";
+
+    // B consumes the same ev1 from A.
+    b_->request_service(s1_);
+    ASSERT_TRUE(b_->availability_record_.wait_for_last(service_availability::available(s1_)));
+    b_->subscribe_event(ev1_);
+    ASSERT_TRUE(b_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)))
+            << "B failed to subscribe to A's ev1";
+
+    // One notification must reach both the self-subscriber (A) and the external subscriber (B).
+    a_->send_event(ev1_, s1_payload_);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own offered+consumed ev1: " << a_->message_record_;
+    EXPECT_TRUE(b_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "B did not receive A's ev1: " << b_->message_record_;
 }
 }

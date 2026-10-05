@@ -17,7 +17,7 @@
 namespace vsomeip_v3 {
 namespace logger {
 
-enum class VSOMEIP_IMPORT_EXPORT level_e : std::uint8_t {
+enum class VSOMEIP_IMPORT_EXPORT level_e : uint8_t {
     LL_NONE = 0,
     LL_FATAL = 1,
     LL_ERROR = 2,

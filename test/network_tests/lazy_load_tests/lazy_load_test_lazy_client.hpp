@@ -40,17 +40,17 @@ private:
 
     std::thread sender_;
 
-    std::atomic<std::uint32_t> received_responses_;
-    std::atomic<std::uint32_t> received_allowed_events_;
+    std::atomic<uint32_t> received_responses_;
+    std::atomic<uint32_t> received_allowed_events_;
 
-    const std::uint16_t METHOD_TO_BE_REFUSED = 0x888;
-    const std::uint16_t SERVICE_TO_BE_REFUSED = 0x111;
-    const std::uint16_t TEST_INSTANCE_LAZY = 0x02;
-    const std::uint16_t EXPECTED_EVENTS = 0x01;
+    const uint16_t METHOD_TO_BE_REFUSED = 0x888;
+    const uint16_t SERVICE_TO_BE_REFUSED = 0x111;
+    const uint16_t TEST_INSTANCE_LAZY = 0x02;
+    const uint16_t EXPECTED_EVENTS = 0x01;
 
-    const std::uint16_t EVENT_GROUP = 0x01;
-    const std::uint16_t EVENT_TO_ACCEPT_LAZY = 0x8002;
-    const std::uint16_t EVENT_TO_REFUSE_LAZY = 0x8001;
+    const uint16_t EVENT_GROUP = 0x01;
+    const uint16_t EVENT_TO_ACCEPT_LAZY = 0x8002;
+    const uint16_t EVENT_TO_REFUSE_LAZY = 0x8001;
 
-    const std::uint16_t NUMBER_OF_MESSAGES_TO_SEND = 10;
+    const uint16_t NUMBER_OF_MESSAGES_TO_SEND = 10;
 };

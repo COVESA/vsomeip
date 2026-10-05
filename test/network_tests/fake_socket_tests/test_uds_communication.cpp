@@ -62,18 +62,18 @@ struct test_uds_communication : public base_fake_socket_fixture {
     }
     [[nodiscard]] bool subscribe_to_event() {
         request_service();
-        cafe_client_->subscribe_event(interfaces::cafe.events_[0]);
+        cafe_client_->subscribe_event({interfaces::cafe.instance_, interfaces::cafe.events_[0]});
         return cafe_client_->subscription_record_.wait_for_last(
-                event_subscription::successfully_subscribed_to(interfaces::cafe.events_[0]));
+                event_subscription::successfully_subscribed_to({interfaces::cafe.instance_, interfaces::cafe.events_[0]}));
     }
     [[nodiscard]] bool subscribe_to_field() {
         request_service();
-        cafe_client_->subscribe_field(interfaces::cafe.fields_[0]);
+        cafe_client_->subscribe_field({interfaces::cafe.instance_, interfaces::cafe.fields_[0]});
         return cafe_client_->subscription_record_.wait_for_last(
-                event_subscription::successfully_subscribed_to(interfaces::cafe.fields_[0]));
+                event_subscription::successfully_subscribed_to({interfaces::cafe.instance_, interfaces::cafe.fields_[0]}));
     }
-    void send_first_message() { cafe_server_->send_event(interfaces::cafe.events_[0], {}); }
-    void send_field_message() { cafe_server_->send_event(interfaces::cafe.fields_[0], field_payload_); }
+    void send_first_message() { cafe_server_->send_event({interfaces::cafe.instance_, interfaces::cafe.events_[0]}, {}); }
+    void send_field_message() { cafe_server_->send_event({interfaces::cafe.instance_, interfaces::cafe.fields_[0]}, field_payload_); }
 
     void stop_offer() { cafe_server_->stop_offer(interfaces::cafe.instance_); }
 

@@ -102,12 +102,12 @@ public:
     /**
      * Forwards the request to the vsomeip::application::offer()
      */
-    void offer_event(event_ids const& _ei);
+    void offer_event(service_instance _si, event_spec const& _ei);
 
     /**
      * Forwards the request to the vsomeip::application::offer()
      */
-    void offer_field(event_ids const& _ei);
+    void offer_field(service_instance _si, event_spec const& _ei);
 
     /**
      * Forwards the request to the vsomeip::application::stop_offer_service()
@@ -115,9 +115,21 @@ public:
     void stop_offer(service_instance const& _si);
 
     /**
+     * Forwards the request to the vsomeip::application::stop_offer_event()
+     */
+    void stop_offer_event(event_ids const& _ei);
+
+    /**
      * Forwards the request to the vsomeip::application::request_service
      */
     void request_service(service_instance _si);
+
+    /**
+     * Registers the legacy bool availability_handler_t for a specific service.
+     * Coexists with the default ANY/ANY state handler registered in start();
+     * records into @see bool_availability_record_.
+     */
+    void register_availability_bool_handler(service_instance _si);
 
     /**
      * Forwards the request to the vsomeip::application::release_service
@@ -276,6 +288,12 @@ public:
     attribute_recorder<testing::service_availability> availability_record_;
 
     /**
+     * Records availability changes reported through the legacy bool availability_handler_t.
+     * Populated only for services registered via @see register_availability_bool_handler.
+     **/
+    attribute_recorder<testing::service_state> bool_availability_record_;
+
+    /**
      * This helper can be used to await the subscription of any event.
      **/
     attribute_recorder<testing::event_subscription> subscription_record_;
@@ -284,12 +302,13 @@ private:
     void on_state(vsomeip::state_type_e _state);
     void on_message(const std::shared_ptr<vsomeip::message>& _message);
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::availability_state_e _state);
+    void on_availability_bool(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
     void on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,
                                         vsomeip::event_t _event, uint16_t error_code);
     void subscribe(event_ids const& _ei, vsomeip::event_type_e _et);
     void subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et);
     void subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _et, debounce_filter_t const& _filter);
-    void offer(event_ids const& _ei, vsomeip::event_type_e _et);
+    void offer(service_instance _si, event_spec const& _ei, vsomeip::event_type_e _et);
 
     bool is_running_{false};
     bool is_initialized_{false};

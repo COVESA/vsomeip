@@ -47,12 +47,16 @@ ecu_config& ecu_config::add_interface(std::vector<interface> offered, vsomeip::p
         for (auto const& e : iface.events_) {
             event_config ec{e.event_id_, false, e.reliability_ == vsomeip::reliability_type_e::RT_RELIABLE};
             svc.events_.push_back(ec);
-            groups[e.eventgroup_id_].push_back(e.event_id_);
+            for (auto egid : e.eventgroup_id_) {
+                groups[egid].push_back(e.event_id_);
+            }
         }
         for (auto const& f : iface.fields_) {
             event_config ec{f.event_id_, true, f.reliability_ == vsomeip::reliability_type_e::RT_RELIABLE};
             svc.events_.push_back(ec);
-            groups[f.eventgroup_id_].push_back(f.event_id_);
+            for (auto egid : f.eventgroup_id_) {
+                groups[egid].push_back(f.event_id_);
+            }
         }
         for (auto const& [egid, event_ids] : groups) {
             svc.event_groups_.push_back({egid, event_ids});
@@ -65,6 +69,12 @@ ecu_config& ecu_config::add_interface(std::vector<interface> offered, vsomeip::p
         services_.push_back(std::move(svc));
     }
 
+    return *this;
+}
+
+ecu_config& ecu_config::with_initial_delay(uint32_t min, uint32_t max) {
+    service_discovery_.initial_delay_min_ = min;
+    service_discovery_.initial_delay_max_ = max;
     return *this;
 }
 namespace {
@@ -145,7 +155,7 @@ void to_json(std::ostringstream& o, const service_config& svc) {
 template<typename T>
 void write_array(std::ostringstream& o, const std::vector<T>& items) {
     o << "[";
-    for (std::size_t i = 0; i < items.size(); ++i) {
+    for (size_t i = 0; i < items.size(); ++i) {
         o << " ";
         to_json(o, items[i]);
         if (i + 1 < items.size()) {
@@ -190,7 +200,6 @@ void write_service_discovery(std::ostringstream& o, bool enabled, const service_
         o << R"(, "repetitions_max" : "3")";
         o << R"(, "ttl" : "3")";
         o << R"(, "cyclic_offer_delay" : "2000")";
-        o << R"(, "request_response_delay" : "1500")";
     }
     o << R"( })";
 }
@@ -229,7 +238,7 @@ std::string to_json_string(const ecu_config& cfg) {
     if (cfg.routing_config_) {
         o << " ";
         std::visit(
-                [&o, &cfg](const auto& r) {
+                [&o](const auto& r) {
                     using R = std::decay_t<decltype(r)>;
                     if constexpr (std::is_same_v<R, local_tcp_config>) {
                         write_routing_tcp(o, r);

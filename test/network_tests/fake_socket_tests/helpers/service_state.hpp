@@ -9,9 +9,11 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/vsomeip.hpp>
 
+#include <cassert>
 #include <ostream>
 #include <utility>
 #include <vector>
+#include <set>
 #include <iomanip>
 #include <sstream>
 #include <optional>
@@ -43,11 +45,33 @@ struct service_availability {
     [[nodiscard]] bool operator!=(service_availability const& rhs) const { return !(*this == rhs); }
 };
 
+struct event_spec {
+    vsomeip::event_t event_id_{};
+    std::set<vsomeip::eventgroup_t> eventgroup_id_{};
+    vsomeip::reliability_type_e reliability_{vsomeip::reliability_type_e::RT_UNKNOWN};
+
+    [[nodiscard]] bool operator==(event_spec const& rhs) const {
+        return /*si_ == rhs.si_ &&*/ event_id_ == rhs.event_id_ && eventgroup_id_ == rhs.eventgroup_id_ && reliability_ == rhs.reliability_;
+    }
+    [[nodiscard]] bool operator!=(event_spec const& rhs) const { return !(*this == rhs); }
+};
+
 struct event_ids {
     service_instance si_{};
     vsomeip::event_t event_id_{};
     vsomeip::eventgroup_t eventgroup_id_{};
     vsomeip::reliability_type_e reliability_{vsomeip::reliability_type_e::RT_RELIABLE};
+
+    event_ids() = default;
+    event_ids(service_instance _si, vsomeip::event_t _event_id, vsomeip::eventgroup_t _eventgroup_id,
+              vsomeip::reliability_type_e _reliability = vsomeip::reliability_type_e::RT_RELIABLE) :
+        si_(_si), event_id_(_event_id), eventgroup_id_(_eventgroup_id), reliability_(_reliability) { }
+    // Picks the (single) eventgroup out of the spec's set; event_ids can only ever address one eventgroup at a time.
+    event_ids(service_instance _si, event_spec const& _spec) :
+        si_(_si), event_id_(_spec.event_id_),
+        eventgroup_id_(_spec.eventgroup_id_.empty() ? vsomeip::eventgroup_t{} : *_spec.eventgroup_id_.begin()),
+        reliability_(_spec.reliability_) { }
+
     [[nodiscard]] bool operator==(event_ids const& rhs) const {
         return si_ == rhs.si_ && event_id_ == rhs.event_id_ && eventgroup_id_ == rhs.eventgroup_id_;
     }
@@ -56,6 +80,8 @@ struct event_ids {
         reliability_ = _new_value;
         return *this;
     }
+
+    event_spec to_event_spec() const { return {event_id_, {eventgroup_id_}, reliability_}; }
 };
 
 struct event_subscription {
@@ -126,22 +152,16 @@ struct someip_tp {
 };
 
 struct interface {
-    struct event_spec {
-        vsomeip::event_t event_id_{};
-        vsomeip::eventgroup_t eventgroup_id_{};
-        vsomeip::reliability_type_e reliability_{vsomeip::reliability_type_e::RT_UNRELIABLE};
-    };
-
     explicit interface(vsomeip::service_t _service,
-                       std::vector<event_spec> _events = {event_spec{0x8001, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
-                       std::vector<event_spec> _fields = {event_spec{0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+                       std::vector<event_spec> _events = {event_spec{0x8001, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+                       std::vector<event_spec> _fields = {event_spec{0x8002, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}},
                        vsomeip::instance_t _instance = 0x1);
     explicit interface(service_instance _instance, std::vector<event_spec> _events, std::vector<event_spec> _fields,
                        std::optional<someip_tp> tp = std::nullopt);
 
     service_instance instance_;
-    std::vector<event_ids> events_;
-    std::vector<event_ids> fields_;
+    std::vector<event_spec> events_;
+    std::vector<event_spec> fields_;
     std::optional<someip_tp> tp_;
 };
 
@@ -152,6 +172,21 @@ std::ostream& operator<<(std::ostream& o, message const& n);
 std::ostream& operator<<(std::ostream& o, request const& n);
 std::ostream& operator<<(std::ostream& o, service_state const& s);
 std::ostream& operator<<(std::ostream& o, event_ids const& s);
+std::ostream& operator<<(std::ostream& o, event_spec const& s);
 std::ostream& operator<<(std::ostream& o, event_subscription const& s);
 std::ostream& operator<<(std::ostream& o, std::vector<unsigned char> const& s);
+
+template<typename T>
+std::ostream& operator<<(std::ostream& o, std::set<T> const& s) {
+    o << '[';
+    bool first = true;
+    for (auto const& e : s) {
+        if (!first) {
+            o << ", ";
+        }
+        first = false;
+        o << e;
+    }
+    return o << ']';
+}
 }

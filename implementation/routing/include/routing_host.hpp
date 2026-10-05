@@ -8,8 +8,12 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
+#include <memory>
+
 namespace vsomeip_v3 {
 
+class policy_manager_impl;
+class security;
 struct local_client_data;
 
 class routing_host {
@@ -29,6 +33,9 @@ public:
 
     virtual client_t get_client() const = 0;
     virtual void lazy_load(const std::string& _client_host) = 0;
+
+    virtual std::shared_ptr<policy_manager_impl> get_policy_manager() const = 0;
+    virtual std::shared_ptr<security> get_security() const = 0;
 };
 
 } // namespace vsomeip_v3

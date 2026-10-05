@@ -76,7 +76,7 @@ protected:
 
     void call_shutdown_method() {
         boost::system::error_code ec;
-        std::uint8_t shutdown_call[] = {0x45, 0x45, 0x45, 0x01, 0x00, 0x00, 0x00, 0x08, 0xDD, 0xDD, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
+        uint8_t shutdown_call[] = {0x45, 0x45, 0x45, 0x01, 0x00, 0x00, 0x00, 0x08, 0xDD, 0xDD, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
         boost::asio::ip::udp::socket::endpoint_type target_service(address_remote_, 30001);
         boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
         udp_socket2.set_option(boost::asio::socket_base::reuse_address(true));
@@ -89,7 +89,7 @@ protected:
 
     void offer_service(boost::asio::ip::udp::socket* const _udp_socket) {
         // offer the service
-        std::uint8_t its_offer_service_message[] = {
+        uint8_t its_offer_service_message[] = {
                 0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x30, // length
                 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
                 0x01, 0x00, 0x00, 0x20, 0x67, 0x67, 0x00, 0x01, // service / instance
@@ -100,7 +100,7 @@ protected:
                 0x00, 0x11, 0x86, 0xcf,
         };
         std::memcpy(&its_offer_service_message[48], &address_local_.to_v4().to_bytes()[0], 4);
-        std::uint16_t its_session = htons(++sd_session_);
+        uint16_t its_session = htons(++sd_session_);
         std::memcpy(&its_offer_service_message[10], &its_session, sizeof(its_session));
 
         boost::asio::ip::udp::socket::endpoint_type target_sd(address_remote_, 30490);
@@ -110,7 +110,7 @@ protected:
     void subscribe_at_master(boost::asio::ip::udp::socket* const _udp_socket) {
         boost::asio::ip::udp::socket::endpoint_type target_sd(address_remote_, 30490);
 
-        std::uint8_t its_subscription[] = {
+        uint8_t its_subscription[] = {
                 0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x30, // length
                 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
                 0x06, 0x00, 0x00, 0x10, 0x45, 0x45, 0x00, 0x01, // service / instance
@@ -122,7 +122,7 @@ protected:
         };
         std::memcpy(&its_subscription[48], &address_local_.to_v4().to_bytes()[0], 4);
         std::scoped_lock its_lock(udp_sd_socket_mutex);
-        std::uint16_t its_session = htons(++sd_session_);
+        uint16_t its_session = htons(++sd_session_);
         std::memcpy(&its_subscription[10], &its_session, sizeof(its_session));
         _udp_socket->send_to(boost::asio::buffer(its_subscription), target_sd);
     }
@@ -131,7 +131,7 @@ protected:
      * @brief custom version of tp::tp_split_message with adjustable segment size
      * needed to send overlapping segments within the 1392 byte segment size limit
      */
-    vsomeip::tp::tp_split_messages_t split_message(const std::uint8_t* const _data, std::uint32_t _size, std::uint32_t _segment_size) {
+    vsomeip::tp::tp_split_messages_t split_message(const uint8_t* const _data, uint32_t _size, uint32_t _segment_size) {
         using namespace vsomeip::tp;
         using namespace vsomeip;
         tp_split_messages_t split_messages;
@@ -177,9 +177,9 @@ protected:
         return split_messages;
     }
 
-    void create_fragments(std::uint32_t _count, vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::method_t _method,
+    void create_fragments(uint32_t _count, vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::method_t _method,
                           vsomeip::message_type_e _message_type, vsomeip::client_t _client, vsomeip::session_t _session,
-                          std::vector<vsomeip::message_buffer_ptr_t>* _target, std::uint32_t _segment_size) {
+                          std::vector<vsomeip::message_buffer_ptr_t>* _target, uint32_t _segment_size) {
         vsomeip::message_impl msg;
         msg.set_reliable(false);
         msg.set_service(_service);
@@ -199,7 +199,7 @@ protected:
         }
         std::vector<vsomeip::byte_t> its_payload_data;
         for (uint32_t i = 0; i < _count; i++) {
-            its_payload_data.resize((i * _segment_size) + _segment_size, static_cast<std::uint8_t>(i));
+            its_payload_data.resize((i * _segment_size) + _segment_size, static_cast<uint8_t>(i));
         }
         std::shared_ptr<vsomeip::payload> payload = std::make_shared<vsomeip::payload_impl>(its_payload_data);
         msg.set_payload(payload);
@@ -211,10 +211,10 @@ protected:
     }
 
     vsomeip::message_buffer_t create_full_message(const std::vector<vsomeip::message_buffer_ptr_t>& _fragments) {
-        auto its_reassembler = std::make_shared<vsomeip::tp::tp_reassembler>(std::numeric_limits<std::uint32_t>::max(), io_);
+        auto its_reassembler = std::make_shared<vsomeip::tp::tp_reassembler>(std::numeric_limits<uint32_t>::max(), io_);
         vsomeip::message_buffer_t its_reassemlbed_msg;
         for (const auto& frag : _fragments) {
-            const auto res = its_reassembler->process_tp_message(&(*frag)[0], std::uint32_t(frag->size()), address_local_, 12345);
+            const auto res = its_reassembler->process_tp_message(&(*frag)[0], uint32_t(frag->size()), address_local_, 12345);
             if (res.first) {
                 its_reassemlbed_msg = res.second;
             }
@@ -223,28 +223,28 @@ protected:
         return its_reassemlbed_msg;
     }
 
-    std::vector<std::size_t> create_shuffled_seqeuence(std::uint32_t _count) {
-        std::vector<std::size_t> its_indexes(_count);
+    std::vector<size_t> create_shuffled_seqeuence(uint32_t _count) {
+        std::vector<size_t> its_indexes(_count);
         std::iota(its_indexes.begin(), its_indexes.end(), 0);
         std::random_device rd;
         std::mt19937 its_twister(rd());
         std::shuffle(its_indexes.begin(), its_indexes.end(), its_twister);
         return its_indexes;
     }
-    void increase_segment_back(const vsomeip::message_buffer_ptr_t& _seg, std::uint32_t _amount) {
+    void increase_segment_back(const vsomeip::message_buffer_ptr_t& _seg, uint32_t _amount) {
         _seg->resize(_seg->size() + _amount, 0xff);
         // update length
         *(reinterpret_cast<vsomeip::length_t*>(&((*_seg)[VSOMEIP_LENGTH_POS_MIN]))) =
                 htonl(static_cast<vsomeip::length_t>(_seg->size() - VSOMEIP_SOMEIP_HEADER_SIZE));
     }
 
-    void increase_segment_front(const vsomeip::message_buffer_ptr_t& _seg, std::uint32_t _amount) {
+    void increase_segment_front(const vsomeip::message_buffer_ptr_t& _seg, uint32_t _amount) {
         // increase segment by amount
         _seg->insert(_seg->begin() + VSOMEIP_TP_PAYLOAD_POS, _amount, 0xff);
 
         // decrease offset by amount
         const vsomeip::tp::tp_header_t its_tp_header = vsomeip::bithelper::read_uint32_be(&(*_seg)[VSOMEIP_TP_HEADER_POS_MIN]);
-        std::uint32_t its_offset = vsomeip::tp::tp::get_offset(its_tp_header);
+        uint32_t its_offset = vsomeip::tp::tp::get_offset(its_tp_header);
         its_offset -= _amount;
         const vsomeip::tp::tp_header_t its_new_tp_header =
                 htonl(static_cast<vsomeip::tp::tp_header_t>(its_offset | static_cast<vsomeip::tp::tp_header_t>(its_tp_header & 0x1)));
@@ -255,12 +255,12 @@ protected:
                 htonl(static_cast<vsomeip::length_t>(_seg->size() - VSOMEIP_SOMEIP_HEADER_SIZE));
     }
 
-    void increase_segment_front_back(const vsomeip::message_buffer_ptr_t& _seg, std::uint32_t _amount) {
+    void increase_segment_front_back(const vsomeip::message_buffer_ptr_t& _seg, uint32_t _amount) {
         increase_segment_front(_seg, _amount);
         increase_segment_back(_seg, _amount);
     }
 
-    void decrease_segment_back(const vsomeip::message_buffer_ptr_t& _seg, std::uint32_t _amount) {
+    void decrease_segment_back(const vsomeip::message_buffer_ptr_t& _seg, uint32_t _amount) {
         if (_amount <= _seg->size()) {
             _seg->resize(_seg->size() - _amount, 0xff);
             // update length
@@ -269,7 +269,7 @@ protected:
         }
     }
 
-    void decrease_segment_front(const vsomeip::message_buffer_ptr_t& _seg, std::uint32_t _amount) {
+    void decrease_segment_front(const vsomeip::message_buffer_ptr_t& _seg, uint32_t _amount) {
         if (_amount % 16 != 0) {
             std::cerr << __func__ << ":" << __LINE__ << std::endl;
             return;
@@ -277,7 +277,7 @@ protected:
         _seg->erase(_seg->begin() + VSOMEIP_TP_PAYLOAD_POS, _seg->begin() + VSOMEIP_TP_PAYLOAD_POS + _amount);
         // increase offset by amount
         const vsomeip::tp::tp_header_t its_tp_header = vsomeip::bithelper::read_uint32_be(&(*_seg)[VSOMEIP_TP_HEADER_POS_MIN]);
-        std::uint32_t its_offset = vsomeip::tp::tp::get_offset(its_tp_header);
+        uint32_t its_offset = vsomeip::tp::tp::get_offset(its_tp_header);
         its_offset += _amount;
         const vsomeip::tp::tp_header_t its_new_tp_header =
                 htonl(static_cast<vsomeip::tp::tp_header_t>(its_offset | static_cast<vsomeip::tp::tp_header_t>(its_tp_header & 0x1)));
@@ -287,7 +287,7 @@ protected:
                 htonl(static_cast<vsomeip::length_t>(_seg->size() - VSOMEIP_SOMEIP_HEADER_SIZE));
     }
 
-    void decrease_segment_front_back(const vsomeip::message_buffer_ptr_t& _seg, std::uint32_t _amount) {
+    void decrease_segment_front_back(const vsomeip::message_buffer_ptr_t& _seg, uint32_t _amount) {
         if (_amount % 16 != 0) {
             std::cerr << __func__ << ":" << __LINE__ << std::endl;
             return;
@@ -315,8 +315,8 @@ protected:
     std::vector<vsomeip::message_buffer_ptr_t> fragments_event_from_master_;
     std::vector<vsomeip::message_buffer_ptr_t> fragments_event_to_master_;
 
-    std::atomic<std::uint16_t> session_;
-    std::atomic<std::uint16_t> sd_session_;
+    std::atomic<uint16_t> session_;
+    std::atomic<uint16_t> sd_session_;
     boost::asio::ip::address address_remote_;
     boost::asio::ip::address address_local_;
     std::shared_ptr<vsomeip::runtime> runtime_;
@@ -342,7 +342,7 @@ INSTANTIATE_TEST_SUITE_P(send_in_mode, someip_tp, ::testing::ValuesIn(its_modes)
  */
 TEST_P(someip_tp, send_in_mode) {
     std::promise<void> remote_client_subscribed;
-    std::atomic<std::uint16_t> remote_client_subscription_port(0);
+    std::atomic<uint16_t> remote_client_subscription_port(0);
     std::promise<void> offer_received;
 
     boost::asio::ip::udp::socket udp_sd_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
@@ -356,11 +356,11 @@ TEST_P(someip_tp, send_in_mode) {
 
     std::thread sd_receive_thread([&]() {
         bool keep_receiving(true);
-        std::vector<std::uint8_t> receive_buffer(4096);
+        std::vector<uint8_t> receive_buffer(4096);
         std::vector<vsomeip::event_t> its_received_events;
         bool service_offered(false);
         bool client_subscribed(false);
-        std::size_t bytes_transferred;
+        size_t bytes_transferred;
         bool its_subscribed_at_master;
 
         // join the sd multicast group 224.0.77.1
@@ -370,8 +370,9 @@ TEST_P(someip_tp, send_in_mode) {
             {
                 std::scoped_lock its_lock(udp_sd_socket_mutex);
                 bytes_transferred = udp_sd_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
-                if (!client_subscribed)
+                if (!client_subscribed) {
                     offer_service(&udp_sd_socket);
+                }
             }
             if (error) {
                 keep_receiving = false;
@@ -391,7 +392,7 @@ TEST_P(someip_tp, send_in_mode) {
                             EXPECT_TRUE(e->is_eventgroup_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
                             EXPECT_EQ(1, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(someip_tp_test::service_slave.service_id, e->get_service());
                             EXPECT_EQ(someip_tp_test::service_slave.instance_id, e->get_instance());
                             EXPECT_EQ(1u, sd_msg.get_options().size());
@@ -416,15 +417,14 @@ TEST_P(someip_tp, send_in_mode) {
                                                                                  + (sd_msg.get_entries().size() * 16));
                                 its_sub_ack[24] = static_cast<vsomeip::byte_t>(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP_ACK);
                                 // fix length
-                                const std::uint32_t its_length =
-                                        htonl(static_cast<std::uint32_t>(its_sub_ack.size()) - VSOMEIP_SOMEIP_HEADER_SIZE);
+                                const uint32_t its_length = htonl(static_cast<uint32_t>(its_sub_ack.size()) - VSOMEIP_SOMEIP_HEADER_SIZE);
                                 std::memcpy(&its_sub_ack[4], &its_length, sizeof(its_length));
                                 // set number of options to zero
                                 its_sub_ack[27] = 0x0;
                                 {
                                     std::scoped_lock its_lock(udp_sd_socket_mutex);
                                     // update session
-                                    std::uint16_t its_session = htons(++sd_session_);
+                                    uint16_t its_session = htons(++sd_session_);
                                     std::memcpy(&its_sub_ack[10], &its_session, sizeof(its_session));
                                     boost::asio::ip::udp::socket::endpoint_type target_sd(address_remote_, 30490);
                                     udp_sd_socket.send_to(boost::asio::buffer(its_sub_ack), target_sd);
@@ -437,7 +437,7 @@ TEST_P(someip_tp, send_in_mode) {
                             EXPECT_TRUE(e->is_service_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
                             EXPECT_EQ(1u, e->get_num_options(1));
-                            EXPECT_EQ(std::uint32_t(0xFFFFFF), e->get_ttl());
+                            EXPECT_EQ(uint32_t(0xFFFFFF), e->get_ttl());
                             EXPECT_EQ(someip_tp_test::service.service_id, e->get_service());
                             EXPECT_EQ(someip_tp_test::service.instance_id, e->get_instance());
                             EXPECT_EQ(1u, sd_msg.get_options().size());
@@ -483,25 +483,25 @@ TEST_P(someip_tp, send_in_mode) {
             std::mutex all_fragments_received_mutex_;
             std::condition_variable all_fragments_received_cond_;
             bool wait_for_all_response_fragments_received_(true);
-            std::uint32_t received_responses(0);
+            uint32_t received_responses(0);
             bool wait_for_all_event_fragments_received_(true);
 
             std::thread udp_client_receive_thread([&]() {
                 bool keep_receiving(true);
-                std::vector<std::uint8_t> receive_buffer(4096);
+                std::vector<uint8_t> receive_buffer(4096);
                 while (keep_receiving) {
                     boost::system::error_code error;
-                    std::size_t bytes_transferred =
+                    size_t bytes_transferred =
                             udp_client_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (error) {
                         keep_receiving = false;
                         ADD_FAILURE() << __func__ << " error: " << error.message();
                         return;
                     } else {
-                        std::uint32_t its_pos = 0;
+                        uint32_t its_pos = 0;
 
                         while (bytes_transferred > 0) {
-                            const std::uint32_t its_message_size =
+                            const uint32_t its_message_size =
                                     vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
                                     + VSOMEIP_SOMEIP_HEADER_SIZE;
 
@@ -586,7 +586,7 @@ TEST_P(someip_tp, send_in_mode) {
                             ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                             return;
                         } else {
-                            const std::array<std::size_t, 6> its_indexes{4, 1, 3, 5, 2, 0};
+                            const std::array<size_t, 6> its_indexes{4, 1, 3, 5, 2, 0};
                             std::cout << __LINE__
                                       << ": using following predefined sequence to send request to "
                                          "master: ";
@@ -602,7 +602,7 @@ TEST_P(someip_tp, send_in_mode) {
                         if (someip_tp_test::number_of_fragments != 6) {
                             ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                         } else {
-                            const std::array<std::size_t, 6> its_indexes{0, 1, 3, 5, 2, 4};
+                            const std::array<size_t, 6> its_indexes{0, 1, 3, 5, 2, 4};
                             std::cout << __LINE__
                                       << ": using following predefined sequence to send request to "
                                          "master: ";
@@ -676,7 +676,7 @@ TEST_P(someip_tp, send_in_mode) {
                         if (someip_tp_test::number_of_fragments != 6) {
                             ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                         } else {
-                            const std::array<std::size_t, 6> its_indexes{5, 3, 2, 4, 1, 0};
+                            const std::array<size_t, 6> its_indexes{5, 3, 2, 4, 1, 0};
                             std::cout << __LINE__
                                       << ": using following predefined sequence to send request to "
                                          "master: ";
@@ -743,7 +743,7 @@ TEST_P(someip_tp, send_in_mode) {
                             == all_fragments_received_cond_.wait_for(its_lock, common::scaled_timeout(std::chrono::seconds(5)))) {
                             ADD_FAILURE() << "Didn't receive response to"
                                              " fragmented message within time: "
-                                          << std::uint32_t(mode);
+                                          << uint32_t(mode);
                             return;
                         } else {
                             EXPECT_EQ(someip_tp_test::number_of_fragments, fragments_request_to_master_.size());
@@ -787,7 +787,7 @@ TEST_P(someip_tp, send_in_mode) {
                             if (test_mode_ == someip_tp_test::test_mode_e::OVERLAP && mode == ASCENDING) {
                                 // response contains the additional 16 bytes of 2nd fragment instead
                                 // of beginning of the 3rd fragment
-                                for (std::uint32_t i = 0; i < 16; i++) {
+                                for (uint32_t i = 0; i < 16; i++) {
                                     its_request[VSOMEIP_PAYLOAD_POS + 2 * (someip_tp_test::max_segment_size - 160) + i] = 0xff;
                                 }
                             }
@@ -854,7 +854,7 @@ TEST_P(someip_tp, send_in_mode) {
     std::mutex fragments_received_as_server_mutex_;
     std::condition_variable all_fragments_received_as_server_cond_;
     std::atomic<bool> wait_for_all_fragments_received_as_server_(true);
-    std::atomic<std::uint16_t> remote_client_request_port(0);
+    std::atomic<uint16_t> remote_client_request_port(0);
 
     std::thread udp_server_send_thread([&]() {
         std::unique_lock all_fragments_received_as_server_lock(all_fragments_received_as_server_mutex_);
@@ -880,7 +880,7 @@ TEST_P(someip_tp, send_in_mode) {
                     if (someip_tp_test::number_of_fragments != 6) {
                         ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                     } else {
-                        const std::array<std::size_t, 6> its_indexes{2, 3, 5, 1, 4, 0};
+                        const std::array<size_t, 6> its_indexes{2, 3, 5, 1, 4, 0};
                         std::cout << __LINE__
                                   << ": using following predefined sequence to send event to "
                                      "master: ";
@@ -896,7 +896,7 @@ TEST_P(someip_tp, send_in_mode) {
                     if (someip_tp_test::number_of_fragments != 6) {
                         ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                     } else {
-                        const std::array<std::size_t, 6> its_indexes{0, 2, 4, 5, 1, 3};
+                        const std::array<size_t, 6> its_indexes{0, 2, 4, 5, 1, 3};
                         std::cout << __LINE__
                                   << ": using following predefined sequence to send event to "
                                      "master: ";
@@ -982,7 +982,7 @@ TEST_P(someip_tp, send_in_mode) {
                     if (someip_tp_test::number_of_fragments != 6) {
                         ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                     } else {
-                        const std::array<std::size_t, 6> its_indexes{5, 3, 2, 1, 0, 4};
+                        const std::array<size_t, 6> its_indexes{5, 3, 2, 1, 0, 4};
                         std::cout << __LINE__
                                   << ": using following predefined sequence to send event to "
                                      "master: ";
@@ -1042,7 +1042,7 @@ TEST_P(someip_tp, send_in_mode) {
                     }
                 }
             }
-            std::cout << __LINE__ << ": send event to master " << std::uint32_t(mode) << std::endl;
+            std::cout << __LINE__ << ": send event to master " << uint32_t(mode) << std::endl;
         }
 
         for (const order_e mode : {order_e::ASCENDING, order_e::DESCENDING}) {
@@ -1050,7 +1050,7 @@ TEST_P(someip_tp, send_in_mode) {
                 if (std::cv_status::timeout
                     == all_fragments_received_as_server_cond_.wait_for(all_fragments_received_as_server_lock,
                                                                        common::scaled_timeout(std::chrono::seconds(5)))) {
-                    ADD_FAILURE() << "Didn't receive request from client within time: " << std::uint32_t(mode);
+                    ADD_FAILURE() << "Didn't receive request from client within time: " << uint32_t(mode);
                     return;
                 } else {
                     vsomeip::message_buffer_t its_request;
@@ -1101,15 +1101,15 @@ TEST_P(someip_tp, send_in_mode) {
                             if (someip_tp_test::number_of_fragments != 6) {
                                 ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                             } else {
-                                std::array<std::size_t, 6> its_indexes{4, 2, 0, 1, 3, 5};
+                                std::array<size_t, 6> its_indexes{4, 2, 0, 1, 3, 5};
                                 std::cout << __LINE__
                                           << ": using following predefined sequence to send back "
                                              "response to master: ";
-                                for (std::size_t i : its_indexes) {
+                                for (size_t i : its_indexes) {
                                     std::cout << i << ", ";
                                 }
                                 std::cout << std::endl;
-                                for (std::size_t i : its_indexes) {
+                                for (size_t i : its_indexes) {
                                     udp_server_socket.send_to(boost::asio::buffer(*fragments_response_to_master_[i]), master_client);
                                 }
                             }
@@ -1117,18 +1117,18 @@ TEST_P(someip_tp, send_in_mode) {
                             if (someip_tp_test::number_of_fragments != 6) {
                                 ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                             } else {
-                                std::array<std::size_t, 6> its_indexes{0, 2, 4, 3, 5, 1};
+                                std::array<size_t, 6> its_indexes{0, 2, 4, 3, 5, 1};
                                 std::cout << __LINE__
                                           << ": using following predefined sequence to send "
                                              "response to master: ";
-                                for (std::size_t i : its_indexes) {
+                                for (size_t i : its_indexes) {
                                     std::cout << i << ", ";
                                 }
                                 std::cout << std::endl;
                                 // increase fourth segment by 16 byte at front and back
                                 increase_segment_front_back(fragments_response_to_master_[3], 16);
                                 increase_segment_front(fragments_response_to_master_[1], 16);
-                                for (std::size_t i : its_indexes) {
+                                for (size_t i : its_indexes) {
                                     udp_server_socket.send_to(boost::asio::buffer(*fragments_response_to_master_[i]), master_client);
                                 }
                             }
@@ -1181,32 +1181,32 @@ TEST_P(someip_tp, send_in_mode) {
                         }
                     } else if (mode == order_e::DESCENDING) {
                         if (test_mode_ == someip_tp_test::test_mode_e::MIXED) {
-                            std::vector<std::size_t> its_indexes = create_shuffled_seqeuence(someip_tp_test::number_of_fragments);
+                            std::vector<size_t> its_indexes = create_shuffled_seqeuence(someip_tp_test::number_of_fragments);
                             std::cout << __LINE__
                                       << ": using following random sequence to send back response "
                                          "to master: ";
-                            for (std::size_t i : its_indexes) {
+                            for (size_t i : its_indexes) {
                                 std::cout << i << ", ";
                             }
                             std::cout << std::endl;
-                            for (std::size_t i : its_indexes) {
+                            for (size_t i : its_indexes) {
                                 udp_server_socket.send_to(boost::asio::buffer(*fragments_response_to_master_[i]), master_client);
                             }
                         } else if (test_mode_ == someip_tp_test::test_mode_e::OVERLAP_FRONT_BACK) {
                             if (someip_tp_test::number_of_fragments != 6) {
                                 ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                             } else {
-                                std::array<std::size_t, 6> its_indexes{5, 3, 2, 1, 4, 0};
+                                std::array<size_t, 6> its_indexes{5, 3, 2, 1, 4, 0};
                                 std::cout << __LINE__
                                           << ": using following predefined sequence to send "
                                              "response to master: ";
-                                for (std::size_t i : its_indexes) {
+                                for (size_t i : its_indexes) {
                                     std::cout << i << ", ";
                                 }
                                 std::cout << std::endl;
                                 // increase fith segment by 16 byte at front and back
                                 increase_segment_front_back(fragments_response_to_master_[4], 16);
-                                for (std::size_t i : its_indexes) {
+                                for (size_t i : its_indexes) {
                                     udp_server_socket.send_to(boost::asio::buffer(*fragments_response_to_master_[i]), master_client);
                                 }
                             }
@@ -1266,22 +1266,21 @@ TEST_P(someip_tp, send_in_mode) {
         }
 
         bool keep_receiving(true);
-        std::vector<std::uint8_t> receive_buffer(4096);
+        std::vector<uint8_t> receive_buffer(4096);
         while (keep_receiving) {
             boost::system::error_code error;
             boost::asio::ip::udp::socket::endpoint_type its_remote_endpoint;
-            std::size_t bytes_transferred = udp_server_socket.receive_from(boost::asio::buffer(receive_buffer, receive_buffer.capacity()),
-                                                                           its_remote_endpoint, 0, error);
+            size_t bytes_transferred = udp_server_socket.receive_from(boost::asio::buffer(receive_buffer, receive_buffer.capacity()),
+                                                                      its_remote_endpoint, 0, error);
             if (error) {
                 keep_receiving = false;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
                 return;
             } else {
                 remote_client_request_port = its_remote_endpoint.port();
-                std::uint32_t its_pos = 0;
+                uint32_t its_pos = 0;
                 while (bytes_transferred > 0) {
-                    const std::uint32_t its_message_size =
-                            vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                    const uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
                             + VSOMEIP_SOMEIP_HEADER_SIZE;
 
                     std::cout << __LINE__ << ": received request from master " << its_message_size << std::endl;

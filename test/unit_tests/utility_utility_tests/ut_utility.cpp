@@ -13,9 +13,9 @@
 using vsomeip_v3::bithelper;
 
 namespace {
-const std::uint8_t array_size = 18;
-const std::uint8_t array_size_too_short = 2;
-const std::uint32_t payload_length = 2;
+const uint8_t array_size = 18;
+const uint8_t array_size_too_short = 2;
+const uint32_t payload_length = 2;
 const vsomeip_v3::byte_t serviceID_byte1 = 0x01;
 const vsomeip_v3::byte_t serviceID_byte2 = 0x02;
 const vsomeip_v3::byte_t methodID_byte1 = 0x03;
@@ -39,10 +39,11 @@ const vsomeip_v3::byte_t payload_byte2 = 0x37;
 std::string get_temp_dir() {
 #ifdef _WIN32
     const char* tmp = std::getenv("TEMP");
-    if (tmp)
+    if (tmp) {
         return std::string(tmp) + "\\";
-    else
+    } else {
         return "C:\\Temp\\";
+    }
 #else
 
     std::string dir = vsomeip_v3::utility::get_base_path("");
@@ -64,7 +65,7 @@ TEST(utility_test, get_message_size) {
     std::array<vsomeip_v3::byte_t, 4> uint32_array_{length_byte1, length_byte2, length_byte3, length_byte4};
 
     // Getting size.
-    std::uint32_t size_ = VSOMEIP_SOMEIP_HEADER_SIZE + bithelper::read_uint32_be(uint32_array_.data());
+    uint32_t size_ = VSOMEIP_SOMEIP_HEADER_SIZE + bithelper::read_uint32_be(uint32_array_.data());
 
     // Check if function returns the uint32_t size_ we expect to receive, header + size passed by
     // the 4 length_bytes.
@@ -298,14 +299,14 @@ TEST(utility_test, request_client_id) {
 
     // Get from the configs the smallest and biggest client numbers that can be assigned.
     // Should be 0x100 to 0x1ff
-    static const std::uint16_t its_diagnosis_mask = its_config->get_diagnosis_mask();
-    static const std::uint16_t its_masked_diagnosis_address =
-            static_cast<std::uint16_t>((its_config->get_diagnosis_address() << 8) & its_diagnosis_mask);
-    static const std::uint16_t its_client_mask = static_cast<std::uint16_t>(~its_diagnosis_mask);
-    static const std::uint16_t its_biggest_client = its_masked_diagnosis_address | its_client_mask;
-    static const std::uint16_t its_smallest_client = its_masked_diagnosis_address;
+    static const uint16_t its_diagnosis_mask = its_config->get_diagnosis_mask();
+    static const uint16_t its_masked_diagnosis_address =
+            static_cast<uint16_t>((its_config->get_diagnosis_address() << 8) & its_diagnosis_mask);
+    static const uint16_t its_client_mask = static_cast<uint16_t>(~its_diagnosis_mask);
+    static const uint16_t its_biggest_client = its_masked_diagnosis_address | its_client_mask;
+    static const uint16_t its_smallest_client = its_masked_diagnosis_address;
 
-    std::uint16_t client_id = its_utility->request_client_id(its_config, client_name2_, client2_);
+    uint16_t client_id = its_utility->request_client_id(its_config, client_name2_, client2_);
 
     // Expect first call with unset id to be the smallest client allowed +1.
     ASSERT_EQ(client_id, its_smallest_client + 1);

@@ -38,7 +38,7 @@ public:
 
     initial_event_test_stop_service(initial_event_test::service_info _service_info, bool _is_master,
                                     std::array<initial_event_test::service_info, 7> _service_infos,
-                                    vsomeip::reliability_type_e _reliability_type, std::uint16_t _events_to_subscribe,
+                                    vsomeip::reliability_type_e _reliability_type, uint16_t _events_to_subscribe,
                                     std::vector<pid_t> _local_service_pids) :
         service_info_(_service_info), is_master_(_is_master), service_infos_(_service_infos), reliability_type_(_reliability_type),
         events_to_subscribe_(_events_to_subscribe), local_service_pids_(std::move(_local_service_pids)),
@@ -124,7 +124,7 @@ public:
     }
 
     void on_subscription_status(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,
-                                vsomeip::event_t _event, std::uint16_t _error_code) {
+                                vsomeip::event_t _event, uint16_t _error_code) {
         EXPECT_EQ(0x0u, _error_code) << "Subscription to [" << std::hex << std::setfill('0') << std::setw(4) << _service << "."
                                      << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "." << std::setw(4) << _event
                                      << "] failed";
@@ -192,7 +192,7 @@ private:
     }
 
     void register_service_watchers() {
-        for (std::size_t i = 1; i < service_infos_.size(); ++i) {
+        for (size_t i = 1; i < service_infos_.size(); ++i) {
             const auto& service = service_infos_[i];
             const auto key = make_service_key(service.service_id, service.instance_id);
 
@@ -207,7 +207,7 @@ private:
 
             std::set<vsomeip::eventgroup_t> eventgroups;
             eventgroups.insert(service.eventgroup_id);
-            for (std::uint16_t event_index = 0; event_index < events_to_subscribe_; ++event_index) {
+            for (uint16_t event_index = 0; event_index < events_to_subscribe_; ++event_index) {
                 app_->request_event(service.service_id, service.instance_id, static_cast<vsomeip::event_t>(service.event_id + event_index),
                                     eventgroups, vsomeip::event_type_e::ET_FIELD, reliability_type_);
             }
@@ -344,10 +344,10 @@ private:
     }
 
     void release_subscriptions() {
-        for (std::size_t i = 1; i < service_infos_.size(); ++i) {
+        for (size_t i = 1; i < service_infos_.size(); ++i) {
             const auto& service = service_infos_[i];
             app_->unsubscribe(service.service_id, service.instance_id, service.eventgroup_id);
-            for (std::uint16_t event_index = 0; event_index < events_to_subscribe_; ++event_index) {
+            for (uint16_t event_index = 0; event_index < events_to_subscribe_; ++event_index) {
                 app_->release_event(service.service_id, service.instance_id, static_cast<vsomeip::event_t>(service.event_id + event_index));
             }
             app_->release_service(service.service_id, service.instance_id);
@@ -372,7 +372,7 @@ private:
     bool is_master_;
     std::array<initial_event_test::service_info, 7> service_infos_;
     vsomeip::reliability_type_e reliability_type_;
-    std::uint16_t events_to_subscribe_;
+    uint16_t events_to_subscribe_;
     std::vector<pid_t> local_service_pids_;
     std::shared_ptr<vsomeip::application> app_;
     bool app_initialized_;
@@ -394,7 +394,7 @@ private:
 
 static bool is_master = false;
 static bool use_same_service_id = false;
-static std::uint16_t events_to_subscribe = 1;
+static uint16_t events_to_subscribe = 1;
 static std::vector<pid_t> local_service_pids;
 static vsomeip::reliability_type_e reliability_type = vsomeip::reliability_type_e::RT_UNKNOWN;
 

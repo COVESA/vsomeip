@@ -9,9 +9,9 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-deserializer::deserializer(std::uint32_t _shrink_buffer_threshold) : vsomeip_v3::deserializer(_shrink_buffer_threshold) { }
+deserializer::deserializer(uint32_t _shrink_buffer_threshold) : vsomeip_v3::deserializer(_shrink_buffer_threshold) { }
 
-deserializer::deserializer(uint8_t* _data, std::size_t _length, std::uint32_t _shrink_buffer_threshold) :
+deserializer::deserializer(uint8_t* _data, size_t _length, uint32_t _shrink_buffer_threshold) :
     vsomeip_v3::deserializer(_data, _length, _shrink_buffer_threshold) { }
 
 deserializer::deserializer(const deserializer& _other) : vsomeip_v3::deserializer(_other) { }

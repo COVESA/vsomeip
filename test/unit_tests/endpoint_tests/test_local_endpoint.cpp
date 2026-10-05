@@ -6,7 +6,11 @@
 #include "base_endpoint_fixture.hpp"
 #include "mock_routing_host.hpp"
 
+#include "../../../implementation/security/include/policy_manager_impl.hpp"
+#include "../../../implementation/security/include/security.hpp"
+
 #include "../../../implementation/endpoints/include/asio_timer.hpp"
+#include "../../../implementation/endpoints/include/steady_clock.hpp"
 #include "../../../implementation/endpoints/include/asio_tcp_socket.hpp"
 #include "../../../implementation/endpoints/include/asio_udp_socket.hpp"
 #include "../../../implementation/endpoints/include/asio_uds_acceptor.hpp"
@@ -43,6 +47,10 @@ public:
     virtual std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override {
         return std::make_unique<asio_timer>(_io);
     }
+    std::shared_ptr<abstract_clock> get_clock() override {
+        static auto clock = std::make_shared<steady_clock>();
+        return clock;
+    }
 #if defined(__linux__) || defined(__QNX__)
     std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context& _io) override { return std::make_unique<asio_uds_socket>(_io); }
     std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context& _io) override {
@@ -59,6 +67,11 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
         configuration_ = std::make_shared<vsomeip_v3::cfg::configuration_impl>(path);
         configuration_->set_configuration_path(path);
         configuration_->load("stub");
+
+        ON_CALL(*server_routing_host_, get_policy_manager()).WillByDefault(::testing::Return(policy_manager_));
+        ON_CALL(*server_routing_host_, get_security()).WillByDefault(::testing::Return(security_));
+        ON_CALL(*client_routing_host_, get_policy_manager()).WillByDefault(::testing::Return(policy_manager_));
+        ON_CALL(*client_routing_host_, get_security()).WillByDefault(::testing::Return(security_));
     }
 
     auto create_server() {
@@ -98,6 +111,9 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
         protocol::serialize(cmd, msg.data());
         _queue.push_back(std::move(msg));
     }
+    std::shared_ptr<policy_manager_impl> policy_manager_{std::make_shared<policy_manager_impl>()};
+    std::shared_ptr<security> security_{std::make_shared<security>(policy_manager_)};
+
     std::shared_ptr<stub_factory> factory_;
 
     boost::asio::io_context io_;

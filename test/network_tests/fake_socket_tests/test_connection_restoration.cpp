@@ -48,8 +48,8 @@ struct test_connection_restoration : public base_fake_socket_fixture {
         ASSERT_NE(server_, nullptr);
         ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         server_->offer(service_instance_);
-        server_->offer_event(offered_event_);
-        server_->offer_field(offered_field_);
+        server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+        server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     }
 
     void start_client_app() {
@@ -98,9 +98,8 @@ struct test_connection_restoration : public base_fake_socket_fixture {
             client_session{0, 1}, service_instance_, offered_event_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
     event_ids offered_field_{service_instance_, 0x8003, 0x6};
     std::vector<unsigned char> field_payload_{0x42, 0x13};
-    message first_expected_field_message_{client_session{0, 2}, // todo, why is the session a two here?
-                                          service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
-                                          field_payload_};
+    message first_expected_field_message_{client_session{0, 1}, service_instance_, offered_field_.event_id_,
+                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
     message_checker const field_checker_{std::nullopt, service_instance_, offered_field_.event_id_,
                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
 
@@ -117,6 +116,35 @@ struct test_connection_restoration : public base_fake_socket_fixture {
     app* client_{};
     app* server_{};
 };
+
+TEST_F(test_connection_restoration, service_release_avoids_availability_forwarding) {
+    std::shared_ptr<command_gate> router_to_client_gate_ = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(client_name_, routingmanager_name_, socket_role::client, router_to_client_gate_->get_data_pipe()));
+    //  offers the service
+    start_apps();
+    client_->request_service(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    server_->stop_offer(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+
+    router_to_client_gate_->block_at(vsomeip_v3::protocol::id_e::ROUTING_INFO_ID);
+    server_->offer(service_instance_);
+    ASSERT_TRUE(router_to_client_gate_->wait_for_blocked());
+    client_->release_service(service_instance_);
+
+    server_->stop_offer(service_instance_);
+    client_->availability_record_.clear();
+    // allow ADD_SERVICE to pass through, but no further routing info
+    router_to_client_gate_->block(false);
+    // the routing info should not have been forwarded to the client
+    ASSERT_FALSE(
+            client_->availability_record_.wait_for_any(service_availability::available(service_instance_), std::chrono::milliseconds(100)));
+    client_->request_service(service_instance_);
+    // and the replay should neither to a forwarding of the state (as this is outdated state)
+    EXPECT_FALSE(
+            client_->availability_record_.wait_for_any(service_availability::available(service_instance_), std::chrono::milliseconds(100)));
+}
 
 TEST_F(test_connection_restoration, client_renews_connection_deletes_client_info) {
     /**
@@ -257,12 +285,12 @@ TEST_F(test_connection_restoration, outdated_routing_info_will_not_cause_a_wrong
     ASSERT_NE(new_app, nullptr);
     ASSERT_TRUE(new_app->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
-    // 5. trigger client tries to connect
+    // 5. trigger client tries to connect (watch armed before the trigger)
+    auto drop_watch = watch_connection_drop(client_name_, new_app_name);
     ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::client));
 
-    // 6. we expect that the established connection is dropped (note that the predicate includes the check that connection has been
-    // established)
-    EXPECT_TRUE(wait_for_connection_drop(client_name_, new_app_name));
+    // 6. we expect that the established connection is dropped
+    EXPECT_TRUE(drop_watch.wait());
 }
 
 TEST_F(test_connection_restoration, reproduction_allow_reconnects_on_first_try_between_router_and_client) {
@@ -1321,8 +1349,8 @@ TEST_F(test_connection_restoration, double_assign_client_ack_id_diff_ids) {
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
     server_->offer(service_instance_);
-    server_->offer_event(offered_event_);
-    server_->offer_field(offered_field_);
+    server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+    server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     server_->request_service(service_instance_);
 
     EXPECT_TRUE(router_to_server_gate->wait_for_blocked());

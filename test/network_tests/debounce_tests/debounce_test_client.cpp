@@ -86,8 +86,9 @@ void debounce_test_client::run() {
 
 void debounce_test_client::wait() {
 
-    if (runner_.joinable())
+    if (runner_.joinable()) {
         runner_.join();
+    }
 }
 
 void debounce_test_client::on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
@@ -125,8 +126,9 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
         if (test_id_ == debounce_test_id_e::DTI_FLAT) {
             bool is_equal = compare_payload(_message->get_payload(), index_++);
             EXPECT_EQ(is_equal, true);
-            if (!is_equal || index_ == 5)
+            if (!is_equal || index_ == 5) {
                 run_condition_.notify_one();
+            }
         }
 
         return;
@@ -138,8 +140,9 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
             bool is_equal = compare_payload(_message->get_payload(), index_++);
             EXPECT_EQ(is_equal, true);
 
-            if (!is_equal || index_ == 6)
+            if (!is_equal || index_ == 6) {
                 run_condition_.notify_one();
+            }
         }
 
         return;
@@ -151,15 +154,16 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
             bool is_equal = compare_payload(_message->get_payload(), index_++);
             EXPECT_EQ(is_equal, true);
 
-            if (!is_equal || index_ == 6)
+            if (!is_equal || index_ == 6) {
                 run_condition_.notify_one();
+            }
         }
 
         return;
     }
 }
 
-bool debounce_test_client::compare_payload(const std::shared_ptr<vsomeip::payload>& _payload, std::size_t _index) const {
+bool debounce_test_client::compare_payload(const std::shared_ptr<vsomeip::payload>& _payload, size_t _index) const {
 
     auto its_expected_payload = payloads__[test_id_][_index];
     return _payload->operator==(*its_expected_payload);

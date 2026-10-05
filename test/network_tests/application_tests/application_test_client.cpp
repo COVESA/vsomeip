@@ -162,8 +162,8 @@ private:
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
 
-    std::atomic<std::uint32_t> received_responses_;
-    std::atomic<std::uint32_t> sent_requests_;
+    std::atomic<uint32_t> received_responses_;
+    std::atomic<uint32_t> sent_requests_;
     std::atomic<bool> stop_called_;
 
     std::thread stop_thread_;

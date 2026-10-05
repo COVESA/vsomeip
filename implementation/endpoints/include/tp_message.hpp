@@ -22,31 +22,32 @@ namespace tp {
 
 class tp_message {
 public:
-    tp_message(const byte_t* const _data, std::uint32_t _data_length, std::uint32_t _max_message_size);
+    tp_message(const byte_t* const _data, uint32_t _data_length, uint32_t _max_message_size);
 
-    bool add_segment(const byte_t* const _data, std::uint32_t _data_length);
+    bool add_segment(const byte_t* const _data, uint32_t _data_length);
 
     message_buffer_t get_message();
 
     std::chrono::steady_clock::time_point get_creation_time() const;
 
 private:
-    std::string get_message_id(const byte_t* const _data, std::uint32_t _data_length);
-    bool check_lengths(const byte_t* const _data, std::uint32_t _data_length, length_t _segment_size, bool _more_fragments);
+    std::string get_message_id(const byte_t* const _data, uint32_t _data_length);
+    bool check_lengths(const byte_t* const _data, uint32_t _data_length, length_t _segment_size, bool _more_fragments);
 
 private:
     std::chrono::steady_clock::time_point timepoint_creation_;
-    std::uint32_t max_message_size_;
-    std::uint32_t current_message_size_;
+    uint32_t max_message_size_;
+    uint32_t current_message_size_;
     bool last_segment_received_;
+    bool header_received_;
 
     struct segment_t {
-        segment_t(std::uint32_t _start, std::uint32_t _end) : start_(_start), end_(_end) { }
+        segment_t(uint32_t _start, uint32_t _end) : start_(_start), end_(_end) { }
 
         auto operator<=>(const segment_t& _other) const = default;
 
-        std::uint32_t start_;
-        std::uint32_t end_;
+        uint32_t start_;
+        uint32_t end_;
     };
     std::set<segment_t> segments_;
     message_buffer_t message_;

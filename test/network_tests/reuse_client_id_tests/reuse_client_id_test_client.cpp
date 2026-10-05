@@ -122,8 +122,8 @@ void reuse_client_id_test_client::run() {
 }
 
 TEST(reuse_client_id_test, start_app) {
-    reuse_client_id_test_client reuse_client_id_test_client(
-            "reuse_client_id_test_client", static_cast<std::uint32_t>(std::stoul(getenv("VSOMEIP_APPLICATION_ID"), NULL, 10)));
+    reuse_client_id_test_client reuse_client_id_test_client("reuse_client_id_test_client",
+                                                            static_cast<uint32_t>(std::stoul(getenv("VSOMEIP_APPLICATION_ID"), NULL, 10)));
     reuse_client_id_test_client.run();
 }
 

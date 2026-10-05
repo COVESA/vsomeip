@@ -56,8 +56,9 @@ uint16_t protector::get_counter(instance_t _instance) const {
     uint16_t its_counter(0);
 
     auto find_counter = counter_.find(_instance);
-    if (find_counter != counter_.end())
+    if (find_counter != counter_.end()) {
         its_counter = find_counter->second;
+    }
 
     return its_counter;
 }
@@ -65,10 +66,11 @@ uint16_t protector::get_counter(instance_t _instance) const {
 void protector::increment_counter(instance_t _instance) {
 
     auto find_counter = counter_.find(_instance);
-    if (find_counter != counter_.end())
+    if (find_counter != counter_.end()) {
         find_counter->second++;
-    else
+    } else {
         counter_[_instance] = 1;
+    }
 }
 
 } // namespace profile04

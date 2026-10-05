@@ -35,6 +35,7 @@ public:
                                                                                  bool _reliable) = 0;
 
     virtual services_t get_offered_services() const = 0;
+
     virtual std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const = 0;
 
     virtual bool send_notification(client_t _client, std::shared_ptr<message> _message, bool _force) = 0;
@@ -44,12 +45,18 @@ public:
 
     virtual void add_routing_info(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl,
                                   const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
-                                  const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port) = 0;
+                                  const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port, bool _is_reliable_known,
+                                  bool _is_unreliable_known) = 0;
 
     virtual void del_routing_info(service_t _service, instance_t _instance, bool _has_reliable, bool _has_unreliable,
                                   bool _trigger_availability) = 0;
 
     virtual void update_routing_info(std::chrono::milliseconds _elapsed) = 0;
+
+    virtual void is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
+                                         const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port, bool& _reliable_known,
+                                         const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
+                                         bool& _unreliable_known, bool& _drop_offer) = 0;
 
     virtual void on_remote_unsubscribe(std::shared_ptr<remote_subscription>& _subscription) = 0;
 
@@ -62,9 +69,9 @@ public:
     virtual std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable) = 0;
 
     virtual void expire_subscriptions(const boost::asio::ip::address& _address) = 0;
-    virtual void expire_subscriptions(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) = 0;
+    virtual void expire_subscriptions(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) = 0;
     virtual void expire_services(const boost::asio::ip::address& _address) = 0;
-    virtual void expire_services(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) = 0;
+    virtual void expire_services(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable) = 0;
 
     virtual void on_remote_subscribe(std::shared_ptr<remote_subscription>& _subscription,
                                      const remote_subscription_callback_t& _callback) = 0;

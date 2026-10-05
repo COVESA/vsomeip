@@ -222,6 +222,16 @@ std::shared_ptr<app_connection> socket_manager::get_or_create_connection(std::st
     return it->second;
 }
 
+std::optional<port_t> socket_manager::server_port(std::string const& _app) {
+    auto const lock = std::scoped_lock(mtx_);
+    for (auto const& [ep, weak_acceptor] : ep_to_acceptor_states_) {
+        if (auto const acceptor = weak_acceptor.lock(); acceptor && acceptor->get_app_name() == _app) {
+            return ep.port();
+        }
+    }
+    return std::nullopt;
+}
+
 void socket_manager::remove_acceptor(fd_t _fd, boost::asio::ip::tcp::endpoint _ep) {
     auto const lock = std::scoped_lock(mtx_);
     fd_to_acceptor_states_.erase(_fd);
@@ -721,10 +731,10 @@ bool socket_manager::setup_data_pipe(std::string const& _client, std::string con
     return connection->wait_for_last_command(_id, _waiting, _timeout);
 }
 
-[[nodiscard]] bool socket_manager::wait_for_connection_drop(std::string const& _client, std::string const& _server,
-                                                            std::chrono::milliseconds _timeout) {
+connection_drop_watch socket_manager::watch_connection_drop(std::string const& _client, std::string const& _server) {
     auto connection = get_or_create_connection(_client, _server);
-    return connection->wait_for_connection_drop(_timeout);
+    auto const baseline = connection->disconnect_count();
+    return connection_drop_watch{connection, baseline};
 }
 
 void socket_manager::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
@@ -827,9 +837,10 @@ void socket_manager::set_custom_command_handler(std::string const& _client, std:
     auto connection = get_or_create_connection(_client, _server);
     connection->set_custom_command_handler(_handler, _sender);
 }
-void socket_manager::check_connection(std::string const& _one, std::string const& _two, socket_role _closing) {
+void socket_manager::on_disconnect(std::string const& _one, std::string const& _two, socket_role _closing) {
     auto connection = _closing == socket_role::server ? get_or_create_connection(_two, _one) : get_or_create_connection(_one, _two);
-    connection->notify();
+    // A live socket torn down is a drop edge; record it and wake waiters.
+    connection->record_disconnect();
 }
 
 void socket_manager::join_multicast_group(boost::asio::ip::address _multicast, fd_t _fd, std::string _app_name) {

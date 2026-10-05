@@ -43,7 +43,7 @@ struct debounce_filter_t {
     bool on_change_;
     bool on_change_resets_interval_;
     int64_t interval_;
-    std::map<std::size_t, byte_t> ignore_;
+    std::map<size_t, byte_t> ignore_;
     bool send_current_value_after_; // ignored, does nothing
 };
 

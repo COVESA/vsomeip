@@ -1,6 +1,7 @@
 /CMakeFiles
 /build*/*
 /examples/hello_world/build
+/examples/CMakeFiles
 /.idea/
 /.vs/
 /.vscode/
@@ -8,11 +9,20 @@
 /.project
 /.cproject
 /doc
-/daemon/CMakeFiles
-/examples/CMakeFiles
-/implementation/configuration/include/internal.hpp
-/test/unit_tests/security_policy_manager_impl_tests/policy_manager_impl_unit_test_macro.hpp
 /tools/CMakeFiles
-/Testing
 /logs
 !build_qnx/*
+
+# AI assistant tools
+# GitHub Copilot
+/.copilot/
+/.github/copilot-instructions.md
+copilot-instructions.md
+# Claude / Anthropic
+/.claude/
+CLAUDE.md
+CLAUDE.local.md
+# General AI agent scratch/memory
+/.ai/
+/.agent/
+/.memories/

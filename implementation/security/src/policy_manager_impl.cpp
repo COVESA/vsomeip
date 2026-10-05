@@ -28,10 +28,11 @@ template<typename T_>
 void read_data(const std::string& _in, T_& _out) {
     std::stringstream its_converter;
 
-    if (_in.size() > 2 && _in[0] == '0' && (_in[1] == 'x' || _in[1] == 'X'))
+    if (_in.size() > 2 && _in[0] == '0' && (_in[1] == 'x' || _in[1] == 'X')) {
         its_converter << std::hex << _in;
-    else
+    } else {
         its_converter << _in;
+    }
 
     its_converter >> _out;
 }
@@ -68,14 +69,17 @@ bool policy_manager_impl::check_credentials(client_t _client, const vsomeip_sec_
 
     return true;
 #else
-    if (!policy_enabled_)
+    if (!policy_enabled_) {
         return true;
+    }
 
-    if (!_sec_client)
+    if (!_sec_client) {
         return true;
+    }
 
-    if (_sec_client->port != VSOMEIP_SEC_PORT_UNUSED)
+    if (_sec_client->port != VSOMEIP_SEC_PORT_UNUSED) {
         return true;
+    }
 
     uid_t its_uid(_sec_client->user);
     gid_t its_gid(_sec_client->group);
@@ -166,11 +170,55 @@ bool policy_manager_impl::check_routing_credentials(const vsomeip_sec_client_t* 
 void policy_manager_impl::set_routing_credentials(uid_t _uid, gid_t _gid, const std::string& _name) {
 
     if (is_configured_) {
-        VSOMEIP_WARNING << "vSomeIP Security: Multiple definitions of routing-credentials. Ignoring definition from " << _name;
+        VSOMEIP_ERROR << "vSomeIP Security: Multiple definitions of routing-credentials. Ignoring definition from " << _name;
     } else {
         routing_credentials_ = std::make_pair(_uid, _gid);
         is_configured_ = true;
     }
+}
+
+void policy_manager_impl::init_from_base(const policy_manager_impl& _base) {
+#ifndef VSOMEIP_DISABLE_SECURITY
+    {
+        // Deep copy: aliasing the base's policy objects would let one app's
+        // update_security_policy() mutate the policies of every other app
+        // initialized from the same base.
+        std::scoped_lock lck(_base.any_client_policies_mutex_);
+        any_client_policies_.clear();
+        any_client_policies_.reserve(_base.any_client_policies_.size());
+        for (const auto& its_policy : _base.any_client_policies_) {
+            any_client_policies_.push_back(std::make_shared<policy>(*its_policy));
+        }
+    }
+    policy_enabled_ = _base.policy_enabled_.load();
+    check_credentials_ = _base.check_credentials_;
+    allow_remote_clients_ = _base.allow_remote_clients_;
+    check_whitelist_ = _base.check_whitelist_;
+    {
+        std::scoped_lock src(_base.service_interface_whitelist_mutex_);
+        service_interface_whitelist_ = _base.service_interface_whitelist_;
+    }
+    {
+        std::scoped_lock src(_base.uid_whitelist_mutex_);
+        uid_whitelist_ = _base.uid_whitelist_;
+    }
+    {
+        std::scoped_lock src(_base.policy_base_path_mutex_);
+        policy_base_path_ = _base.policy_base_path_;
+    }
+    {
+        // policy_extension_paths_ from the base has empty per-host loaded maps,
+        // which is exactly what a fresh per-app PM needs.
+        std::shared_lock src(_base.policy_extension_paths_mutex_);
+        policy_extension_paths_ = _base.policy_extension_paths_;
+    }
+    check_routing_credentials_ = _base.check_routing_credentials_;
+#endif // !VSOMEIP_DISABLE_SECURITY
+    {
+        std::scoped_lock src(_base.routing_credentials_mutex_);
+        routing_credentials_ = _base.routing_credentials_;
+    }
+    is_configured_ = _base.is_configured_;
 }
 
 bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
@@ -296,8 +344,9 @@ bool policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t* _sec_clie
 
     return true;
 #else
-    if (!policy_enabled_)
+    if (!policy_enabled_) {
         return true;
+    }
 
     uid_t its_uid(ANY_UID);
     gid_t its_gid(ANY_GID);
@@ -366,11 +415,13 @@ void policy_manager_impl::load(const configuration_element& _element, const bool
         load_security_policy_extensions(_element);
         load_routing_credentials(_element);
 
-        if (policy_enabled_ && check_credentials_)
+        if (policy_enabled_ && check_credentials_) {
             VSOMEIP_INFO << "Security configuration is active.";
+        }
 
-        if (policy_enabled_ && !check_credentials_)
+        if (policy_enabled_ && !check_credentials_) {
             VSOMEIP_INFO << "Security configuration is active but in audit mode (allow all)";
+        }
     }
 }
 
@@ -508,8 +559,9 @@ bool policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<p
 
                 const auto found_service = service_interface_whitelist_.find(its_service);
                 has_service = (found_service != service_interface_whitelist_.end());
-                if (!has_service)
+                if (!has_service) {
                     break;
+                }
             }
 
             if (!has_service) {
@@ -517,8 +569,8 @@ bool policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<p
                     VSOMEIP_INFO << "vSomeIP Security: Policy update requesting service ID: " << hex4(its_service)
                                  << " is not allowed, but will be allowed due to whitelist audit mode is active!";
                 } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Policy update requesting service ID: " << hex4(its_service)
-                                    << " is not allowed! -> ignore update";
+                    VSOMEIP_ERROR << "vSomeIP Security: Policy update requesting service ID: " << hex4(its_service)
+                                  << " is not allowed! -> ignore update";
                 }
                 return !check_whitelist_;
             }
@@ -529,7 +581,7 @@ bool policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<p
             VSOMEIP_INFO << "vSomeIP Security: Policy update for UID: " << _uid
                          << " is not allowed, but will be allowed due to whitelist audit mode is active!";
         } else {
-            VSOMEIP_WARNING << "vSomeIP Security: Policy update for UID: " << _uid << " is not allowed! -> ignore update";
+            VSOMEIP_ERROR << "vSomeIP Security: Policy update for UID: " << _uid << " is not allowed! -> ignore update";
         }
         return !check_whitelist_;
     }
@@ -547,7 +599,7 @@ bool policy_manager_impl::is_policy_removal_allowed(uid_t _uid) const {
         VSOMEIP_INFO << "vSomeIP Security: Policy removal for UID: " << _uid
                      << " is not allowed, but will be allowed due to whitelist audit mode is active!";
     } else {
-        VSOMEIP_WARNING << "vSomeIP Security: Policy removal for UID: " << _uid << " is not allowed! -> ignore removal";
+        VSOMEIP_ERROR << "vSomeIP Security: Policy removal for UID: " << _uid << " is not allowed! -> ignore removal";
     }
     return !check_whitelist_;
 }
@@ -556,8 +608,9 @@ bool policy_manager_impl::parse_policy(const byte_t*& _buffer, uint32_t& _buffer
                                        const std::shared_ptr<policy>& _policy) const {
 
     bool is_valid = _policy->deserialize(_buffer, _buffer_size);
-    if (is_valid)
+    if (is_valid) {
         is_valid = _policy->get_uid_gid(_uid, _gid);
+    }
     return is_valid;
 }
 
@@ -668,22 +721,23 @@ void policy_manager_impl::load_policy(const boost::property_tree::ptree& _tree) 
                 policy->allow_who_ = true;
             }
             if (has_uid_range && has_gid_range) {
-                for (const auto u : its_uid_interval_set)
+                for (const auto u : its_uid_interval_set) {
                     policy->credentials_ += std::make_pair(u, its_gid_interval_set);
+                }
                 policy->allow_who_ = true;
             }
         } else if (i->first == "allow") {
             if (allow_deny_set) {
-                VSOMEIP_WARNING << "vSomeIP Security: Security configuration: \"allow\" tag overrides "
-                                << "already set \"deny\" tag. Either \"deny\" or \"allow\" is allowed.";
+                VSOMEIP_ERROR << "vSomeIP Security: Security configuration: \"allow\" tag overrides "
+                              << "already set \"deny\" tag. Either \"deny\" or \"allow\" is allowed.";
             }
             allow_deny_set = true;
             policy->allow_what_ = true;
             load_policy_body(policy, i);
         } else if (i->first == "deny") {
             if (allow_deny_set) {
-                VSOMEIP_WARNING << "vSomeIP Security: Security configuration: \"deny\" tag overrides "
-                                << "already set \"allow\" tag. Either \"deny\" or \"allow\" is allowed.";
+                VSOMEIP_ERROR << "vSomeIP Security: Security configuration: \"deny\" tag overrides "
+                              << "already set \"allow\" tag. Either \"deny\" or \"allow\" is allowed.";
             }
             allow_deny_set = true;
             policy->allow_what_ = false;
@@ -691,8 +745,9 @@ void policy_manager_impl::load_policy(const boost::property_tree::ptree& _tree) 
         }
     }
     std::unique_lock its_lock(any_client_policies_mutex_);
-    if (!exist_in_any_client_policies_unlocked(policy))
+    if (!exist_in_any_client_policies_unlocked(policy)) {
         any_client_policies_.push_back(policy);
+    }
 }
 
 void policy_manager_impl::load_policy_body(std::shared_ptr<policy>& _policy, const boost::property_tree::ptree::const_iterator& _tree) {
@@ -738,8 +793,9 @@ void policy_manager_impl::load_policy_body(std::shared_ptr<policy>& _policy, con
                                     load_interval_set(m->second, its_method_interval_set);
                                 }
                             }
-                            if (its_method_interval_set.empty())
+                            if (its_method_interval_set.empty()) {
                                 its_method_interval_set.insert(all_methods);
+                            }
                             for (const auto i : its_instance_interval_set) {
                                 its_instance_method_intervals += std::make_pair(i, its_method_interval_set);
                             }
@@ -811,8 +867,8 @@ void policy_manager_impl::load_credential(const boost::property_tree::ptree& _tr
             } else if (its_key == "gid") {
                 load_interval_set(j->second, its_gid_interval_set);
             } else {
-                VSOMEIP_WARNING << "vSomeIP Security: Security configuration: Malformed credential (contains illegal key \"" << its_key
-                                << "\")";
+                VSOMEIP_ERROR << "vSomeIP Security: Security configuration: Malformed credential (contains illegal key \"" << its_key
+                              << "\")";
             }
         }
 
@@ -826,7 +882,7 @@ bool policy_manager_impl::load_routing_credentials(const configuration_element& 
     try {
         auto its_routing_cred = _element.tree_.get_child("routing-credentials");
         if (is_configured_) {
-            VSOMEIP_WARNING << "vSomeIP Security: Multiple definitions of routing-credentials. Ignoring definition from " << _element.name_;
+            VSOMEIP_ERROR << "vSomeIP Security: Multiple definitions of routing-credentials. Ignoring definition from " << _element.name_;
         } else {
             for (auto i = its_routing_cred.begin(); i != its_routing_cred.end(); ++i) {
                 std::string its_key(i->first);
@@ -963,8 +1019,9 @@ void policy_manager_impl::load_interval_set(const boost::property_tree::ptree& _
             if (!its_data.data().empty()) {
                 T_ its_id;
                 read_data(its_data.data(), its_id);
-                if (its_id >= its_min && its_id <= its_max)
+                if (its_id >= its_min && its_id <= its_max) {
                     its_intervals.insert(its_id);
+                }
             } else {
                 T_ its_first, its_last;
                 bool has_first(false), has_last(false);
@@ -986,8 +1043,8 @@ void policy_manager_impl::load_interval_set(const boost::property_tree::ptree& _
                         }
                         has_last = true;
                     } else {
-                        VSOMEIP_WARNING << "vSomeIP Security: Security configuration: Malformed range. Contains illegal key (" << its_key
-                                        << ")";
+                        VSOMEIP_ERROR << "vSomeIP Security: Security configuration: Malformed range. Contains illegal key (" << its_key
+                                      << ")";
                     }
                 }
                 if (has_first && has_last && its_first <= its_last) {
@@ -1006,8 +1063,9 @@ void policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _
     std::scoped_lock lock_outer{any_client_policies_mutex_, _policy->mutex_};
     for (const auto& o : _policy->offers_) {
         for (const auto& p : any_client_policies_) {
-            if (p == _policy)
+            if (p == _policy) {
                 continue;
+            }
 
             std::scoped_lock lock_inner(p->mutex_);
 
@@ -1068,8 +1126,9 @@ void policy_manager_impl::get_clients(uid_t _uid, gid_t _gid, std::unordered_set
 
     std::scoped_lock its_lock(ids_mutex_);
     for (const auto& i : ids_) {
-        if (i.second.port == VSOMEIP_SEC_PORT_UNUSED && i.second.user == _uid && i.second.group == _gid)
+        if (i.second.port == VSOMEIP_SEC_PORT_UNUSED && i.second.user == _uid && i.second.group == _gid) {
             _clients.insert(i.first);
+        }
     }
 }
 
@@ -1161,8 +1220,9 @@ std::shared_ptr<policy> policy_manager_impl::create_policy() const {
 
 void policy_manager_impl::print_policy(const std::shared_ptr<policy>& _policy) const {
 
-    if (_policy)
+    if (_policy) {
         _policy->print();
+    }
 }
 
 bool policy_manager_impl::parse_uid_gid(const byte_t*& _buffer, uint32_t& _buffer_size, uid_t& _uid, gid_t& _gid) const {
@@ -1186,8 +1246,8 @@ bool policy_manager_impl::store_client_to_sec_client_mapping(client_t _client, c
                 uid_t its_new_uid = _sec_client->user;
                 gid_t its_new_gid = _sec_client->group;
 
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << its_new_uid << "/" << its_new_gid
-                                << " : Overwriting existing credentials UID/GID=" << its_old_uid << "/" << its_old_gid;
+                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << its_new_uid << "/" << its_new_gid
+                              << " : Overwriting existing credentials UID/GID=" << its_old_uid << "/" << its_old_gid;
 
                 found_client->second = *_sec_client;
                 return true;

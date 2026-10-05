@@ -7,7 +7,6 @@
 
 #include "../../endpoints/include/boardnet_endpoint.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
-#include "../../tracing/include/connector_impl.hpp"
 #include "../../utility/include/utility.hpp"
 
 #include "logger_ext.hpp"
@@ -21,19 +20,22 @@
 
 namespace vsomeip_v3 {
 
-routing_application::routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name) :
+routing_application::routing_application(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration, std::string _name,
+                                         std::shared_ptr<policy_manager_impl> _policy_manager, std::shared_ptr<security> _security) :
     io_(_io), name_(std::move(_name)), configuration_(std::move(_configuration)), routing_(std::make_shared<routing_manager_impl>(this)),
-    has_session_handling_(configuration_->has_session_handling(name_)) {
+    has_session_handling_(configuration_->has_session_handling(name_)), policy_manager_(std::move(_policy_manager)),
+    security_(std::move(_security)) {
+
+#ifdef __unix__
+    sec_client_.user = getuid();
+    sec_client_.group = getgid();
+#else
+    sec_client_.user = ANY_UID;
+    sec_client_.group = ANY_GID;
+#endif
 
     if (configuration_->is_local_routing()) {
         sec_client_.port = VSOMEIP_SEC_PORT_UNUSED;
-#ifdef __unix__
-        sec_client_.user = getuid();
-        sec_client_.group = getgid();
-#else
-        sec_client_.user = ANY_UID;
-        sec_client_.group = ANY_GID;
-#endif
     } else {
         if (auto its_guest_address = configuration_->get_routing_guest_address(); its_guest_address.is_v4()) {
             sec_client_.host = htonl(its_guest_address.to_v4().to_uint());
@@ -58,7 +60,7 @@ void routing_application::set_routing_state(routing_state_e _routing_state) cons
     routing_->set_routing_state(_routing_state);
 }
 
-bool routing_application::update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+bool routing_application::update_service_configuration(service_t _service, instance_t _instance, uint16_t _port, bool _reliable,
                                                        bool _magic_cookies_enabled, bool _offer) const {
     bool ret{false};
     if (_offer) {
@@ -99,7 +101,7 @@ void routing_application::set_sd_acceptance_required(const remote_info_t& _remot
             _remote.ip_.is_v4_ ? static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(_remote.ip_.address_.v4_))
                                : static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(_remote.ip_.address_.v6_)));
 
-    if (_remote.first_ == std::numeric_limits<std::uint16_t>::max() && _remote.last_ == 0) {
+    if (_remote.first_ == std::numeric_limits<uint16_t>::max() && _remote.last_ == 0) {
         // special case to (de)activate rules per IP
         configuration_->set_sd_acceptance_rules_active(its_address, _enable);
         return;
@@ -118,7 +120,7 @@ void routing_application::set_sd_acceptance_required(const remote_info_t& _remot
             _remote.ip_.is_v4_ ? static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(_remote.ip_.address_.v4_))
                                : static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(_remote.ip_.address_.v6_)));
 
-    if (_remote.first_ == std::numeric_limits<std::uint16_t>::max() && _remote.last_ == std::numeric_limits<std::uint16_t>::max()) {
+    if (_remote.first_ == std::numeric_limits<uint16_t>::max() && _remote.last_ == std::numeric_limits<uint16_t>::max()) {
         auto rules = configuration_->get_sd_acceptance_rules();
         auto it = rules.find(its_address);
         if (it != rules.end()) {
@@ -175,8 +177,20 @@ bool routing_application::is_routing() const {
     return true;
 }
 
+std::shared_ptr<policy_manager_impl> routing_application::get_policy_manager_impl() const {
+    return policy_manager_;
+}
+
+std::shared_ptr<security> routing_application::get_security() const {
+    return security_;
+}
+
 vsomeip_sec_client_t routing_application::get_sec_client() const {
     return sec_client_;
+}
+
+uid_t routing_application::get_sec_client_uid() const {
+    return sec_client_.user;
 }
 
 void routing_application::set_sec_client_port(port_t _port) {
@@ -222,6 +236,11 @@ void routing_application::on_availability(service_t _service, instance_t _instan
     VSOMEIP_ERROR_P << "Not supposed to be called: " << hex4(_service) << "." << hex4(_instance);
 }
 
+void routing_application::reset_availability_state([[maybe_unused]] service_t _service, [[maybe_unused]] instance_t _instance,
+                                                   [[maybe_unused]] major_version_t _major, [[maybe_unused]] minor_version_t _minor) {
+    // Routing application has no user-facing availability handlers to reset
+}
+
 void routing_application::on_state([[maybe_unused]] state_type_e _state) {
     VSOMEIP_ERROR_P << "Not supposed to be called";
 }
@@ -240,7 +259,7 @@ void routing_application::on_subscription([[maybe_unused]] service_t _service, [
 
 void routing_application::on_subscription_status([[maybe_unused]] service_t _service, [[maybe_unused]] instance_t _instance,
                                                  [[maybe_unused]] eventgroup_t _eventgroup, [[maybe_unused]] event_t _event,
-                                                 [[maybe_unused]] uint16_t _error) {
+                                                 [[maybe_unused]] subscription_outcome_e _outcome) {
     VSOMEIP_ERROR_P << "Not supposed to be called";
 }
 

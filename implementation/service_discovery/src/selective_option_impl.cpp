@@ -63,8 +63,9 @@ bool selective_option_impl::has_client(client_t _client) {
 bool selective_option_impl::serialize(vsomeip_v3::serializer* _to) const {
     bool is_successful = option_impl::serialize(_to);
     if (is_successful) {
-        for (auto& its_client : clients_)
+        for (auto& its_client : clients_) {
             _to->serialize(its_client);
+        }
     }
     return is_successful;
 }

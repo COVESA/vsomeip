@@ -10,7 +10,7 @@ set (VSOMEIP_NAME vsomeip3)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 7)
-set (VSOMEIP_PATCH_VERSION 5)
+set (VSOMEIP_PATCH_VERSION 6)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -77,7 +77,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # This is only relevant for GCC and causes warnings on Clang
-    set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc")
+    set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${PROJECT_SOURCE_DIR}/exportmap.gcc")
     set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -pie -Wno-tsan -Wl,-z,relro,-z,now")
 endif()
 
@@ -331,13 +331,14 @@ else()
 endif()
 
 if(ANDROID_CI_BUILD)
-    set(VSOMEIP_CONFIG_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/configuration/include/android)
+    set(VSOMEIP_CONFIG_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/implementation/configuration/include/android)
 else()
-    set(VSOMEIP_CONFIG_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/configuration/include)
+    # NOTE: internal.hpp is rewritten with a bunch of build-time variables.. hence the build path
+    set(VSOMEIP_CONFIG_INCLUDE_DIR ${PROJECT_BINARY_DIR}/conf_header/)
 endif()
 
 # Set default include directories
-set(VSOMEIP_LOGGER_EXT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/logger/include)
+set(VSOMEIP_LOGGER_EXT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/implementation/logger/include)
 set(VSOMEIP_INTERNAL_INCLUDE_DIRS ${VSOMEIP_CONFIG_INCLUDE_DIR} ${VSOMEIP_LOGGER_EXT_INCLUDE_DIR})
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -560,7 +561,7 @@ message("Predefined wait times for internal communication (IPC):\
 ################################################################################
 # Installation
 ################################################################################
-set(INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/interface/vsomeip")
+set(INCLUDE_PATH "${PROJECT_SOURCE_DIR}/interface/vsomeip")
 
 file (GLOB_RECURSE vsomeip_INCLUDE RELATIVE ${INCLUDE_PATH} "interface/*.h*"  )
 list (SORT vsomeip_INCLUDE)
@@ -619,9 +620,10 @@ configure_file (${VSOMEIP_NAME}ConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/${V
 if(NOT ANDROID_CI_BUILD)
 configure_file (
    "${PROJECT_SOURCE_DIR}/implementation/configuration/include/internal.hpp.in"
-   "${PROJECT_SOURCE_DIR}/implementation/configuration/include/internal.hpp"
+   "${PROJECT_BINARY_DIR}/conf_header/internal.hpp"
 )
 endif ()
+
 # Install the ${VSOMEIP_NAME}Config.cmake and ${VSOMEIP_NAME}ConfigVersion.cmake
 install (
     FILES

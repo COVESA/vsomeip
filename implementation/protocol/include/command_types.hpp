@@ -443,15 +443,17 @@ inline uint32_t wire_size(routing_info_entry_data const& _entry) {
 
 inline uint32_t wire_size(config_command_data const& _d) {
     size_t size = wire_size(_d.header_);
-    for (auto const& e : _d.payload_)
+    for (auto const& e : _d.payload_) {
         size += sizeof(uint32_t) + e.key_.size() + sizeof(uint32_t) + e.value_.size();
+    }
     return static_cast<uint32_t>(size);
 }
 
 inline uint32_t wire_size(assign_client_data const& _d) {
     size_t size = sizeof(uint32_t) + _d.name_.size() + sizeof(uint8_t);
-    if (_d.has_address_)
+    if (_d.has_address_) {
         size += _d.address_bytes_.size() + sizeof(port_t);
+    }
     return static_cast<uint32_t>(size);
 }
 
@@ -467,10 +469,6 @@ inline simple_command_data create_ping_cmd(client_t _client) {
 
 inline simple_command_data create_pong_cmd(client_t _client) {
     return simple_command_data::create(id_e::PONG_ID, _client);
-}
-
-inline simple_command_data create_suspend_cmd(client_t _client) {
-    return simple_command_data::create(id_e::SUSPEND_ID, _client);
 }
 
 inline service_command_data create_offer_service_cmd(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
@@ -610,8 +608,9 @@ inline auto create_subscribe_nack_cmd(client_t _client, subscribe_answer_data _d
 
 inline config_command_data create_config_cmd(client_t _client, std::initializer_list<config_entry> _entries) {
     uint32_t payload_size = 0;
-    for (auto const& e : _entries)
+    for (auto const& e : _entries) {
         payload_size += static_cast<uint32_t>(sizeof(uint32_t) + e.key_.size() + sizeof(uint32_t) + e.value_.size());
+    }
     return {.header_ = command_header::create(id_e::CONFIG_ID, payload_size, _client),
             .payload_ = std::span<const config_entry>(_entries.begin(), _entries.size())};
 }

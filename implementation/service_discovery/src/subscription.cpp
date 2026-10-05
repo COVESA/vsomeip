@@ -31,10 +31,11 @@ std::shared_ptr<boardnet_endpoint> subscription::get_endpoint(bool _reliable) co
 }
 
 void subscription::set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _reliable) {
-    if (_reliable)
+    if (_reliable) {
         reliable_ = _endpoint;
-    else
+    } else {
         unreliable_ = _endpoint;
+    }
 }
 
 bool subscription::is_selective() const {
@@ -47,16 +48,18 @@ void subscription::set_selective(const bool _is_selective) {
 subscription_state_e subscription::get_state(const client_t _client) const {
     std::scoped_lock its_lock(clients_mutex_);
     auto found_client = clients_.find(_client);
-    if (found_client != clients_.end())
+    if (found_client != clients_.end()) {
         return found_client->second;
+    }
     return subscription_state_e::ST_UNKNOWN;
 }
 
 void subscription::set_state(const client_t _client, const subscription_state_e _state) {
     std::scoped_lock its_lock(clients_mutex_);
     auto found_client = clients_.find(_client);
-    if (found_client != clients_.end())
+    if (found_client != clients_.end()) {
         found_client->second = _state;
+    }
 }
 
 bool subscription::is_tcp_connection_established() const {
@@ -76,8 +79,9 @@ void subscription::set_udp_connection_established(bool _is_established) {
 bool subscription::add_client(const client_t _client) {
     std::scoped_lock its_lock(clients_mutex_);
     auto find_client = clients_.find(_client);
-    if (find_client != clients_.end())
+    if (find_client != clients_.end()) {
         return false;
+    }
 
     clients_[_client] = subscription_state_e::ST_UNKNOWN;
     return true;
@@ -94,8 +98,9 @@ std::set<client_t> subscription::get_clients() const {
     std::set<client_t> its_clients;
     {
         std::scoped_lock its_lock(clients_mutex_);
-        for (const auto its_item : clients_)
+        for (const auto its_item : clients_) {
             its_clients.insert(its_item.first);
+        }
     }
     return its_clients;
 }

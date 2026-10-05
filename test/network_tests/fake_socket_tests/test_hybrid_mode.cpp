@@ -57,7 +57,7 @@ struct test_hybrid_mode : public base_fake_socket_fixture {
 
     interface boardnet_interface_{0x3344};
     service_instance service_instance_{boardnet_interface_.instance_};
-    event_ids offered_event_{boardnet_interface_.events_[0]};
+    event_ids offered_event_{boardnet_interface_.instance_, boardnet_interface_.events_[0]};
 };
 
 TEST_F(test_hybrid_mode, test_boardnet_with_hybrid_mode_on_both_sides) {
@@ -640,8 +640,8 @@ TEST_F(test_hybrid_mode, test_short_lived_subscribers_receive_events_from_both_p
 
     auto const& svc_cafe = interfaces::cafe;
     auto const& svc_beef = interfaces::beef;
-    event_ids const evt_cafe = svc_cafe.events_[0];
-    event_ids const evt_beef = svc_beef.events_[0];
+    event_ids const evt_cafe = {svc_cafe.instance_, svc_cafe.events_[0]};
+    event_ids const evt_beef = {svc_beef.instance_, svc_beef.events_[0]};
     service_instance const si_cafe = svc_cafe.instance_;
     service_instance const si_beef = svc_beef.instance_;
 

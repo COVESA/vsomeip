@@ -10,7 +10,6 @@
     "applications": [
         {
             "name": "client-sample",
-            "id": "0x1234",
             "max_dispatchers": "1",
             "max_dispatch_time": "300"
         }

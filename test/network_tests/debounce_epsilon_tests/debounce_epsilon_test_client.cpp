@@ -57,7 +57,7 @@ TEST(debounce_filter_tests, client_receives_notifications) {
                                       // Check if we received enough notifications to be able to confirm that the debounce
                                       // is working as intended.
                                       static std::atomic_uint16_t notification_count{0};
-                                      constexpr std::uint16_t EXPECTED_NOTIFICATION_COUNT{2};
+                                      constexpr uint16_t EXPECTED_NOTIFICATION_COUNT{2};
                                       if (++notification_count == EXPECTED_NOTIFICATION_COUNT) {
                                           notified.set_value(true);
                                       }

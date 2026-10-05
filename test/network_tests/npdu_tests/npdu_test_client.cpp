@@ -15,7 +15,7 @@
 #include "../../implementation/configuration/include/configuration_plugin.hpp"
 #include "../../implementation/plugin/include/plugin_manager_impl.hpp"
 
-enum class payloadsize : std::uint8_t { UDS, TCP, UDP };
+enum class payloadsize : uint8_t { UDS, TCP, UDP };
 
 // this variables are changed via cmdline parameters
 static bool use_tcp = false;
@@ -99,10 +99,10 @@ void npdu_test_client::stop() {
 
     app_->unregister_state_handler();
 
-    for (std::size_t i = 0; i < npdu_test::service_ids.size(); ++i) {
+    for (size_t i = 0; i < npdu_test::service_ids.size(); ++i) {
         app_->unregister_availability_handler(npdu_test::service_ids[i], npdu_test::instance_ids[i]);
 
-        for (std::size_t j = 0; j < npdu_test::method_ids[i].size(); ++j) {
+        for (size_t j = 0; j < npdu_test::method_ids[i].size(); ++j) {
             app_->unregister_message_handler(npdu_test::service_ids[i], npdu_test::instance_ids[i], npdu_test::method_ids[i][j]);
         }
     }
@@ -135,7 +135,7 @@ void npdu_test_client::join_sender_thread() {
 
 void npdu_test_client::on_state(vsomeip::state_type_e _state) {
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-        for (std::size_t i = 0; i < npdu_test::service_ids.size(); ++i) {
+        for (size_t i = 0; i < npdu_test::service_ids.size(); ++i) {
             app_->request_service(npdu_test::service_ids[i], npdu_test::instance_ids[i]);
         }
     }
@@ -202,9 +202,9 @@ void npdu_test_client::run() {
         }
     }
 
-    std::uint32_t max_allowed_payload = VSOMEIP_MAX_LOCAL_MESSAGE_SIZE;
+    uint32_t max_allowed_payload = VSOMEIP_MAX_LOCAL_MESSAGE_SIZE;
 
-    for (std::size_t var = 0; var < payloads_[service_idx].size(); ++var) {
+    for (size_t var = 0; var < payloads_[service_idx].size(); ++var) {
         payloads_[service_idx][var] = vsomeip::runtime::get()->create_payload();
         payload_data_[service_idx][var] = std::vector<vsomeip::byte_t>();
     }
@@ -212,7 +212,7 @@ void npdu_test_client::run() {
     bool lastrun = false;
     while (current_payload_size_[service_idx] <= max_allowed_payload) {
         // prepare the payloads w/ current payloadsize
-        for (std::size_t var = 0; var < payloads_[service_idx].size(); ++var) {
+        for (size_t var = 0; var < payloads_[service_idx].size(); ++var) {
             // assign 0x11 to first, 0x22 to second...
             payload_data_[service_idx][var].assign(current_payload_size_[service_idx], static_cast<vsomeip::byte_t>(0x11 * (var + 1)));
             payloads_[service_idx][var]->set_data(payload_data_[service_idx][var]);
@@ -262,7 +262,7 @@ std::thread npdu_test_client::start_send_thread_sync() {
         request->set_instance(npdu_test::instance_ids[service_idx]);
         request->set_method(npdu_test::method_ids[service_idx][method_idx]);
         request->set_payload(payloads_[service_idx][method_idx]);
-        for (std::uint32_t i = 0; i < number_of_messages_to_send_; i++) {
+        for (uint32_t i = 0; i < number_of_messages_to_send_; i++) {
             all_msg_acknowledged_[service_idx][method_idx] = false;
             app_->send(request);
 
@@ -322,8 +322,8 @@ TEST(someip_npdu_test, send_different_payloads) {
     // This is necessary as we must ensure a applicative debouncing greater than
     // debounce time + maximum retention time. Therefore the send threads sleep
     // for this amount of time after sending a message.
-    for (std::size_t service_id = 0; service_id < applicative_debounce.size(); ++service_id) {
-        for (std::size_t method_id = 0; method_id < applicative_debounce[service_id].size(); ++method_id) {
+    for (size_t service_id = 0; service_id < applicative_debounce.size(); ++service_id) {
+        for (size_t method_id = 0; method_id < applicative_debounce[service_id].size(); ++method_id) {
             std::chrono::nanoseconds debounce(0), retention(0);
             its_configuration->get_configured_timing_requests(
                     npdu_test::service_ids[service_id],

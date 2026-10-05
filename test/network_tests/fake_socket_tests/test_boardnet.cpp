@@ -187,8 +187,8 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
 
     interface boardnet_interface_{0x3344};
     service_instance service_instance_{boardnet_interface_.instance_};
-    event_ids offered_field_{boardnet_interface_.fields_[0]};
-    event_ids offered_event_{boardnet_interface_.events_[0]};
+    event_ids offered_field_{boardnet_interface_.instance_, boardnet_interface_.fields_[0]};
+    event_ids offered_event_{boardnet_interface_.instance_, boardnet_interface_.events_[0]};
 
     message_checker field_checker_{std::nullopt, boardnet_interface_.instance_, boardnet_interface_.fields_[0].event_id_,
                                    vsomeip::message_type_e::MT_NOTIFICATION, std::vector<unsigned char>{}};
@@ -281,12 +281,12 @@ TEST_F(test_boardnet_helper, property_mismatch_regression) {
 
     service_instance si_right_minor{service_instance_.service_, service_instance_.instance_, 1, 1};
     service_instance si_wrong_minor{service_instance_.service_, service_instance_.instance_, 1, 2};
-    event_ids event_right_minor{si_right_minor, 0x8002, 0x1, {vsomeip::reliability_type_e::RT_UNRELIABLE}};
-    event_ids event_wrong_minor{si_wrong_minor, 0x8002, 0x1, {vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    event_ids event_right_minor{si_right_minor, 0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE};
+    event_ids event_wrong_minor{si_wrong_minor, 0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE};
 
     // Server offers the service.
     ecu_two_server_->offer(si_right_minor);
-    ecu_two_server_->offer_field(event_right_minor);
+    ecu_two_server_->offer_field(event_right_minor.si_, event_right_minor.to_event_spec());
 
     // Client one requests the service using the right minor version.
     ecu_one_client_->request_service(si_right_minor);
@@ -309,6 +309,27 @@ TEST_F(test_boardnet_helper, property_mismatch_regression) {
 
     // Client two should still be able to receive notification.
     EXPECT_TRUE(ecu_one_client_two->message_record_.wait_for_last(expected_message)) << ecu_one_client_two->message_record_;
+}
+
+TEST_F(test_boardnet_helper, local_offer_rejected_when_already_offered_remotely) {
+    // A local app offering a service instance already offered remotely must be rejected.
+
+    start_all_apps();
+    auto* ecu_one_server = start_application(ecu_one_server_name_, "ecu_one.json");
+    ASSERT_TRUE(successfully_registered(ecu_one_server));
+
+    // ECU two offers first, so router_one learns the instance as remote.
+    ecu_two_server_->offer(boardnet_interface_);
+    ecu_one_client_->request_service(service_instance_);
+    ASSERT_TRUE(await_service(ecu_one_client_));
+
+    // Local app on ECU one tries to offer the same instance; must be rejected.
+    ecu_one_server->offer(boardnet_interface_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    // Only the remote provider owns it: stopping it makes the client unavailable.
+    ecu_two_server_->stop_offer(service_instance_);
+    ASSERT_TRUE(await_service(ecu_one_client_, service_availability::unavailable(service_instance_)));
 }
 
 TEST_F(test_boardnet_helper, subscription_without_own_offer) {
@@ -366,10 +387,10 @@ TEST_F(test_boardnet_helper, offer_service_before_event) {
 
     // Offer events and fields
     for (auto const& event : boardnet_interface_.events_) {
-        ecu_two_server_->offer_event(event);
+        ecu_two_server_->offer_event(boardnet_interface_.instance_, event);
     }
     for (auto const& field : boardnet_interface_.fields_) {
-        ecu_two_server_->offer_field(field);
+        ecu_two_server_->offer_field(boardnet_interface_.instance_, field);
     }
 
     // Request and subscribe again.
@@ -402,10 +423,10 @@ TEST_F(test_boardnet_helper, offer_event_before_service) {
 
     // Offer events and fields
     for (auto const& event : boardnet_interface_.events_) {
-        ecu_two_server_->offer_event(event);
+        ecu_two_server_->offer_event(boardnet_interface_.instance_, event);
     }
     for (auto const& field : boardnet_interface_.fields_) {
-        ecu_two_server_->offer_field(field);
+        ecu_two_server_->offer_field(boardnet_interface_.instance_, field);
     }
 
     // No ACK or NACK should be received, SD must not offer service only based on event and field.
@@ -738,11 +759,11 @@ TEST_F(test_field_routing, router_router) {
 struct test_shadow_events : test_boardnet_helper {
     void offer_event() {
         ASSERT_EQ(offered_event_.eventgroup_id_, offered_field_.eventgroup_id_);
-        ecu_two_server_->offer_event(offered_event_);
+        ecu_two_server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
     }
     void offer_field() {
         ASSERT_EQ(offered_event_.eventgroup_id_, offered_field_.eventgroup_id_);
-        ecu_two_server_->offer_field(offered_field_);
+        ecu_two_server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     }
     void subscribe_to_event() { ecu_one_client_->subscribe_event(offered_event_); }
     void subscribe_to_field() { ecu_one_client_->subscribe_field(offered_field_); }
@@ -845,7 +866,7 @@ TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
     ecu_two_client->request_service(service_instance_);
 
     ecu_one_server->offer(service_instance_);
-    ecu_one_server->offer_event(offered_event_);
+    ecu_one_server->offer_event(offered_event_.si_, offered_event_.to_event_spec());
 
     // Wait for service availability on all clients
     ASSERT_TRUE(router_two_->availability_record_.wait_for_last(service_availability::available(service_instance_)))
@@ -1011,8 +1032,8 @@ TEST_F(guest_offering, guests_provide_and_consume_interface) {
 
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)));
     // wait_for_any, because we also subscribe for the event and this might come in last
-    EXPECT_TRUE(client->subscription_record_.wait_for_any(
-            event_subscription::successfully_subscribed_to(interfaces::boardnet::service_3344.fields_[0])));
+    EXPECT_TRUE(client->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(
+            event_ids{interfaces::boardnet::service_3344.instance_, interfaces::boardnet::service_3344.fields_[0]})));
 }
 
 TEST_F(guest_offering, replicate_vhal_behavior) {
@@ -1072,7 +1093,7 @@ TEST_F(guest_offering, replicate_vhal_behavior) {
     router_one_multicast_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
     server->offer(interfaces::boardnet::service_3344);
     // Set initial event.
-    server->send_event(interfaces::boardnet::service_3344.fields_[0], {0x5, 0x3});
+    server->send_event({interfaces::boardnet::service_3344.instance_, interfaces::boardnet::service_3344.fields_[0]}, {0x5, 0x3});
     // Offer blocked by receiving ecu one multicast sd endpoint.
     ASSERT_TRUE(router_one_multicast_sd_gate->wait_for_blocked(std::chrono::seconds(3)));
 
@@ -1092,13 +1113,12 @@ TEST_F(guest_offering, replicate_vhal_behavior) {
 struct server_offering_multiple_fields : public base_fake_socket_fixture {
 
     // Custom interface with 10 fields
-    std::vector<interface::event_spec> const fields_specs_{
-            {0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8003, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
-            {0x8004, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8005, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
-            {0x8006, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8007, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
-            {0x8008, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8009, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
-            {0x800a, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x800b, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
-    };
+    std::vector<event_spec> const fields_specs_{
+            {0x8002, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8003, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE},
+            {0x8004, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8005, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE},
+            {0x8006, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8007, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE},
+            {0x8008, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8009, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE},
+            {0x800a, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x800b, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}};
     interface multi_field_service_{0x3344, {}, fields_specs_};
     ecu_config ecu_one_config_extended_{boardnet::ecu_one_config};
     ecu_config ecu_two_config_extended_{boardnet::ecu_two_config};
@@ -1133,7 +1153,7 @@ TEST_F(server_offering_multiple_fields, guests_provide_and_consume_multiple_fiel
     // so we send them before subscribing, they should be cached and delivered once the subscription is done
     for (size_t i = 0; i < fields_specs_.size(); ++i) {
         std::vector<unsigned char> payload{static_cast<unsigned char>(0x10 + i), static_cast<unsigned char>(i)};
-        server->send_event(multi_field_service_.fields_[i], payload);
+        server->send_event({multi_field_service_.instance_, multi_field_service_.fields_[i]}, payload);
     }
 
     // ecu_one's dynamic client subscribes to all 10 fields
@@ -1157,81 +1177,6 @@ TEST_F(server_offering_multiple_fields, guests_provide_and_consume_multiple_fiel
                 << "Failed to receive event for field 0x" << std::hex << (multi_field_service_.fields_[0].event_id_ + i)
                 << "\nRecord: " << client->message_record_.to_string();
     }
-}
-
-TEST_F(server_offering_multiple_fields, test_sd_unicat_gate_early_loading) {
-    // Depict example where we setup a sending sd gate for unicast early loading (app not started).
-    ecu_one_.add_guest({"guest_client", std::nullopt});
-    ecu_two_.add_guest({"guest_server", std::nullopt});
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    // Create the gate and prepare the pipe, will be exchanged as soon as the SD unicast endpoint from ecu two is binded.
-    std::shared_ptr<someip_gate> router_two_sd_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(ecu_two_.sd_endpoint(), router_two_name_, socket_role::server, router_two_sd_gate->get_data_pipe()));
-
-    ecu_one_.start_apps();
-    ecu_two_.start_apps();
-
-    auto* client = ecu_one_.apps_["guest_client"];
-    auto* server = ecu_two_.apps_["guest_server"];
-
-    // Block the pipe when ecu two tries to send an offer.
-    router_two_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
-    client->request_service(multi_field_service_.instance_);
-    client->subscribe(multi_field_service_);
-    server->offer(multi_field_service_);
-
-    // Guarantee the gate has been blocked.
-    ASSERT_TRUE(router_two_sd_gate->wait_for_blocked());
-    // Check that no offer has been received.
-    EXPECT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
-                                                            std::chrono::milliseconds(250)));
-    // Release the gate, message pushes through.
-    router_two_sd_gate->block(false);
-    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
-
-    server->stop_offer(multi_field_service_.instance_);
-    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
-}
-
-TEST_F(server_offering_multiple_fields, test_sd_multicast_gate_late_loading) {
-    // Depict example where we setup a receiving sd gate for multicast with late loading (app already started).
-    ecu_one_.add_guest({"guest_client", std::nullopt});
-    ecu_two_.add_guest({"guest_server", std::nullopt});
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    ecu_one_.start_apps();
-    ecu_two_.start_apps();
-
-    auto* server = ecu_two_.apps_["guest_server"];
-    auto* client = ecu_one_.apps_["guest_client"];
-
-    // Create the gate and exchange the pipe immediatly.
-    std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
-                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
-
-    // Block the pipe when ecu one receved an offer.
-    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
-
-    client->request_service(multi_field_service_.instance_);
-    client->subscribe(multi_field_service_);
-    server->offer(multi_field_service_);
-
-    // Guarantee the gate has been blocked.
-    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked());
-    // Check that no offer has been received.
-    EXPECT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
-    // Release the gate, message is consumed and processed.
-    router_one_sd_gate->block(false);
-    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
-
-    server->stop_offer(multi_field_service_.instance_);
-    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
 }
 
 TEST_F(server_offering_multiple_fields, graceful_stop_offer) {
@@ -1264,11 +1209,113 @@ TEST_F(server_offering_multiple_fields, graceful_stop_offer) {
             << "Pending in-window offer was not auto-emitted after graceful timeout.";
 }
 
+TEST_F(server_offering_multiple_fields, graceful_stop_offer_after_str) {
+    // Tests the graceful stop offer mechanism, where the cycle STOP OFFER/OFFER happens right after a STR.
+    prepare_ecus_and_apps();
+    auto* server = ecu_one_.apps_["guest_server"];
+    auto* router_one = ecu_one_.router_;
+    auto* client = ecu_two_.apps_["guest_client"];
+
+    client->request_service(multi_field_service_.instance_);
+
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
+
+    server->offer(multi_field_service_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+
+    server->stop_offer(multi_field_service_.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+
+    client->availability_record_.clear();
+
+    // Offer inside the graceful stop offer window: must NOT propagate immediately.
+    server->offer(multi_field_service_);
+    // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
+    ASSERT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                            std::chrono::milliseconds(650)))
+            << "Offer must not propagate during graceful stop-offer window.";
+
+    // No further user-side calls: the routing manager must auto-emit the
+    // deferred offer when the timer expires. Wait for offer delay cycle + initial wait phase.
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                           std::chrono::milliseconds(2600)))
+            << "Pending in-window offer was not auto-emitted after graceful timeout.";
+}
+
+TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_str_) {
+    // Tests the graceful stop offer mechanism, where the cycle STOP OFFER/OFFER happens right before a STR.
+    prepare_ecus_and_apps();
+    auto* server = ecu_one_.apps_["guest_server"];
+    auto* router_one = ecu_one_.router_;
+    auto* client = ecu_two_.apps_["guest_client"];
+
+    client->request_service(multi_field_service_.instance_);
+
+    server->offer(multi_field_service_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+
+    server->stop_offer(multi_field_service_.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+
+    server->offer(multi_field_service_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
+
+    client->availability_record_.clear();
+    // Debounced offer are immediately propagated after a STR, so the offer must be received immediately.
+    // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                           std::chrono::milliseconds(650)))
+            << "Debounced offer must propagate immediately after a STR.";
+}
+
+TEST_F(server_offering_multiple_fields, graceful_stop_offer_before_and_after_str) {
+    // Tests the graceful stop offer mechanism, where the cycle STOP OFFER/OFFER happens before and after a STR.
+    prepare_ecus_and_apps();
+    auto* server = ecu_one_.apps_["guest_server"];
+    auto* router_one = ecu_one_.router_;
+    auto* client = ecu_two_.apps_["guest_client"];
+
+    client->request_service(multi_field_service_.instance_);
+
+    server->offer(multi_field_service_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+
+    server->stop_offer(multi_field_service_.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+
+    server->offer(multi_field_service_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+    router_one->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
+
+    client->availability_record_.clear();
+
+    // Debounced offer are immediately propagated after a STR, so the offer must be received immediately.
+    // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                           std::chrono::milliseconds(650)))
+            << "Debounced offer must propagate immediately after a STR.";
+
+    server->stop_offer(multi_field_service_.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+
+    server->offer(multi_field_service_);
+    // Wait at least initial wait phase (max default 100ms) + offer delay cycle (max default 500ms) + some margin.
+    ASSERT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                            std::chrono::milliseconds(650)));
+
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                           std::chrono::milliseconds(2500)));
+}
+
 struct tcp_notifications : public base_fake_socket_fixture {
 
     // Custom interface with a service that has events being notified via tcp and udp
-    std::vector<interface::event_spec> const event_specs_both_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE},
-                                                               {0x8002, 0x2, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    std::vector<event_spec> const event_specs_both_{{0x8001, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE},
+                                                    {0x8002, {0x2}, vsomeip::reliability_type_e::RT_UNRELIABLE}};
     interface both_interface{0x3345, {}, event_specs_both_};
     // Second service to check if offering two services via tcp does not cause issues
     interface second_interface{0x3346, {}, event_specs_both_};
@@ -1279,10 +1326,10 @@ struct tcp_notifications : public base_fake_socket_fixture {
     ecu_setup ecu_one_{"ecu_one", ecu_one_config_tcp_cfg, *socket_manager_};
     ecu_setup ecu_two_{"ecu_two", ecu_two_config_tcp_cfg.add_interface({both_interface, second_interface}), *socket_manager_};
 
-    event_ids tcp_offered_field{both_interface.fields_[0]};
-    event_ids udp_offered_field{both_interface.fields_[1]};
+    event_ids tcp_offered_field{both_interface.instance_, both_interface.fields_[0]};
+    event_ids udp_offered_field{both_interface.instance_, both_interface.fields_[1]};
 
-    event_ids second_interface_tcp_offered_field{second_interface.fields_[0]};
+    event_ids second_interface_tcp_offered_field{second_interface.instance_, second_interface.fields_[0]};
 };
 
 TEST_F(tcp_notifications, test_tcp_and_udp_boardnet_initial_event) {
@@ -1355,8 +1402,8 @@ static ecu_config change_ecu_one_cfg_name(std::string name) {
 struct tcp_offers : public base_fake_socket_fixture {
 
     // Custom interface with a service that has events being notified via tcp and udp
-    std::vector<interface::event_spec> const event_specs_both_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE},
-                                                               {0x8002, 0x2, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    std::vector<event_spec> const event_specs_both_{{0x8001, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE},
+                                                    {0x8002, {0x2}, vsomeip::reliability_type_e::RT_UNRELIABLE}};
     interface both_interface{0x3345, {}, event_specs_both_};
     // Second service to check if offering two services via tcp does not cause issues
     interface second_interface{0x3346, {}, event_specs_both_};
@@ -1367,10 +1414,10 @@ struct tcp_offers : public base_fake_socket_fixture {
     ecu_setup ecu_one_{"ecu_one", ecu_one_config_tcp_cfg, *socket_manager_};
     ecu_setup ecu_two_{"ecu_two", ecu_two_config_tcp_cfg.add_interface({both_interface, second_interface}), *socket_manager_};
 
-    event_ids tcp_offered_field{both_interface.fields_[0]};
-    event_ids udp_offered_field{both_interface.fields_[1]};
+    event_ids tcp_offered_field{both_interface.instance_, both_interface.fields_[0]};
+    event_ids udp_offered_field{both_interface.instance_, both_interface.fields_[1]};
 
-    event_ids second_interface_tcp_offered_field{second_interface.fields_[0]};
+    event_ids second_interface_tcp_offered_field{second_interface.instance_, second_interface.fields_[0]};
 };
 
 // Regression test for the auxiliary io_context pre-reservation bug.
@@ -1422,566 +1469,8 @@ TEST_F(tcp_offers, auxiliary_context_slot_does_not_steal_router_io_context) {
                "likely because its io_context was not properly assigned.";
 }
 
-struct test_someip_gate : public base_fake_socket_fixture {
-    // TCP interface with one reliable field (0x8001) and one unreliable field (0x8002).
-    // Used by blocks_notification and blocks_notification_matching_payload.
-    std::vector<interface::event_spec> const event_specs_both_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE},
-                                                               {0x8002, 0x2, vsomeip::reliability_type_e::RT_UNRELIABLE}};
-    interface both_interface{0x3345, {}, event_specs_both_};
-
-    // UDP-only service (0x3347). Used by blocks_request_then_response.
-    interface const udp_svc_{0x3347, {interface::event_spec{0x8001, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}}, {}};
-
-    ecu_config ecu_one_cfg_{boardnet::ecu_one_config};
-    ecu_config ecu_two_cfg_{boardnet::ecu_two_config};
-
-    ecu_setup ecu_one_{"ecu_one", ecu_one_cfg_, *socket_manager_};
-    // both_interface gets unreliable=30501, reliable=30502; udp_svc_ gets unreliable=30503.
-    ecu_setup ecu_two_{"ecu_two", ecu_two_cfg_.add_interface({both_interface, udp_svc_}), *socket_manager_};
-
-    event_ids tcp_offered_field{both_interface.fields_[0]};
-
-    vsomeip::method_t const method_ = 0x0001;
-    service_instance const si_{udp_svc_.instance_};
-    // router_two's UDP unicast endpoint for udp_svc_ (port 30503).
-    boost::asio::ip::udp::endpoint const svc_ep_{boardnet::ecu_two_config.unicast_ip_, 30503};
-
-    // Shared bring-up: remote provider (0x0555) auto-answering si_, ecu_one's router and a "keeper"
-    // holding a concrete request. Guests + prepare() must precede this.
-    void bring_up_provider_and_keeper(request const& _req, std::vector<unsigned char> const& _rsp_payload) {
-        // Provider side up first: offer the remote UDP service and auto-answer requests.
-        ecu_two_.start_apps();
-        auto* server = ecu_two_.apps_[ecu_two_server_name_];
-        ASSERT_NE(server, nullptr);
-        server->offer(si_);
-        server->answer_request(_req, [_rsp_payload] { return _rsp_payload; });
-
-        // Consumer routing manager up, then the keeper (keeps the remote service referenced).
-        ecu_one_.start_router();
-        auto* keeper = ecu_one_.start_one("keeper");
-        ASSERT_NE(keeper, nullptr);
-        ASSERT_TRUE(keeper->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-        keeper->request_service(si_);
-        ASSERT_TRUE(keeper->availability_record_.wait_for_last(service_availability::available(si_)));
-    }
-};
-
-TEST_F(test_someip_gate, blocks_notification) {
-    // Depict example where a someip_gate installed on the boardnet connection (early
-    // loading) blocks the first notification of a field, then releases it.
-    ecu_one_.add_app(ecu_one_client_name_);
-    ecu_two_.add_app(ecu_two_server_name_);
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    // Install the gate before the connection forms so the pipe is in place
-    // once router_one connects to router_two's boardnet server.
-    auto gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(router_one_name_, router_two_name_, socket_role::client, gate->get_data_pipe()));
-
-    ecu_one_.start_apps();
-    ecu_two_.start_apps();
-
-    auto* router_one = ecu_one_.router_;
-    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
-
-    std::vector<unsigned char> const payload{0x5, 0x3};
-
-    ecu_two_server_->offer(both_interface);
-    ecu_two_server_->send_event(tcp_offered_field, payload);
-
-    // Arm the gate: block the very first matching notification.
-    gate->block_at({.service_ = both_interface.instance_.service_,
-                    .method_ = tcp_offered_field.event_id_,
-                    .type_ = vsomeip::message_type_e::MT_NOTIFICATION});
-
-    router_one->request_service(both_interface.instance_);
-    router_one->subscribe_event({tcp_offered_field});
-
-    // The subscription triggers the initial field delivery — the gate must intercept it.
-    ASSERT_TRUE(gate->wait_for_blocked());
-
-    message_checker checker{std::nullopt, both_interface.instance_, tcp_offered_field.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
-                            payload};
-
-    // Gate is holding the notification — it must not have arrived yet.
-    EXPECT_FALSE(router_one->message_record_.wait_for(checker, std::chrono::milliseconds(500)));
-
-    // Release the gate; the buffered notification is pushed through.
-    gate->block(false);
-    EXPECT_TRUE(router_one->message_record_.wait_for(checker));
-}
-
-TEST_F(test_someip_gate, blocks_notification_matching_payload) {
-    // Depict example where a someip_gate with a payload predicate is used to selectively
-    // block only notifications whose first payload byte is 0xFF, while letting others pass.
-    ecu_one_.add_app(ecu_one_client_name_);
-    ecu_two_.add_app(ecu_two_server_name_);
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    // Install the gate in early loading — no block_at yet, so the gate is transparent.
-    auto gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(router_one_name_, router_two_name_, socket_role::client, gate->get_data_pipe()));
-
-    ecu_one_.start_apps();
-    ecu_two_.start_apps();
-
-    auto* router_one = ecu_one_.router_;
-    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
-
-    std::vector<unsigned char> const payload_safe{0x5, 0x3};
-    std::vector<unsigned char> const payload_blocked{0xFF, 0x3};
-
-    // Let the initial field event (payload_safe) pass through with no active trigger.
-    ecu_two_server_->offer(both_interface);
-    ecu_two_server_->send_event(tcp_offered_field, payload_safe);
-    router_one->request_service(both_interface.instance_);
-    router_one->subscribe_event({tcp_offered_field});
-
-    message_checker safe_checker{std::nullopt, both_interface.instance_, tcp_offered_field.event_id_,
-                                 vsomeip::message_type_e::MT_NOTIFICATION, payload_safe};
-    ASSERT_TRUE(router_one->message_record_.wait_for(safe_checker));
-
-    // Arm the gate with a payload predicate: only block notifications starting with 0xFF.
-    gate->block_at({.service_ = both_interface.instance_.service_,
-                    .method_ = tcp_offered_field.event_id_,
-                    .type_ = vsomeip::message_type_e::MT_NOTIFICATION,
-                    .payload_ = [](std::shared_ptr<vsomeip::payload> p) { return p && p->get_length() > 0 && p->get_data()[0] == 0xFF; }});
-
-    ecu_two_server_->send_event(tcp_offered_field, payload_blocked);
-
-    ASSERT_TRUE(gate->wait_for_blocked());
-
-    message_checker blocked_checker{std::nullopt, both_interface.instance_, tcp_offered_field.event_id_,
-                                    vsomeip::message_type_e::MT_NOTIFICATION, payload_blocked};
-
-    // Gate is holding the 0xFF notification — it must not have arrived yet.
-    EXPECT_FALSE(router_one->message_record_.wait_for(blocked_checker, std::chrono::milliseconds(500)));
-
-    // Release the gate; the buffered notification is pushed through.
-    gate->block(false);
-    EXPECT_TRUE(router_one->message_record_.wait_for(blocked_checker));
-}
-
-TEST_F(test_someip_gate, lets_through_n_notifications) {
-    // Verifies the count-based triggering: block_at(trigger, N) lets the first
-    // N-1 messages through and blocks on the Nth.
-    //
-    // 1. Arm gate with count=3 → lets 2 through, blocks on the 3rd.
-    // 2. Send 3 notifications with distinct payloads.
-    // 3. Client receives the first two.
-    // 4. Third is held back until gate is released.
-
-    ecu_one_.add_app(ecu_one_client_name_);
-    ecu_two_.add_app(ecu_two_server_name_);
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    auto gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(router_one_name_, router_two_name_, socket_role::client, gate->get_data_pipe()));
-
-    ecu_one_.start_apps();
-    ecu_two_.start_apps();
-
-    auto* router_one = ecu_one_.router_;
-    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
-
-    ecu_two_server_->offer(both_interface);
-    router_one->request_service(both_interface.instance_);
-    router_one->subscribe_event({tcp_offered_field});
-    ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(both_interface.instance_)));
-    ASSERT_TRUE(router_one->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(tcp_offered_field)));
-    router_one->message_record_.clear();
-
-    // 1. Arm: let first 2 through, block on the 3rd.
-    someip_gate::trigger const trigger{.service_ = both_interface.instance_.service_,
-                                       .method_ = tcp_offered_field.event_id_,
-                                       .type_ = vsomeip::message_type_e::MT_NOTIFICATION};
-    gate->block_at(trigger, 3);
-
-    const std::vector<unsigned char> p1{0x11}, p2{0x22}, p3{0x33};
-    const auto& ev = tcp_offered_field; // TCP (reliable) field
-    const auto& si = both_interface.instance_;
-
-    message_checker const c1{client_session{0, 1}, si, ev.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, std::nullopt};
-    message_checker const c2{client_session{0, 2}, si, ev.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, std::nullopt};
-    message_checker const c3{client_session{0, 3}, si, ev.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, std::nullopt};
-
-    // 2. Send 3 notifications.
-    ecu_two_server_->send_event(ev, p1);
-    ecu_two_server_->send_event(ev, p2);
-    ecu_two_server_->send_event(ev, p3);
-
-    // Gate must have triggered on the 3rd.
-    ASSERT_TRUE(gate->wait_for_blocked());
-
-    // 3. First two must arrive.
-    EXPECT_TRUE(router_one->message_record_.wait_for_any(c1));
-    EXPECT_TRUE(router_one->message_record_.wait_for_last(c2));
-
-    // 4. Third is buffered — must not arrive yet.
-    EXPECT_FALSE(router_one->message_record_.wait_for_any(c3, std::chrono::milliseconds(300)));
-
-    // Release: 3rd notification is forwarded.
-    gate->block(false);
-    EXPECT_TRUE(router_one->message_record_.wait_for_any(c3));
-}
-
-TEST_F(test_someip_gate, blocks_request_then_response) {
-    // Verify that a someip_gate installed on router_two's service socket can first block
-    // an incoming REQUEST, and then, once the request is released, block the outgoing
-    // RESPONSE before it reaches the client.
-
-    ecu_one_.add_app(ecu_one_client_name_);
-    ecu_two_.add_app(ecu_two_server_name_);
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    ecu_one_.start_apps();
-    ecu_two_.start_apps();
-
-    auto* router_one = ecu_one_.router_;
-    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
-
-    std::vector<unsigned char> const req_payload{0x01};
-    std::vector<unsigned char> const rsp_payload{0x42};
-
-    request const req{si_, method_, vsomeip::message_type_e::MT_REQUEST, false /* UDP */, req_payload};
-
-    // Server offers the service and registers a handler that replies with rsp_payload.
-    ecu_two_server_->offer(si_);
-    ecu_two_server_->answer_request(req, [rsp_payload] { return rsp_payload; });
-
-    // Client discovers the service via SD.
-    router_one->request_service(si_);
-    ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(si_)));
-
-    // Install both gates after apps have started so that the UDP socket at svc_ep_ is
-    // already bound and replace_pipe is called directly (not deferred to pending map).
-    auto request_gate = someip_gate::create();
-    auto response_gate = someip_gate::create();
-
-    // request_gate on the receiver pipe: blocks REQUESTs arriving at router_two's socket.
-    ASSERT_TRUE(setup_data_pipe(svc_ep_, router_two_name_, socket_role::client, request_gate->get_data_pipe()));
-    // response_gate on the sender pipe: blocks RESPONSEs leaving router_two's socket.
-    ASSERT_TRUE(setup_data_pipe(svc_ep_, router_two_name_, socket_role::server, response_gate->get_data_pipe()));
-
-    // --- Phase 1: block the REQUEST ---
-    request_gate->block_at({.service_ = si_.service_, .method_ = method_, .type_ = vsomeip::message_type_e::MT_REQUEST});
-
-    router_one->send_request(req);
-    ASSERT_TRUE(request_gate->wait_for_blocked());
-
-    message_checker rsp_checker{std::nullopt, si_, method_, vsomeip::message_type_e::MT_RESPONSE, rsp_payload};
-    // Request is held at the gate — no response can have arrived at the client yet.
-    EXPECT_FALSE(router_one->message_record_.wait_for(rsp_checker, std::chrono::milliseconds(500)));
-
-    // --- Phase 2: arm the response gate, then release the request ---
-    // Arm response_gate before releasing the request to avoid a race where the response
-    // is sent before the gate is armed.
-    response_gate->block_at({.service_ = si_.service_, .method_ = method_, .type_ = vsomeip::message_type_e::MT_RESPONSE});
-
-    // Release the request: it reaches the server, which replies; the reply is intercepted
-    // by response_gate before it leaves router_two.
-    request_gate->block(false);
-    ASSERT_TRUE(response_gate->wait_for_blocked());
-
-    // Response is still held — client must not have received it.
-    EXPECT_FALSE(router_one->message_record_.wait_for(rsp_checker, std::chrono::milliseconds(500)));
-
-    // Release the response gate — the response is now forwarded to the client.
-    response_gate->block(false);
-    EXPECT_TRUE(router_one->message_record_.wait_for(rsp_checker));
-}
-
-// A response/error addressed to a departed consumer whose client id was recycled to a different
-// application must NOT be delivered to the new owner of the id (which never requested the service)
-// — the routing manager must drop it.
-TEST_F(test_someip_gate, orphan_response_after_client_id_reuse_is_dropped) {
-    ecu_one_.add_guest({"keeper", std::nullopt});
-    ecu_one_.add_guest({"client_a", std::nullopt});
-    ecu_one_.add_guest({"client_b", std::nullopt});
-    ecu_two_.add_guest({ecu_two_server_name_, 0x0555});
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    std::vector<unsigned char> const rsp_payload{0x42};
-    request const req{si_, method_, vsomeip::message_type_e::MT_REQUEST, false /* UDP */, {0x01}};
-    ASSERT_NO_FATAL_FAILURE(bring_up_provider_and_keeper(req, rsp_payload));
-
-    // Client A (the original requester) takes the next free id.
-    auto* client_a = ecu_one_.start_one("client_a");
-    ASSERT_NE(client_a, nullptr);
-    ASSERT_TRUE(client_a->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-    vsomeip::client_t const reused_id = client_a->get_client_id();
-    ASSERT_TRUE(reused_id != 0x0000 && reused_id != 0xFFFF) << "client A did not get a valid client id";
-
-    client_a->request_service(si_);
-    ASSERT_TRUE(client_a->availability_record_.wait_for_last(service_availability::available(si_)));
-
-    // Hold the RESPONSE at the provider's egress so it cannot reach the consumer yet.
-    auto response_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(svc_ep_, router_two_name_, socket_role::server, response_gate->get_data_pipe()));
-    response_gate->block_at({.service_ = si_.service_, .method_ = method_, .type_ = vsomeip::message_type_e::MT_RESPONSE});
-
-    client_a->send_request(req);
-    ASSERT_TRUE(response_gate->wait_for_blocked()) << "response was not held at the provider egress";
-
-    // Client A leaves; wait until its routing connection is fully torn down so the routing
-    // manager releases the client id before B claims it.
-    ecu_one_.stop_one("client_a");
-    ASSERT_TRUE(wait_for_connection_drop("client_a", ecu_one_.router_name_));
-
-    // Client B joins and takes over the very same client id — but never requests the service.
-    auto* client_b = ecu_one_.start_one("client_b");
-    ASSERT_NE(client_b, nullptr);
-    ASSERT_TRUE(client_b->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-    ASSERT_EQ(client_b->get_client_id(), reused_id) << "client B did not reuse client A's id";
-
-    // Release the held response: it now reaches the consumer routing manager, addressed to the
-    // reused id. Because B never requested this remote service, the RM must drop it.
-    response_gate->block(false);
-
-    message_checker const rsp_checker{std::nullopt, si_, method_, vsomeip::message_type_e::MT_RESPONSE, rsp_payload};
-    EXPECT_FALSE(client_b->message_record_.wait_for(rsp_checker, std::chrono::milliseconds(500)))
-            << "client B received an orphaned response for a service it never requested (client-id reuse cross-talk)";
-}
-
-// A consumer requests a remote service, sends a request, then releases the service before the response arrives. The routing manager must
-// drop the now-orphaned response instead of delivering it to the (still-alive) consumer.
-TEST_F(test_someip_gate, orphan_response_after_release_service_is_dropped) {
-    ecu_one_.add_guest({"keeper", std::nullopt});
-    ecu_one_.add_guest({"consumer", std::nullopt});
-    ecu_two_.add_guest({ecu_two_server_name_, 0x0555});
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    std::vector<unsigned char> const rsp_payload{0x24};
-    request const req{si_, method_, vsomeip::message_type_e::MT_REQUEST, false /* UDP */, {0x01}};
-    ASSERT_NO_FATAL_FAILURE(bring_up_provider_and_keeper(req, rsp_payload));
-
-    auto* consumer = ecu_one_.start_one("consumer");
-    ASSERT_NE(consumer, nullptr);
-    ASSERT_TRUE(consumer->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-
-    consumer->request_service(si_);
-    ASSERT_TRUE(consumer->availability_record_.wait_for_last(service_availability::available(si_)));
-
-    // Hold the RESPONSE at the provider's egress.
-    auto response_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(svc_ep_, router_two_name_, socket_role::server, response_gate->get_data_pipe()));
-    response_gate->block_at({.service_ = si_.service_, .method_ = method_, .type_ = vsomeip::message_type_e::MT_RESPONSE});
-
-    consumer->send_request(req);
-    ASSERT_TRUE(response_gate->wait_for_blocked()) << "response was not held at the provider egress";
-
-    // The consumer releases the service while the response is still in flight. Wait until the
-    // RELEASE_SERVICE command has reached the routing manager so is_requester() reflects it
-    // (the held response still has to traverse the boardnet, so it arrives strictly later).
-    consumer->release_service(si_);
-    ASSERT_TRUE(wait_for_command("consumer", ecu_one_.router_name_, protocol::id_e::RELEASE_SERVICE_ID, socket_role::server));
-
-    // Release the held response; the RM must drop it — the consumer is no longer a requester.
-    response_gate->block(false);
-
-    message_checker const rsp_checker{std::nullopt, si_, method_, vsomeip::message_type_e::MT_RESPONSE, rsp_payload};
-    EXPECT_FALSE(consumer->message_record_.wait_for(rsp_checker, std::chrono::milliseconds(500)))
-            << "consumer received a response for a service it had already released";
-}
-
-// A client that requested the service under ANY_INSTANCE must still receive responses for a concrete
-// instance, even while another client (the keeper) holds a concrete (service, instance) request at
-// the same time. The concrete request materializes a concrete requested_services_ node next to the
-// ANY_INSTANCE node; is_requester() must union both. A fallback-only lookup would see only the
-// concrete node, treat the wildcard requester as a non-requester, and wrongly drop its response.
-TEST_F(test_someip_gate, wildcard_requester_still_receives_response) {
-    ecu_one_.add_guest({"keeper", std::nullopt});
-    // Name sorts before the "router_*" auxiliary contexts so the fake-socket io_context
-    // assignment does not race with the keeper's remote connection bring-up.
-    ecu_one_.add_guest({"any_consumer", std::nullopt});
-    ecu_two_.add_guest({ecu_two_server_name_, 0x0555});
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    std::vector<unsigned char> const rsp_payload{0x37};
-    request const req{si_, method_, vsomeip::message_type_e::MT_REQUEST, false /* UDP */, {0x01}};
-    // The keeper holds a CONCRETE (service, instance) request to si_ — the coexistence trigger.
-    ASSERT_NO_FATAL_FAILURE(bring_up_provider_and_keeper(req, rsp_payload));
-
-    // A second consumer requests the same service, but under ANY_INSTANCE.
-    auto* consumer = ecu_one_.start_one("any_consumer");
-    ASSERT_NE(consumer, nullptr);
-    ASSERT_TRUE(consumer->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
-    consumer->request_service(service_instance{si_.service_, vsomeip::ANY_INSTANCE});
-    // The concrete instance is reported available to the ANY_INSTANCE requester as well.
-    ASSERT_TRUE(consumer->availability_record_.wait_for_last(service_availability::available(si_)));
-
-    // The wildcard consumer issues a request to the concrete instance; its response must be
-    // delivered (not dropped as an orphan), because it is a legitimate requester via ANY_INSTANCE.
-    consumer->send_request(req);
-    message_checker const rsp_checker{std::nullopt, si_, method_, vsomeip::message_type_e::MT_RESPONSE, rsp_payload};
-    EXPECT_TRUE(consumer->message_record_.wait_for(rsp_checker)) << "wildcard (ANY_INSTANCE) requester did not receive its response";
-}
-
-ecu_config configure_initial_delay(ecu_config cfg, std::uint32_t min, std::uint32_t max) {
-    cfg.service_discovery_.initial_delay_min_ = min;
-    cfg.service_discovery_.initial_delay_max_ = max;
-    return cfg;
-}
-
-const interface service_3344_instance_2{0x3344,
-                                        {interface::event_spec{0x8001, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
-                                        {interface::event_spec{0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
-                                        0x2};
-
-ecu_config configure_initial_delay_with_second_instance(ecu_config cfg, std::uint32_t min, std::uint32_t max) {
-    cfg = configure_initial_delay(std::move(cfg), min, max);
-    cfg.add_interface({service_3344_instance_2}, 30502);
-    return cfg;
-}
-
-struct increased_initial_delay_with_multiple_instances : public base_fake_socket_fixture {
-    ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
-    ecu_setup ecu_two_{"ecu_two", configure_initial_delay_with_second_instance(boardnet::ecu_two_config, 10000, 10000), *socket_manager_};
-};
-
-// This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait or not.
-// To ensure we never leave the initial_phase, we configure the initial_delay to 10 seconds.
-TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_after_find_triggered_offer) {
-    ecu_one_.add_guest({"guest_client", 0x1338});
-    ecu_two_.add_guest({"guest_server", 0x1337});
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    ecu_one_.start_apps();
-    ecu_two_.start_apps();
-
-    auto* client = ecu_one_.apps_["guest_client"];
-    auto* server = ecu_two_.apps_["guest_server"];
-
-    // Offer and request the service
-    server->offer(interfaces::boardnet::service_3344);
-    client->request_service(interfaces::boardnet::service_3344.instance_);
-    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_),
-                                                           std::chrono::seconds(2)));
-
-    // Prepare Service Discovery Gate
-    std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
-                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
-    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
-
-    // Stop offering the service
-    server->stop_offer(interfaces::boardnet::service_3344.instance_);
-
-    // Verify whether a StopService message was blocked or not, if it wasn't, we can safely assume it was not sent either.
-    EXPECT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
-}
-
-// This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait for each service-instance.
-TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_for_each_service_instance) {
-    ecu_one_.add_guest({"guest_client", 0x1338});
-    ecu_two_.add_guest({"guest_server", 0x1337});
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    ecu_one_.start_apps();
-    ecu_two_.start_apps();
-
-    auto* client = ecu_one_.apps_["guest_client"];
-    auto* server = ecu_two_.apps_["guest_server"];
-
-    const auto first_instance = interfaces::boardnet::service_3344.instance_;
-    const auto second_instance = service_3344_instance_2.instance_;
-
-    server->offer(interfaces::boardnet::service_3344);
-    server->offer(service_3344_instance_2);
-    client->request_service(first_instance);
-    client->request_service(second_instance);
-    ASSERT_TRUE(client->availability_record_.wait_for_any(service_availability::available(first_instance)));
-    ASSERT_TRUE(client->availability_record_.wait_for_any(service_availability::available(second_instance)));
-
-    std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
-    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
-                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
-
-    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
-    server->stop_offer(first_instance);
-    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
-    router_one_sd_gate->block(false);
-    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(first_instance)));
-
-    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
-    server->stop_offer(second_instance);
-    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
-    router_one_sd_gate->block(false);
-    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(second_instance)));
-}
-
-struct sd_header_validation : public base_fake_socket_fixture {
-    ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
-    ecu_setup ecu_two_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
-
-    void prepare_ecus_and_apps() {
-        ecu_one_.add_guest({"guest_client", 0x1338});
-        ecu_two_.add_guest({"guest_server", 0x1337});
-
-        ecu_one_.prepare();
-        ecu_two_.prepare();
-
-        ecu_one_.start_apps();
-        ecu_two_.start_apps();
-    }
-};
-
-TEST_F(sd_header_validation, prs_someipsd_00154_sd_offer_with_nonzero_client_id_is_rejected) {
-    // SD messages shall have a Client-ID set to 0x0000.
-    // Verify that an incoming SD OFFER message carrying a non-zero Client-ID is silently
-    // discarded by the receiver (ECU one), while an identical message with Client-ID = 0x0000
-    // is accepted and causes normal service availability signalling.
-
-    prepare_ecus_and_apps();
-
-    auto* client = ecu_one_.apps_["guest_client"];
-    client->request_service(interfaces::boardnet::service_3344.instance_);
-
-    // construct_offer() builds a well-formed SD OFFER with Client-ID = 0x0000.
-    // We then overwrite bytes 8–9 (VSOMEIP_CLIENT_POS_MIN) with a non-zero value to
-    // simulate a non-compliant sender.
-    auto malformed_offer = construct_offer(interfaces::boardnet::service_3344.events_[0], boardnet::ecu_two_config.unicast_ip_, 30501);
-    // SOME/IP header: bytes 8–9 are the Client-ID (big-endian).
-    malformed_offer[VSOMEIP_CLIENT_POS_MIN] = 0xDE;
-    malformed_offer[VSOMEIP_CLIENT_POS_MIN + 1] = 0xAD;
-
-    send_someip_sd_message(malformed_offer, ecu_two_.sd_endpoint(), ecu_one_.sd_endpoint());
-
-    // ECU one must NOT process the offer; service availability must NOT be reported.
-    EXPECT_FALSE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)))
-            << "SD OFFER with non-zero Client-ID (0xDEAD) was incorrectly accepted";
-    ;
-
-    // --- Valid offer: Client-ID = 0x0000 ---
-    // The identical offer with the correct Client-ID must be accepted and trigger
-    // service availability on ECU one.
-    auto valid_offer = construct_offer(interfaces::boardnet::service_3344.events_[0], boardnet::ecu_two_config.unicast_ip_, 30501);
-
-    send_someip_sd_message(valid_offer, ecu_two_.sd_endpoint(), ecu_one_.sd_endpoint());
-
-    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)))
-            << "SD OFFER with Client-ID = 0x0000 was not accepted";
-}
-
 struct length_field_too_big : public base_fake_socket_fixture {
-    interface interface_tcp_{0x1234, {}, {{0x8002, 0x1, vsomeip::reliability_type_e::RT_RELIABLE}}};
+    interface interface_tcp_{0x1234, {}, {{0x8002, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE}}};
     interface interface_udp_{0x1235};
 
     method_t method_ = 0x8001;
@@ -2123,17 +1612,17 @@ TEST_F(length_field_too_big, direct_consume_multicast) {
     router_one_->request_service(interface_udp_.instance_);
 
     ASSERT_TRUE(await_multicast_join(multicast_ep_.address(), 2 /*ecu_one + ecu_two*/));
-    auto valid_offer = construct_offer(interface_udp_.events_[0], ecu_two_.config().unicast_ip_, 30501);
+    auto valid_offer = construct_offer({interface_udp_.instance_, interface_udp_.events_[0]}, ecu_two_.config().unicast_ip_, 30501);
     inject_message_udp_multicast(ecu_two_.sd_endpoint(), multicast_ep_, valid_offer);
     ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(interface_udp_.instance_)));
 }
 
 struct interface_manipulation : public base_fake_socket_fixture {
 
-    std::vector<interface::event_spec> const event_specs_both_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE},
-                                                               {0x8002, 0x2, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    std::vector<event_spec> const event_specs_both_{{0x8001, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE},
+                                                    {0x8002, {0x2}, vsomeip::reliability_type_e::RT_UNRELIABLE}};
 
-    std::vector<interface::event_spec> events = {interface::event_spec{0x8003, 0x3, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    std::vector<event_spec> events = {event_spec{0x8003, {0x3}, vsomeip::reliability_type_e::RT_UNRELIABLE}};
 
     interface interface_{0x3345, events, event_specs_both_};
 
@@ -2143,8 +1632,8 @@ struct interface_manipulation : public base_fake_socket_fixture {
     ecu_setup ecu_one_{"ecu_one", ecu_one_cfg.add_interface({interface_}), *socket_manager_};
     ecu_setup ecu_two_{"ecu_two", ecu_two_cfg, *socket_manager_};
 
-    event_ids tcp_field{interface_.fields_[0]};
-    event_ids udp_field{interface_.fields_[1]};
+    event_ids tcp_field{interface_.instance_, interface_.fields_[0]};
+    event_ids udp_field{interface_.instance_, interface_.fields_[1]};
 };
 
 TEST_F(interface_manipulation, pending_sd_offers_are_sent) {
@@ -2434,7 +1923,8 @@ TEST_F(interface_manipulation, routing_apps_offer_and_subscribe) {
     ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::UP));
 
     // check for successful subscription
-    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(
+            event_subscription::successfully_subscribed_to({interface_.instance_, interface_.events_[0]})));
 }
 
 TEST_F(interface_manipulation, interface_down_after_successful_subscription) {
@@ -2462,7 +1952,8 @@ TEST_F(interface_manipulation, interface_down_after_successful_subscription) {
     router_two->subscribe(interface_);
 
     // check for successful subscription
-    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(
+            event_subscription::successfully_subscribed_to({interface_.instance_, interface_.events_[0]})));
 
     // clear record so the unavailability barrier below waits for the down-triggered event
     // instead of matching any availability change recorded during setup
@@ -2487,7 +1978,8 @@ TEST_F(interface_manipulation, interface_down_after_successful_subscription) {
     ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::UP));
 
     // check for successful subscription
-    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(
+            event_subscription::successfully_subscribed_to({interface_.instance_, interface_.events_[0]})));
 }
 
 TEST_F(interface_manipulation, interface_down_internal_comm_still_up) {
@@ -2522,8 +2014,10 @@ TEST_F(interface_manipulation, interface_down_internal_comm_still_up) {
     client->subscribe(interface_);
 
     // check for successful subscription
-    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
-    EXPECT_TRUE(client->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(
+            event_subscription::successfully_subscribed_to({interface_.instance_, interface_.events_[0]})));
+    EXPECT_TRUE(client->subscription_record_.wait_for_any(
+            event_subscription::successfully_subscribed_to({interface_.instance_, interface_.events_[0]})));
 
     // clear record so the unavailability barrier below waits for the down-triggered event
     // instead of matching any availability change recorded during setup
@@ -2552,7 +2046,8 @@ TEST_F(interface_manipulation, interface_down_internal_comm_still_up) {
     ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::UP));
 
     // check for successful subscription
-    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(
+            event_subscription::successfully_subscribed_to({interface_.instance_, interface_.events_[0]})));
 }
 
 struct test_offer_stop_offer_subscription : base_fake_socket_fixture {
@@ -2575,11 +2070,11 @@ struct test_offer_stop_offer_subscription : base_fake_socket_fixture {
     std::string const client_name_{"client"};
     std::string const server_name_{"server"};
 
-    interface interface_{0x1000, {}, {interface::event_spec{0x8001, 0x8001, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
+    interface interface_{0x1000, {}, {event_spec{0x8001, {0x8001}, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
     ecu_setup provider_ecu_{"provider", ecu_config{boardnet::ecu_one_config}.add_interface({interface_}), *socket_manager_};
     ecu_setup consumer_ecu_{"consumer", boardnet::ecu_three_config, *socket_manager_};
 
-    event_ids field_ = interface_.fields_[0];
+    event_ids field_{interface_.instance_, interface_.fields_[0]};
 
     app* server_;
     app* client_;
@@ -2616,7 +2111,7 @@ TEST_F(test_offer_stop_offer_subscription, subscriptions_are_acknowledged_after_
 // send_cbk runs on an empty queue and crashes in read_uint16_be.
 struct tcp_send_error_target_recreate : public base_fake_socket_fixture {
 
-    std::vector<interface::event_spec> const reliable_field_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE}};
+    std::vector<event_spec> const reliable_field_{{0x8001, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE}};
     interface tcp_interface_{0x3346, {}, reliable_field_};
 
     vsomeip::method_t const method_{0x8001};
@@ -2627,7 +2122,7 @@ struct tcp_send_error_target_recreate : public base_fake_socket_fixture {
     ecu_setup ecu_one_{"ecu_one", ecu_one_config_, *socket_manager_};
     ecu_setup ecu_two_{"ecu_two", ecu_two_config_.add_interface({tcp_interface_}), *socket_manager_};
 
-    event_ids tcp_field_{tcp_interface_.fields_[0]};
+    event_ids tcp_field_{tcp_interface_.instance_, tcp_interface_.fields_[0]};
 
     [[nodiscard]] message_checker notification_checker(std::vector<unsigned char> _payload) const {
         return message_checker{std::nullopt, tcp_interface_.instance_, tcp_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
@@ -2721,7 +2216,7 @@ struct test_someip_record : public base_fake_socket_fixture {
     ecu_setup ecu_two_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
 
     // TCP boardnet (reliable)
-    std::vector<interface::event_spec> const tcp_events_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE}};
+    std::vector<event_spec> const tcp_events_{{0x8001, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE}};
     interface tcp_interface_{0x4455, tcp_events_, {}};
 
     ecu_config ecu_three_cfg_{boardnet::ecu_one_config};
@@ -2758,16 +2253,16 @@ TEST_F(test_someip_record, record_notification_on_udp_endpoint) {
     auto* server = ecu_two_.apps_["guest_server"];
     auto* client = ecu_one_.apps_["guest_client"];
 
-    server->offer_event(interfaces::boardnet::service_3344.events_[0]);
+    server->offer_event(interfaces::boardnet::service_3344.instance_, interfaces::boardnet::service_3344.events_[0]);
     server->offer(interfaces::boardnet::service_3344);
 
     client->request_service(interfaces::boardnet::service_3344.instance_);
     ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)));
-    client->subscribe_event(interfaces::boardnet::service_3344.events_[0]);
-    ASSERT_TRUE(client->subscription_record_.wait_for_last(
-            event_subscription::successfully_subscribed_to(interfaces::boardnet::service_3344.events_[0])));
+    client->subscribe_event({interfaces::boardnet::service_3344.instance_, interfaces::boardnet::service_3344.events_[0]});
+    ASSERT_TRUE(client->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(
+            event_ids{interfaces::boardnet::service_3344.instance_, interfaces::boardnet::service_3344.events_[0]})));
 
-    server->send_event(interfaces::boardnet::service_3344.events_[0], {0xAB, 0xCD});
+    server->send_event({interfaces::boardnet::service_3344.instance_, interfaces::boardnet::service_3344.events_[0]}, {0xAB, 0xCD});
 
     someip_record_message notification_record{interfaces::boardnet::service_3344.instance_.service_,
                                               interfaces::boardnet::service_3344.events_[0].event_id_,
@@ -2805,15 +2300,17 @@ TEST_F(test_someip_record, record_notification_on_tcp_boardnet_connection) {
     auto* router_one = ecu_tcp_one.router_;
     auto* ecu_two_server = ecu_tcp_two.apps_["ecu_two_server"];
 
-    ecu_two_server->offer_event(tcp_interface_.events_[0]);
+    event_ids tcp_event_ids{tcp_interface_.instance_, tcp_interface_.events_[0]};
+
+    ecu_two_server->offer_event(tcp_event_ids.si_, tcp_event_ids.to_event_spec());
     ecu_two_server->offer(tcp_interface_);
 
     router_one->request_service(tcp_interface_.instance_);
     ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(tcp_interface_.instance_)));
-    router_one->subscribe_event(tcp_interface_.events_[0]);
-    ASSERT_TRUE(router_one->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(tcp_interface_.events_[0])));
+    router_one->subscribe_event(tcp_event_ids);
+    ASSERT_TRUE(router_one->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(tcp_event_ids)));
 
-    ecu_two_server->send_event(tcp_interface_.events_[0], {0xCA, 0xFE});
+    ecu_two_server->send_event(tcp_event_ids, {0xCA, 0xFE});
 
     someip_record_message tcp_notification{tcp_interface_.instance_.service_, tcp_interface_.events_[0].event_id_,
                                            someip_record_message::ANY_CLIENT, someip_record_message::ANY_SESSION,
@@ -2828,20 +2325,20 @@ TEST_F(test_someip_record, record_notification_on_tcp_boardnet_connection) {
 
 const interface udp_tcp_service{
         0x3355,
-        /*events*/ {{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE}},
-        /*fields*/ {{0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+        /*events*/ {{0x8001, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE}},
+        /*fields*/ {{0x8002, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}},
 };
 
 const interface tcp_only_service{
         0x3366,
-        /*events*/ {{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE}},
-        /*fields*/ {{0x8002, 0x1, vsomeip::reliability_type_e::RT_RELIABLE}},
+        /*events*/ {{0x8001, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE}},
+        /*fields*/ {{0x8002, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE}},
 };
 
 const interface udp_only_service{
         0x3377,
-        /*events*/ {{0x8001, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
-        /*fields*/ {{0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+        /*events*/ {{0x8001, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+        /*fields*/ {{0x8002, {0x1}, vsomeip::reliability_type_e::RT_UNRELIABLE}},
 };
 
 constexpr vsomeip::method_t TEST_METHOD = 0x0421;
@@ -2911,7 +2408,7 @@ TEST_F(offer_endpoint_readiness, udp_tcp_service_is_not_offered_until_both_endpo
     fail_on_udp_port_bind(provider_udp_port(udp_tcp_service.instance_), false);
     provider_->stop_offer(udp_tcp_service.instance_);
     provider_->offer(udp_tcp_service);
-    provider_->send_event(udp_tcp_service.fields_[0], {0x42});
+    provider_->send_event({udp_tcp_service.instance_, udp_tcp_service.fields_[0]}, {0x42});
 
     EXPECT_TRUE(consumer_->availability_record_.wait_for_last(service_availability::available(udp_tcp_service.instance_),
                                                               std::chrono::seconds(8)))
@@ -2968,11 +2465,12 @@ TEST_F(offer_endpoint_readiness, udp_tcp_service_is_not_offered_until_tcp_endpoi
 
     // A plain event (unlike a field) is not cached for initial delivery, so wait until the reliable
     // (TCP) subscription is acknowledged before notifying, ensuring the live subscriber is in place.
-    ASSERT_TRUE(consumer_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_tcp_service.events_[0]),
-                                                             std::chrono::seconds(8)))
+    ASSERT_TRUE(consumer_->subscription_record_.wait_for_any(
+            event_subscription::successfully_subscribed_to({udp_tcp_service.instance_, udp_tcp_service.events_[0]}),
+            std::chrono::seconds(8)))
             << "Consumer did not subscribe to the reliable event over TCP after recovery";
 
-    provider_->send_event(udp_tcp_service.events_[0], {0x42});
+    provider_->send_event({udp_tcp_service.instance_, udp_tcp_service.events_[0]}, {0x42});
 
     // The reliable event is delivered over TCP, proving the service was only announced once the
     // TCP endpoint was really there.
@@ -3052,74 +2550,136 @@ TEST_F(offer_endpoint_readiness, reliable_request_is_delivered_when_only_udp_is_
             << provider_->message_record_.to_string();
 }
 
-struct test_someip_tp : public base_fake_socket_fixture {
-    method_t method_{0x3333};
-    std::vector<interface::event_spec> const fields_specs_{{0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}};
-    std::optional<someip_tp> tp_{someip_tp{{method_, 1392, 0}, {method_, 1392, 0}}};
+// Test reject changed offer
+//
+// Test setup: three ECUs on the same boardnet:
+//   - ecu_one  : consumer, subscribes to service_3344
+//   - ecu_two  : server A, offers service_3344
+//   - ecu_three: server B, offers the SAME service_3344 (same service + instance)
+//
+struct two_providers_one_consumer : public base_fake_socket_fixture {
+    // consumer_ecu_ is the pure client side (no offered services) -> consumer.
+    ecu_setup consumer_ecu_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
+    // server_a_ecu_ offers service_3344 -> server A.
+    ecu_setup server_a_ecu_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
+    // server_b_ecu_ also offers service_3344 -> server B.
+    ecu_setup server_b_ecu_{"ecu_three", ecu_config{boardnet::ecu_three_config}.add_interface({interfaces::boardnet::service_3344}),
+                            *socket_manager_};
 
-    interface multi_field_service_{{0x3344, 0x1}, {}, fields_specs_, tp_};
-    ecu_config ecu_one_config_extended_{boardnet::ecu_one_config};
-    ecu_config ecu_two_config_extended_{boardnet::ecu_two_config};
+    app* consumer_{};
+    app* server_a_{};
+    app* server_b_{};
 
-    ecu_setup ecu_one_{"ecu_one", ecu_one_config_extended_.add_interface({multi_field_service_}), *socket_manager_};
-    ecu_setup ecu_two_{"ecu_two", ecu_two_config_extended_.add_interface({multi_field_service_}), *socket_manager_};
+    // Service and event to be offered by both ECUs
+    interface both_ecus_service = interfaces::boardnet::service_3344;
+    event_ids both_ecus_field = {both_ecus_service.instance_, both_ecus_service.fields_[0]};
 
-    boost::asio::ip::udp::endpoint src_ep_ = boost::asio::ip::udp::endpoint(ecu_two_.config().unicast_ip_, 30491);
-    boost::asio::ip::udp::endpoint dst_ep_ = boost::asio::ip::udp::endpoint(ecu_one_.config().unicast_ip_, 30501);
+    // SD gates to block sending of Offers/StopOffers
+    std::shared_ptr<someip_gate> server_a_sd_gate = someip_gate::create();
+    std::shared_ptr<someip_gate> server_b_sd_gate = someip_gate::create();
 
-    void prepare_ecus_and_apps() {
-        ecu_one_.prepare();
-        ecu_two_.prepare();
+    // Records `true` whenever each server receives a subscribe
+    attribute_recorder<bool> server_a_got_subscriber_;
+    attribute_recorder<bool> server_b_got_subscriber_;
 
-        ecu_one_.start_apps();
-        ecu_two_.start_apps();
+    // Brings up all three ECUs, offers the services, install SD gates and register subscription handlers
+    void start_ecus() {
+
+        consumer_ecu_.prepare();
+        server_a_ecu_.prepare();
+        server_b_ecu_.prepare();
+
+        consumer_ecu_.start_router();
+        server_a_ecu_.start_router();
+        server_b_ecu_.start_router();
+
+        consumer_ = consumer_ecu_.router_;
+        server_a_ = server_a_ecu_.router_;
+        server_b_ = server_b_ecu_.router_;
+
+        ASSERT_TRUE(setup_data_pipe(server_a_ecu_.sd_endpoint(), server_a_ecu_.router_name_, socket_role::server,
+                                    server_a_sd_gate->get_data_pipe()));
+        ASSERT_TRUE(setup_data_pipe(server_b_ecu_.sd_endpoint(), server_b_ecu_.router_name_, socket_role::server,
+                                    server_b_sd_gate->get_data_pipe()));
+
+        server_a_->register_group_subscription_handler(both_ecus_field,
+                                                       [this](client_t, uid_t, gid_t, std::string const&, bool _is_subscribed) {
+                                                           if (_is_subscribed) {
+                                                               server_a_got_subscriber_.record(true);
+                                                           }
+                                                           return true;
+                                                       });
+        server_b_->register_group_subscription_handler(both_ecus_field,
+                                                       [this](client_t, uid_t, gid_t, std::string const&, bool _is_subscribed) {
+                                                           if (_is_subscribed) {
+                                                               server_b_got_subscriber_.record(true);
+                                                           }
+                                                           return true;
+                                                       });
     }
 };
 
-TEST_F(test_someip_tp, test_someip_tp_mem_corruption) {
-    /// Ensure that fully overlapping segments are handled correctly and do not cause memory corruption.
-    prepare_ecus_and_apps();
+// Test logic: verify that the consumer subscribes to only one of the providers, never to both and at least to one.
+//
+// 1. Both server apps offer the same interface, with SD blocked.
+//    This allows both offers in each ECU to be accepted
+//    (if the SD was unblocked, the second ECU would reject the internal offer)
+// 2. Unblock SD so offers are sent to boardnet
+// 3. Client requests and subscribes to the service
+// 4. Ensure that exactly one of the two servers receives the subscription (never both and at least to one).
+// 5. For the server which had its offer accepted, stop the sending of SD messages
+//    and stop the service(the client will not get the StopOffer)
+// 6. Ensure that, at first, the other server does not receive a subscription,
+//    since the previous offer is still alive due to the TTL
+// 7. Ensure that, after the first offer TTL expires, the other server receives a subscription
 
-    auto* ecu_one = ecu_one_.router_;
-    auto* ecu_two = ecu_two_.router_;
+TEST_F(two_providers_one_consumer, second_provider_offer_does_not_retrigger_subscribe) {
+    start_ecus();
 
-    ecu_one->offer(multi_field_service_);
-    ecu_two->request_service(multi_field_service_.instance_);
+    // 1.
+    server_a_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
+    server_b_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
 
-    auto first_tp_message = construct_someip_tp_segment({.service_ = multi_field_service_.instance_.service_,
-                                                         .method_ = method_,
-                                                         .client_ = ecu_one->get_client(),
-                                                         .session_ = 0x0001,
-                                                         .offset_ = 0,
-                                                         .more_segments_ = true, // not the last segment
-                                                         .payload_ = std::vector<unsigned char>(32, 0xAA)});
+    server_a_->offer(both_ecus_service);
+    server_b_->offer(both_ecus_service);
 
-    someip_tp_segment seconds_tp_frame{.service_ = multi_field_service_.instance_.service_,
-                                       .method_ = method_,
-                                       .client_ = ecu_one->get_client(),
-                                       .session_ = 0x0001,
-                                       .offset_ = 16,
-                                       .more_segments_ = false, // last segment
-                                       .payload_ = std::vector<unsigned char>(16, 0xBB)};
-    auto second_tp_message = construct_someip_tp_segment(seconds_tp_frame);
+    ASSERT_TRUE(server_a_sd_gate->wait_for_blocked()) << "Server A did not offer the service.";
+    ASSERT_TRUE(server_b_sd_gate->wait_for_blocked()) << "Server B did not offer the service.";
 
-    ASSERT_TRUE(ecu_two->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+    // 2.
+    server_a_sd_gate->block(false);
+    server_b_sd_gate->block(false);
 
-    inject_message_udp(src_ep_, dst_ep_, first_tp_message);
-    inject_message_udp(src_ep_, dst_ep_, second_tp_message);
+    // 3.
+    consumer_->request_service(both_ecus_service.instance_);
+    ASSERT_TRUE(consumer_->availability_record_.wait_for_last(service_availability::available(both_ecus_service.instance_)))
+            << "The consumer didn't receive the service availability after unblocking SD.";
 
-    message_checker tp_checker{std::nullopt, multi_field_service_.instance_, method_, vsomeip::message_type_e::MT_REQUEST,
-                               std::vector<unsigned char>(32, 0xAA)};
-    ASSERT_TRUE(ecu_one->message_record_.wait_for_any(tp_checker));
+    consumer_->subscribe(both_ecus_service);
+    ASSERT_TRUE(consumer_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(both_ecus_field)))
+            << "The consumer never subscribed to the service.";
 
-    // Partial overlapping segments.
-    seconds_tp_frame.payload_ = std::vector<unsigned char>(32, 0xBB);
-    auto partial_tp_message = construct_someip_tp_segment(seconds_tp_frame);
+    // 4.
+    bool const server_a_subscribed = server_a_got_subscriber_.wait_for_any(true, std::chrono::seconds(1));
+    bool const server_b_subscribed = server_b_got_subscriber_.wait_for_any(true, std::chrono::seconds(1));
+    EXPECT_TRUE(server_a_subscribed || server_b_subscribed) << "Neither server received the subscription.";
+    EXPECT_FALSE(server_a_subscribed && server_b_subscribed)
+            << "Both servers received the subscription; the consumer must subscribe to only one provider.";
 
-    inject_message_udp(src_ep_, dst_ep_, first_tp_message);
-    inject_message_udp(src_ep_, dst_ep_, partial_tp_message);
+    // 5.
+    auto winner_gate = server_a_subscribed ? server_a_sd_gate : server_b_sd_gate;
+    app* winner = server_a_subscribed ? server_a_ : server_b_;
+    attribute_recorder<bool>& loser_got_subscriber = server_a_subscribed ? server_b_got_subscriber_ : server_a_got_subscriber_;
 
-    tp_checker.payload_.value().insert(tp_checker.payload_.value().end(), 16, 0xBB);
-    ASSERT_TRUE(ecu_one->message_record_.wait_for_any(tp_checker));
+    winner_gate->block(true);
+
+    winner->stop_offer(both_ecus_service.instance_);
+
+    // 6.
+    EXPECT_FALSE(loser_got_subscriber.wait_for_any(true, std::chrono::seconds(1))) << "The other server received a subscription too early.";
+
+    // 7.
+    EXPECT_TRUE(loser_got_subscriber.wait_for_any(true, std::chrono::seconds(10)))
+            << "The other server never received the subscription after the subscribed provider stopped offering.";
 }
 }

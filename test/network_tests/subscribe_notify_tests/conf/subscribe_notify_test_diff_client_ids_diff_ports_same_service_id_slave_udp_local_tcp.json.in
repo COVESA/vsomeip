@@ -1,5 +1,6 @@
 {
     "unicast":"@TEST_IP_SLAVE@",
+    "diagnosis":"0x01",
     "logging":
     {
         "level":"trace",
@@ -12,16 +13,13 @@
     "applications":
     [
         {
-            "name":"subscribe_notify_test_service_four",
-            "id":"0x4444"
+            "name":"subscribe_notify_test_service_four"
         },
         {
-            "name":"subscribe_notify_test_service_five",
-            "id":"0x5555"
+            "name":"subscribe_notify_test_service_five"
         },
         {
-            "name":"subscribe_notify_test_service_six",
-            "id":"0x6666"
+            "name":"subscribe_notify_test_service_six"
         }
     ],
     "services":

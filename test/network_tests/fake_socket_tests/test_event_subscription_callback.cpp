@@ -34,14 +34,14 @@ static std::string const client_name_{"client"};
 struct base_event_subscription_callback : public base_fake_socket_fixture {
     interface interface_{0x1000,
                          {},
-                         {interface::event_spec{0x8001, 0x8001, vsomeip::reliability_type_e::RT_UNRELIABLE},
-                          interface::event_spec{0x8002, 0x8002, vsomeip::reliability_type_e::RT_UNRELIABLE},
-                          interface::event_spec{0x8003, 0x8003, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
+                         {event_spec{0x8001, {0x8001}, vsomeip::reliability_type_e::RT_UNRELIABLE},
+                          event_spec{0x8002, {0x8002}, vsomeip::reliability_type_e::RT_UNRELIABLE},
+                          event_spec{0x8003, {0x8003}, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
     ecu_setup provider_ecu_{"provider", ecu_config{boardnet::ecu_one_config}.add_interface({interface_}), *socket_manager_};
 
-    event_ids field_one_ = interface_.fields_[0];
-    event_ids field_two_ = interface_.fields_[1];
-    event_ids field_three_ = interface_.fields_[2];
+    event_ids field_one_ = {interface_.instance_, interface_.fields_[0]};
+    event_ids field_two_ = {interface_.instance_, interface_.fields_[1]};
+    event_ids field_three_ = {interface_.instance_, interface_.fields_[2]};
 
     app* server_;
     app* client_;
@@ -183,7 +183,7 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
                     }
                     // handlers had been deregistered, ensure before offering anything that we would count any new subscription
                     server_->register_group_subscription_handler(
-                            field_one_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
+                            field_one_, [&](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
                                 VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription for field_one_ in new lc: "
                                              << _is_subscribed;
                                 if (_is_subscribed) {
@@ -192,7 +192,7 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
                                 return true;
                             });
                     server_->register_group_subscription_handler(
-                            field_two_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
+                            field_two_, [&](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
                                 VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription for field_two_ in new lc: "
                                              << _is_subscribed;
                                 if (_is_subscribed) {
@@ -201,7 +201,7 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
                                 return true;
                             });
                     server_->register_group_subscription_handler(
-                            field_three_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
+                            field_three_, [&](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
                                 VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription for field_three_ in new lc: "
                                              << _is_subscribed;
                                 if (_is_subscribed) {
@@ -663,12 +663,13 @@ TEST_F(test_event_subscription_callback_boardnet, a_broken_connection_to_the_rou
             }
 
             set_ignore_connections(provider_ecu_.router_name_, true);
+            auto drop_watch = watch_connection_drop(server_name_, provider_ecu_.router_name_);
             if (!disconnect(server_name_, boost::asio::error::connection_reset, provider_ecu_.router_name_,
                             boost::asio::error::timed_out)) {
                 VSOMEIP_INFO << "[DISPATCHER_TAG] ERROR disconnect did not work";
                 std::abort();
             }
-            if (!wait_for_connection_drop(server_name_, provider_ecu_.router_name_)) {
+            if (!drop_watch.wait()) {
                 VSOMEIP_INFO << "[DISPATCHER_TAG] ERROR on wait_for_connection_drop";
                 std::abort();
             }

@@ -15,36 +15,31 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <atomic>
 
-class security_test_client {
+class security_service {
 public:
-    security_test_client(bool _test_external_communication, bool _is_remote_client_allowed);
+    security_service(bool _is_remote_test, bool _remote_client_allowed);
     bool init();
     void start();
     void stop();
-
+    void offer();
+    void stop_offer();
+    void join_offer_thread();
     void on_state(vsomeip::state_type_e _state);
-    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
-    void on_message(const std::shared_ptr<vsomeip::message>& _response);
-
+    void on_message(const std::shared_ptr<vsomeip::message>& _request);
+    void on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request);
     void run();
-    void join_sender_thread();
 
 private:
-    void shutdown_service();
-
     std::shared_ptr<vsomeip::application> app_;
+    bool is_registered_;
 
     std::mutex mutex_;
     std::condition_variable condition_;
-    bool is_available_;
+    bool blocked_;
+    uint32_t number_of_received_messages_;
+    std::thread offer_thread_;
 
-    std::thread sender_;
-
-    std::atomic<std::uint32_t> received_responses_;
-    std::atomic<std::uint32_t> received_allowed_events_;
-
-    bool test_external_communication_;
-    bool is_remote_client_allowed_;
+    bool is_remote_test_;
+    bool remote_client_allowed_;
 };

@@ -10,7 +10,7 @@
 
 #include <vsomeip/internal/plugin_manager.hpp>
 
-#include "../../../implementation/configuration/include/internal.hpp"
+#include "internal.hpp"
 
 #include "../../../implementation/e2e_protection/include/buffer/buffer.hpp"
 #include "../../../implementation/e2e_protection/include/e2exf/config.hpp"

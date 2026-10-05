@@ -68,6 +68,7 @@
 
 #define VSOMEIP_DEFAULT_CONNECT_TIMEOUT         100
 #define VSOMEIP_MAX_CONNECT_TIMEOUT             1600
+#define VSOMEIP_RECONNECT_TIMEOUT               30000 // milliseconds
 #define VSOMEIP_DEFAULT_CONNECTING_TIMEOUT      500
 #define VSOMEIP_ROUTING_ROOT_RECONNECT_RETRIES  10000
 #define VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL 10 // miliseconds
@@ -144,17 +145,17 @@ namespace vsomeip_v3 {
 
 typedef enum { SUBSCRIPTION_ACKNOWLEDGED, SUBSCRIPTION_NOT_ACKNOWLEDGED, IS_SUBSCRIBING } subscription_state_e;
 
-inline constexpr std::uint32_t DEFAULT_MAX_MESSAGE_SIZE = 10 * 1024 * 1024; // 10MiB
+inline constexpr uint32_t DEFAULT_MAX_MESSAGE_SIZE = 10 * 1024 * 1024; // 10MiB
 
-inline constexpr std::uint32_t QUEUE_SIZE_UNLIMITED = std::numeric_limits<std::uint32_t>::max();
+inline constexpr uint32_t QUEUE_SIZE_UNLIMITED = std::numeric_limits<uint32_t>::max();
 
-inline constexpr std::uint32_t VSOMEIP_UDP_BUFFER_SIZE = 1536;
+inline constexpr uint32_t VSOMEIP_UDP_BUFFER_SIZE = 1536;
 
 #define VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO         2 * 1000 * 1000
 #define VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO  5 * 1000 * 1000
 
-inline constexpr std::uint32_t MAX_RECONNECTS_UNLIMITED = std::numeric_limits<std::uint32_t>::max();
-inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL = 5;
+inline constexpr uint32_t MAX_RECONNECTS_UNLIMITED = std::numeric_limits<uint32_t>::max();
+inline constexpr uint32_t MAX_RECONNECTS_LOCAL = 5;
 
 inline constexpr uid_t ANY_UID = (std::numeric_limits<uid_t>::max)();
 inline constexpr gid_t ANY_GID = (std::numeric_limits<gid_t>::max)();

@@ -26,6 +26,7 @@
     {
         "enable" : "true",
         "sd_enable" : "true",
+        "full_logging_threshold" : "1024",
         "channels" :
         [
             {
@@ -43,6 +44,10 @@
             {
                 "name" : "testname4",
                 "id" : "testid4"
+            },
+            {
+                "name" : "testname5",
+                "id" : "testid5"
             }
         ],
         "filters" :
@@ -80,6 +85,11 @@
                     }
                 },
                "type" : "negative"
+            },
+            {
+               "channel" : "testname5",
+               "matches" : [ "0x5555", 6666 ],
+               "type" : "full-payload"
             }
         ]
     },
@@ -517,7 +527,6 @@
         "repetitions_max" : "4",
         "ttl" : "13",
         "cyclic_offer_delay" : "2132",
-        "request_response_delay" : "1111",
         "offer_debounce_time" : "1000",
         "wait_route_netlink_notification" : "true"
     }

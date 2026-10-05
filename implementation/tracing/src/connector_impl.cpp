@@ -3,23 +3,26 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <vsomeip/constants.hpp>
-#include <vsomeip/runtime.hpp>
-
-#include <chrono>
+#include <algorithm>
+#include <climits>
 #include <ctime>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
 
+#ifdef USE_DLT
 #include "logger_ext.hpp"
+#else
+#include <sstream>
+#endif
+
+#include <vsomeip/constants.hpp>
+#include "vsomeip/defines.hpp"
+#include <vsomeip/runtime.hpp>
+#include <vsomeip/internal/logger.hpp>
+
 #include "../include/channel_impl.hpp"
 #include "../include/connector_impl.hpp"
 #include "../include/defines.hpp"
+#include "../include/tracing_policy.hpp"
 #include "../../configuration/include/trace.hpp"
-#include "../../protocol/include/command_types.hpp"
-#include "../../protocol/include/serialize.hpp"
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
@@ -52,7 +55,8 @@ std::shared_ptr<connector_impl> connector_impl::get() {
     return instance;
 }
 
-connector_impl::connector_impl() : is_enabled_(false), is_sd_enabled_(false) {
+connector_impl::connector_impl() :
+    is_enabled_(false), is_sd_enabled_(false), full_logging_threshold_(VSOMEIP_TC_DEFAULT_FULL_LOGGING_THRESHOLD) {
 
     channels_[VSOMEIP_TC_DEFAULT_CHANNEL_ID] =
             std::make_shared<channel_impl>(VSOMEIP_TC_DEFAULT_CHANNEL_ID, VSOMEIP_TC_DEFAULT_CHANNEL_NAME);
@@ -74,6 +78,7 @@ void connector_impl::configure(const std::shared_ptr<cfg::trace>& _configuration
     if (_configuration) {
         is_enabled_ = _configuration->is_enabled_;
         is_sd_enabled_ = _configuration->is_sd_enabled_;
+        full_logging_threshold_ = _configuration->full_logging_threshold_;
     }
 
     if (is_enabled_) { // No need to create filters if tracing is disabled!
@@ -98,7 +103,8 @@ void connector_impl::configure(const std::shared_ptr<cfg::trace>& _configuration
     }
 
     VSOMEIP_INFO << "vsomeip tracing " << (is_enabled_ ? "enabled." : "not enabled.") << " vsomeip service discovery tracing "
-                 << (is_sd_enabled_ ? "enabled." : "not enabled.");
+                 << (is_sd_enabled_ ? "enabled." : "not enabled.") << " full-logging threshold: " << full_logging_threshold_
+                 << (full_logging_threshold_ == 0 ? " (disabled, always full)." : " bytes (larger payloads logged header-only).");
 }
 
 void connector_impl::reset() {
@@ -115,7 +121,7 @@ void connector_impl::reset() {
 #endif
 }
 
-void connector_impl::set_enabled(const bool _enabled) {
+void connector_impl::set_enabled(bool _enabled) {
     is_enabled_ = _enabled;
 }
 
@@ -123,7 +129,7 @@ bool connector_impl::is_enabled() const {
     return is_enabled_;
 }
 
-void connector_impl::set_sd_enabled(const bool _sd_enabled) {
+void connector_impl::set_sd_enabled(bool _sd_enabled) {
     std::scoped_lock lk{configure_mutex_};
     is_sd_enabled_ = _sd_enabled;
 }
@@ -141,15 +147,16 @@ bool connector_impl::is_sd_message(const byte_t* _data, uint16_t _data_size) con
     return false;
 }
 
-std::shared_ptr<channel> connector_impl::add_channel(const trace_channel_t& _id, const std::string& _name) {
+std::shared_ptr<channel_impl> connector_impl::add_channel(const trace_channel_t& _id, const std::string& _name) {
 
     std::shared_ptr<channel_impl> its_channel;
     {
         std::scoped_lock its_channels_lock(channels_mutex_);
 
         // check whether we already know the requested channel
-        if (channels_.count(_id) > 0)
+        if (channels_.count(_id) > 0) {
             return nullptr;
+        }
 
         // create new channel
         its_channel = std::make_shared<channel_impl>(_id, _name);
@@ -200,7 +207,7 @@ bool connector_impl::remove_channel(const trace_channel_t& _id) {
     return true;
 }
 
-std::shared_ptr<channel> connector_impl::get_channel(const std::string& _id) const {
+std::shared_ptr<channel_impl> connector_impl::get_channel(const std::string& _id) const {
     std::scoped_lock its_channels_lock(channels_mutex_);
     auto its_channel = channels_.find(_id);
     return (its_channel != channels_.end() ? its_channel->second : nullptr);
@@ -214,19 +221,24 @@ std::shared_ptr<channel_impl> connector_impl::get_channel_impl(const std::string
 
 void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size) {
 
-    if (!is_enabled_)
+    if (!is_enabled_) {
         return;
+    }
 
-    if (_data_size == 0)
+    if (_data_size == 0) {
         return; // no data
+    }
 
     // Clip
     uint16_t its_data_size = uint16_t(_data_size > USHRT_MAX ? USHRT_MAX : _data_size);
 
+    uint32_t its_threshold;
     {
         std::scoped_lock lk{configure_mutex_};
-        if (is_sd_message(_data, its_data_size) && !is_sd_enabled_)
+        if (is_sd_message(_data, its_data_size) && !is_sd_enabled_) {
             return; // tracing of service discovery messages is disabled!
+        }
+        its_threshold = full_logging_threshold_;
     }
 
     service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
@@ -242,58 +254,61 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
 #else
     std::scoped_lock its_lock(channels_mutex_);
 #endif
-    for (auto its_channel : channels_) {
-        auto ftype = its_channel.second->matches(its_service, its_instance, its_method);
-        if (ftype.first) {
-#ifdef USE_DLT
-            auto its_context = contexts_.find(its_channel.second->get_id());
-            if (its_context != contexts_.end()) {
-                try {
-                    if (ftype.second) {
-                        // Positive Filter
-                        DLT_TRACE_NETWORK_SEGMENTED(*(its_context->second.get()), DLT_NW_TRACE_IPC, _header_size,
-                                                    static_cast<void*>(const_cast<byte_t*>(_header)), its_data_size,
-                                                    static_cast<void*>(const_cast<byte_t*>(_data)));
-                    } else {
-                        // Header-Only Filter
-                        DLT_TRACE_NETWORK_TRUNCATED(*(its_context->second.get()), DLT_NW_TRACE_IPC, _header_size,
-                                                    static_cast<void*>(const_cast<byte_t*>(_header)), VSOMEIP_FULL_HEADER_SIZE,
-                                                    static_cast<void*>(const_cast<byte_t*>(_data)));
-                    }
-                } catch (const std::exception& e) {
-                    VSOMEIP_INFO_P << "Exception caught when trying to log a trace with DLT. " << e.what();
-                }
-            } else {
-                // This should never happen!
-                VSOMEIP_ERROR << "tracing: found channel without DLT context!";
-            }
-#else
-            std::stringstream ss;
-#if !defined(ANDROID)
-            ss << its_channel.first << ":";
-#elif !defined(ANDROID_CI_BUILD)
-            ss << "TC:";
-#endif
-            for (int i = 0; i < _header_size; i++) {
-                ss << ' ' << hex2(_header[i]);
-            }
-
-            if (!ftype.second) {
-                // Header-Only Filter
-                its_data_size = VSOMEIP_FULL_HEADER_SIZE;
-            }
-
-            for (int i = 0; i < its_data_size; i++) {
-                ss << ' ' << hex2(_data[i]);
-            }
-#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
-            std::string app = runtime::get_property("LogApplication");
-            ALOGI(app.c_str(), ss.str().c_str());
-#else
-            VSOMEIP_INFO << ss.str();
-#endif
-#endif
+    for (const auto& its_channel : channels_) {
+        auto its_result = its_channel.second->matches(its_service, its_instance, its_method);
+        if (its_result == trace_result_e::DROP) {
+            continue;
         }
+
+        // Full payload vs. header only (see should_log_full / full_logging_threshold_).
+        const bool log_full = should_log_full(its_result, _data_size, its_threshold);
+
+        // When logging header only, clamp to the actual message size.
+        const uint16_t its_header_only_size = static_cast<uint16_t>(std::min<uint32_t>(VSOMEIP_FULL_HEADER_SIZE, _data_size));
+
+#ifdef USE_DLT
+        auto its_context = contexts_.find(its_channel.second->get_id());
+        if (its_context != contexts_.end()) {
+            try {
+                if (log_full) {
+                    DLT_TRACE_NETWORK_SEGMENTED(*(its_context->second.get()), DLT_NW_TRACE_IPC, _header_size,
+                                                static_cast<void*>(const_cast<byte_t*>(_header)), its_data_size,
+                                                static_cast<void*>(const_cast<byte_t*>(_data)));
+                } else {
+                    DLT_TRACE_NETWORK_TRUNCATED(*(its_context->second.get()), DLT_NW_TRACE_IPC, _header_size,
+                                                static_cast<void*>(const_cast<byte_t*>(_header)), its_header_only_size,
+                                                static_cast<void*>(const_cast<byte_t*>(_data)));
+                }
+            } catch (const std::exception& e) {
+                VSOMEIP_INFO_P << "Exception caught when trying to log a trace with DLT. " << e.what();
+            }
+        } else {
+            // This should never happen!
+            VSOMEIP_ERROR << "tracing: found channel without DLT context!";
+        }
+#else
+        const uint16_t its_log_size = log_full ? its_data_size : its_header_only_size;
+
+        std::stringstream ss;
+#if !defined(ANDROID)
+        ss << its_channel.first << ":";
+#elif !defined(ANDROID_CI_BUILD)
+        ss << "TC:";
+#endif
+        for (int i = 0; i < _header_size; i++) {
+            ss << ' ' << hex2(_header[i]);
+        }
+
+        for (int i = 0; i < its_log_size; i++) {
+            ss << ' ' << hex2(_data[i]);
+        }
+#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
+        std::string app = runtime::get_property("LogApplication");
+        ALOGI(app.c_str(), ss.str().c_str());
+#else
+        VSOMEIP_INFO << ss.str();
+#endif
+#endif
     }
 }
 

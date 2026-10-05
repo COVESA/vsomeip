@@ -24,10 +24,10 @@ namespace vsomeip_v3::testing {
 // The ECUs are built locally inside the test loop instead of as fixture members,
 // so the whole scenario can be rebuilt from scratch on every iteration.
 struct interface_manipulation_recreate : public base_fake_socket_fixture {
-    std::vector<interface::event_spec> const event_specs_both_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE},
-                                                               {0x8002, 0x2, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    std::vector<event_spec> const event_specs_both_{{0x8001, {0x1}, vsomeip::reliability_type_e::RT_RELIABLE},
+                                                    {0x8002, {0x2}, vsomeip::reliability_type_e::RT_UNRELIABLE}};
 
-    std::vector<interface::event_spec> events = {interface::event_spec{0x8003, 0x3, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    std::vector<event_spec> events = {event_spec{0x8003, {0x3}, vsomeip::reliability_type_e::RT_UNRELIABLE}};
 
     interface interface_{0x3345, events, event_specs_both_};
 };
@@ -49,7 +49,7 @@ struct interface_manipulation_recreate : public base_fake_socket_fixture {
 TEST_F(interface_manipulation_recreate, no_spurious_availability_when_recreated_from_scratch) {
     common::iteration_log_capture log_capture;
 
-    for (std::size_t i = 0; i < 401; ++i) {
+    for (size_t i = 0; i < 401; ++i) {
         // Discard the previous iteration's captured output, so only this iteration's trace is dumped on failure.
         log_capture.begin_iteration();
         try {
@@ -74,8 +74,8 @@ TEST_F(interface_manipulation_recreate, no_spurious_availability_when_recreated_
             router_one->offer(interface_);
             router_two->subscribe(interface_);
 
-            ASSERT_TRUE(
-                    router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])))
+            ASSERT_TRUE(router_two->subscription_record_.wait_for_any(
+                    event_subscription::successfully_subscribed_to({interface_.instance_, interface_.events_[0]})))
                     << "subscription did not succeed on iteration " << i;
             ASSERT_TRUE(router_two->availability_record_.wait_for_last(service_availability::available(interface_.instance_)))
                     << "service did not become available on iteration " << i;

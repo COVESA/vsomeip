@@ -30,7 +30,7 @@ enum protocol_e { PR_UNKNOWN, PR_TCP, PR_UDP };
 
 class cpu_load_test_client {
 public:
-    cpu_load_test_client(protocol_e _protocol, std::uint32_t _number_of_calls, std::uint32_t _payload_size, bool _call_service_sync,
+    cpu_load_test_client(protocol_e _protocol, uint32_t _number_of_calls, uint32_t _payload_size, bool _call_service_sync,
                          bool _shutdown_service) :
         protocol_(_protocol), app_(vsomeip::runtime::get()->create_application("cpu_load_test_client")),
         request_(vsomeip::runtime::get()->create_request(protocol_ == protocol_e::PR_TCP)), call_service_sync_(_call_service_sync),
@@ -149,7 +149,7 @@ private:
         request_->set_payload(payload);
 
         // lock the mutex
-        for (std::uint32_t i = 0; i <= number_of_calls_; i++) {
+        for (uint32_t i = 0; i <= number_of_calls_; i++) {
             number_of_calls_current_ = i;
             sliding_window_size_ = i;
             std::unique_lock lk(all_msg_acknowledged_mutex_);
@@ -181,8 +181,8 @@ private:
         }
     }
 
-    void send_messages_sync(std::unique_lock<std::mutex>& lk, std::uint32_t _messages_to_send) {
-        cpu_load_measurer c(static_cast<std::uint32_t>(::getpid()));
+    void send_messages_sync(std::unique_lock<std::mutex>& lk, uint32_t _messages_to_send) {
+        cpu_load_measurer c(static_cast<uint32_t>(::getpid()));
         send_service_start_measuring(true);
         c.start();
         for (number_of_sent_messages_ = 0; number_of_sent_messages_ < _messages_to_send;
@@ -200,8 +200,8 @@ private:
         results_.push_back(std::isfinite(c.get_cpu_load()) ? c.get_cpu_load() : 0.0);
     }
 
-    void send_messages_async(std::unique_lock<std::mutex>& lk, std::uint32_t _messages_to_send) {
-        cpu_load_measurer c(static_cast<std::uint32_t>(::getpid()));
+    void send_messages_async(std::unique_lock<std::mutex>& lk, uint32_t _messages_to_send) {
+        cpu_load_measurer c(static_cast<uint32_t>(::getpid()));
         send_service_start_measuring(true);
         c.start();
         for (number_of_sent_messages_ = 0; number_of_sent_messages_ < _messages_to_send;
@@ -243,18 +243,18 @@ private:
     std::shared_ptr<vsomeip::message> request_;
     bool call_service_sync_;
     bool shutdown_service_at_end_;
-    std::uint32_t sliding_window_size_;
+    uint32_t sliding_window_size_;
     std::mutex mutex_;
     std::condition_variable condition_;
     bool wait_for_availability_;
     bool is_available_;
-    const std::uint32_t number_of_calls_;
-    std::uint32_t number_of_calls_current_;
-    std::uint32_t number_of_sent_messages_;
-    std::uint32_t number_of_sent_messages_total_;
-    std::uint32_t number_of_acknowledged_messages_;
+    const uint32_t number_of_calls_;
+    uint32_t number_of_calls_current_;
+    uint32_t number_of_sent_messages_;
+    uint32_t number_of_sent_messages_total_;
+    uint32_t number_of_acknowledged_messages_;
 
-    std::uint32_t payload_size_;
+    uint32_t payload_size_;
 
     bool wait_for_all_msg_acknowledged_;
     std::mutex all_msg_acknowledged_mutex_;
@@ -266,8 +266,8 @@ private:
 
 // this variables are changed via cmdline parameters
 static protocol_e protocol(protocol_e::PR_UNKNOWN);
-static std::uint32_t number_of_calls(0);
-static std::uint32_t payload_size(40);
+static uint32_t number_of_calls(0);
+static uint32_t payload_size(40);
 static bool call_service_sync(true);
 static bool shutdown_service(true);
 
@@ -289,7 +289,7 @@ int main(int argc, char** argv) {
             }
         } else if (std::string("--calls") == std::string(argv[i]) || std::string("-c") == std::string(argv[i])) {
             try {
-                number_of_calls = static_cast<std::uint32_t>(std::stoul(std::string(argv[i + 1]), nullptr, 10));
+                number_of_calls = static_cast<uint32_t>(std::stoul(std::string(argv[i + 1]), nullptr, 10));
             } catch (const std::exception& e) {
                 std::cerr << "Please specify a valid value for number of calls" << std::endl;
                 return (EXIT_FAILURE);
@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
             }
         } else if (std::string("--payload-size") == std::string(argv[i]) || std::string("-pl") == std::string(argv[i])) {
             try {
-                payload_size = static_cast<std::uint32_t>(std::stoul(std::string(argv[i + 1]), nullptr, 10));
+                payload_size = static_cast<uint32_t>(std::stoul(std::string(argv[i + 1]), nullptr, 10));
             } catch (const std::exception& e) {
                 std::cerr << "Please specify a valid values for payload size" << std::endl;
                 return (EXIT_FAILURE);

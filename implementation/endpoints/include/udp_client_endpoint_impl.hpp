@@ -33,18 +33,18 @@ public:
     void start();
     void restart(bool _force);
 
-    void receive_cbk(boost::system::error_code const& _error, std::size_t _bytes, std::shared_ptr<message_buffer_t> _recv_buffer);
+    void receive_cbk(boost::system::error_code const& _error, size_t _bytes, std::shared_ptr<message_buffer_t> _recv_buffer);
 
-    std::uint16_t get_local_port() const;
+    uint16_t get_local_port() const;
 
     bool get_remote_address(boost::asio::ip::address& _address) const;
-    std::uint16_t get_remote_port() const;
+    uint16_t get_remote_port() const;
     bool is_local() const;
 
     void print_status();
     bool is_reliable() const;
 
-    void send_cbk(boost::system::error_code const& _error, std::size_t _bytes, const message_buffer_ptr_t& _sent_msg);
+    void send_cbk(boost::system::error_code const& _error, size_t _bytes, const message_buffer_ptr_t& _sent_msg);
 
 private:
     void send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry);
@@ -57,12 +57,12 @@ private:
     std::string get_address_port_local() const;
     std::string get_remote_information() const;
     bool tp_segmentation_enabled(service_instance_t _si, method_t _method) const;
-    std::uint32_t get_max_allowed_reconnects() const;
+    uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();
 
 private:
     const boost::asio::ip::address remote_address_;
-    const std::uint16_t remote_port_;
+    const uint16_t remote_port_;
     const int udp_receive_buffer_size_;
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
     std::chrono::steady_clock::time_point last_sent_;

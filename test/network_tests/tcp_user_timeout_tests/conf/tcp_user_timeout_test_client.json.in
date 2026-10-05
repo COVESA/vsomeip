@@ -1,5 +1,6 @@
 {
     "unicast": "127.0.0.1",
+    "diagnosis": "0x01",
     "logging": {
         "level": "debug",
         "console": "true"
@@ -9,12 +10,10 @@
     },
     "applications": [
         {
-            "name": "service-app",
-            "id": "0xaaaa"
+            "name": "service-app"
         },
         {
-            "name": "client-app",
-            "id": "0xbbbb"
+            "name": "client-app"
         }
     ],
     "routing" :

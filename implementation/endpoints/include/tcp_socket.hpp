@@ -53,7 +53,7 @@ public:
 
     virtual boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code&) const = 0;
 
-    virtual void io_control(io_control_operation<std::size_t>&, boost::system::error_code&) = 0;
+    virtual void io_control(io_control_operation<size_t>&, boost::system::error_code&) = 0;
 
     virtual void set_option(boost::asio::ip::tcp::no_delay, boost::system::error_code&) = 0;
     virtual void set_option(boost::asio::ip::tcp::socket::keep_alive, boost::system::error_code&) = 0;

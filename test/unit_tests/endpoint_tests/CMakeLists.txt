@@ -13,6 +13,7 @@ set(TEST_SRCS
     test_timer.cpp
     test_local_endpoint.cpp
     test_local_receive_buffer.cpp
+    test_tp_message.cpp
 )
 
 # see https://github.com/google/googletest/issues/3514

@@ -86,7 +86,7 @@ public:
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
             other_services_received_notification_[std::make_pair(i.service_id, i.method_id)] = 0;
-            other_services_shutdown_ack_[std::make_pair(i.service_id, i.instance_id)] = false;
+            ++expected_shutdown_acks_;
         }
 
         // Register handler for shutdown coordination messages on our own service
@@ -145,7 +145,7 @@ public:
         }
     }
 
-    bool on_subscription(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
+    bool on_subscription(vsomeip::client_t _client, uint32_t _uid, uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
         std::scoped_lock its_subscribers_lock(subscribers_mutex_);
@@ -186,16 +186,14 @@ public:
 
     void on_shutdown_message(const std::shared_ptr<vsomeip::message>& _message) {
         if (_message->get_message_type() == vsomeip::message_type_e::MT_REQUEST) {
-            vsomeip::service_t sender_service = _message->get_client();
-            vsomeip::instance_t sender_instance = _message->get_instance();
+            std::scoped_lock its_lock(shutdown_mutex_);
+            ++received_shutdown_acks_;
 
             VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] "
-                          << "Received a shutdown coordination message with Client/Session [" << std::setw(4) << service_info_.service_id
-                          << "/" << std::setw(4) << _message->get_session() << "] from Service/Method [" << std::setw(4) << sender_service
-                          << "/" << std::setw(4) << _message->get_method() << "]";
+                          << "Received a shutdown coordination message from Client " << std::setw(4) << _message->get_client()
+                          << " (now have: " << std::dec << received_shutdown_acks_ << "/" << expected_shutdown_acks_ << ")";
 
-            std::scoped_lock its_lock(shutdown_mutex_);
-            if (other_services_shutdown_ack_[std::make_pair(sender_service, sender_instance)] = true, all_shutdown_acks_received()) {
+            if (received_shutdown_acks_ >= expected_shutdown_acks_) {
                 wait_for_shutdown_acks_ = false;
                 shutdown_condition_.notify_one();
             }
@@ -223,15 +221,9 @@ public:
 
     bool all_notifications_received() {
         return std::all_of(other_services_received_notification_.cbegin(), other_services_received_notification_.cend(),
-                           [&](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t>::value_type& v) {
+                           [&](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, uint32_t>::value_type& v) {
                                return v.second == subscribe_notify_one_test::notifications_to_send;
                            });
-    }
-
-    bool all_shutdown_acks_received() {
-        return std::all_of(
-                other_services_shutdown_ack_.cbegin(), other_services_shutdown_ack_.cend(),
-                [&](const std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool>::value_type& v) { return v.second; });
     }
 
     void send_shutdown_messages() {
@@ -403,8 +395,9 @@ private:
     subscribe_notify_one_test::service_info service_info_;
     std::shared_ptr<vsomeip::application> app_;
     std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool> other_services_available_;
-    std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t> other_services_received_notification_;
-    std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool> other_services_shutdown_ack_;
+    std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, uint32_t> other_services_received_notification_;
+    size_t expected_shutdown_acks_{0};
+    size_t received_shutdown_acks_{0};
 
     bool wait_until_registered_;
     bool wait_until_other_services_available_;

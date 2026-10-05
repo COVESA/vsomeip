@@ -40,9 +40,9 @@ private:
     bool blocked_;
     bool is_available_;
     big_payload_test::test_mode test_mode_;
-    std::uint32_t number_of_messages_to_send_;
-    std::uint32_t number_of_sent_messages_;
-    std::atomic<std::uint32_t> number_of_acknowledged_messages_;
+    uint32_t number_of_messages_to_send_;
+    uint32_t number_of_sent_messages_;
+    std::atomic<uint32_t> number_of_acknowledged_messages_;
     std::thread sender_;
     vsomeip::service_t service_id_;
     vsomeip::session_t last_session_{0};

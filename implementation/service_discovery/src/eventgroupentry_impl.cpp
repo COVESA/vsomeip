@@ -103,7 +103,7 @@ bool eventgroupentry_impl::matches(const eventgroupentry_impl& _other, const mes
         // read out ip options of current and _other
         std::vector<std::shared_ptr<ip_option_impl>> its_options_current;
         std::vector<std::shared_ptr<ip_option_impl>> its_options_other;
-        const std::size_t its_options_size = _options.size();
+        const size_t its_options_size = _options.size();
         for (const auto option_run : {0, 1}) {
             for (const auto option_index : options_[option_run]) {
                 if (its_options_size > option_index) {
@@ -190,8 +190,9 @@ std::shared_ptr<selective_option_impl> eventgroupentry_impl::get_selective_optio
     for (const auto i : {0, 1}) {
         for (const auto j : options_[i]) {
             auto its_option = std::dynamic_pointer_cast<selective_option_impl>(owner_->get_option(j));
-            if (its_option)
+            if (its_option) {
                 return its_option;
+            }
         }
     }
     return nullptr;

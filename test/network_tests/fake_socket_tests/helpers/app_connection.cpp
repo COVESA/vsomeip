@@ -186,13 +186,22 @@ bool app_connection::wait_for_connection(std::chrono::milliseconds _timeout) con
     });
 }
 
-[[nodiscard]] bool app_connection::wait_for_connection_drop(std::chrono::milliseconds _timeout) const {
-    std::shared_ptr<fake_tcp_socket_handle> server;
+size_t app_connection::disconnect_count() const {
+    auto const lock = std::scoped_lock(mtx_);
+    return disconnect_count_;
+}
+
+[[nodiscard]] bool app_connection::wait_for_disconnect_since(size_t _baseline, std::chrono::milliseconds _timeout) const {
     auto lock = std::unique_lock(mtx_);
-    return cv_.wait_for(lock, _timeout, [this, &server] {
-        server = server_.lock();
-        return socket_count_ > 0 && (!server || !server->is_connected(client_));
-    });
+    return cv_.wait_for(lock, _timeout, [this, _baseline] { return disconnect_count_ > _baseline; });
+}
+
+void app_connection::record_disconnect() {
+    {
+        auto const lock = std::scoped_lock(mtx_);
+        ++disconnect_count_;
+    }
+    cv_.notify_all();
 }
 
 [[nodiscard]] bool app_connection::wait_for_command(protocol::id_e _id, socket_role _waiting, std::chrono::milliseconds _timeout) const {

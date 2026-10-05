@@ -103,10 +103,11 @@ bool e2e_provider_impl::is_checked(e2exf::data_identifier_t id) const {
     return custom_checkers_.count(id) > 0;
 }
 
-std::size_t e2e_provider_impl::get_protection_base(e2exf::data_identifier_t id) const {
+size_t e2e_provider_impl::get_protection_base(e2exf::data_identifier_t id) const {
     const auto found_base = custom_bases_.find(id);
-    if (found_base != custom_bases_.end())
+    if (found_base != custom_bases_.end()) {
         return found_base->second;
+    }
 
     return 0;
 }
@@ -150,10 +151,11 @@ vsomeip_v3::e2e::profile04::profile_config e2e_provider_impl::make_e2e_profile_c
     uint32_t data_id = read_value_from_config<uint32_t>(_config, "data_id");
 
     size_t offset = read_value_from_config<size_t>(_config, "crc_offset");
-    if (offset % 8)
+    if (offset % 8) {
         VSOMEIP_ERROR << "Offset in E2E P04 configuration must be multiple of 8"
                          " ("
                       << offset << ")";
+    }
     offset /= 8;
 
     size_t min_data_length = read_value_from_config<size_t>(_config, "min_data_length", 0);
@@ -172,10 +174,11 @@ vsomeip_v3::e2e::profile05::profile_config e2e_provider_impl::make_e2e_profile_c
     uint16_t data_length = read_value_from_config<uint16_t>(_config, "data_length");
 
     size_t offset = read_value_from_config<size_t>(_config, "crc_offset");
-    if (offset % 8)
+    if (offset % 8) {
         VSOMEIP_ERROR << "Offset in E2E P05 configuration must be multiple of 8"
                          " ("
                       << offset << ")";
+    }
     offset /= 8;
 
     uint16_t max_delta_counter = read_value_from_config<uint16_t>(_config, "max_delta_counter", uint16_t(0xffff));
@@ -195,10 +198,11 @@ vsomeip_v3::e2e::profile07::profile_config e2e_provider_impl::make_e2e_profile_c
     uint32_t data_id = read_value_from_config<uint32_t>(_config, "data_id");
 
     size_t offset = read_value_from_config<size_t>(_config, "crc_offset");
-    if (offset % 8)
+    if (offset % 8) {
         VSOMEIP_ERROR << "Offset in E2E P07 configuration must be multiple of 8"
                          " ("
                       << offset << ")";
+    }
     offset /= 8;
 
     size_t min_data_length = read_value_from_config<size_t>(_config, "min_data_length", 0);

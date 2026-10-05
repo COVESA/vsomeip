@@ -7,6 +7,7 @@
 
 #include <map>
 #include <mutex>
+#include <string>
 
 #include <vsomeip/plugin.hpp>
 
@@ -25,9 +26,15 @@ public:
     virtual ~configuration_plugin_impl();
 
     std::shared_ptr<configuration> get_configuration(const std::string& _name, const std::string& _path);
-    bool remove_configuration(const std::string& _name);
+    void clear_configurations() override;
+
+protected:
+    // Overridable factory — tests replace this to inject mock configurations.
+    virtual std::shared_ptr<cfg::configuration_impl> make_configuration(const std::string& _path);
 
 private:
+    std::string get_cache_key(const std::string& _name, const std::string& _path) const;
+
     std::mutex mutex_;
     std::map<std::string, std::shared_ptr<cfg::configuration_impl>> configurations_;
 };

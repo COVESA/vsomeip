@@ -44,7 +44,7 @@ private:
     bool is_available_;
     std::thread starter_;
     std::thread runner_;
-    std::atomic<std::uint32_t> received_responses_;
+    std::atomic<uint32_t> received_responses_;
     uint32_t app_id_;
     vsomeip::state_type_e registration_status_{vsomeip::state_type_e::ST_DEREGISTERED};
     sending_status sending_status_{sending_status::WAITING_TO_SEND_MESSAGES};

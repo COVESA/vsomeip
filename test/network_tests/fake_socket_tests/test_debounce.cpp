@@ -41,8 +41,8 @@ struct test_debounce_helper : public base_fake_socket_fixture {
         server_ = start_client(server_name_);
         ASSERT_TRUE(server_ && server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         server_->offer(service_instance_);
-        server_->offer_event(offered_event_);
-        server_->offer_field(offered_field_);
+        server_->offer_event(offered_event_.si_, offered_event_.to_event_spec());
+        server_->offer_field(offered_field_.si_, offered_field_.to_event_spec());
     }
 
     void start_client_app() {
@@ -115,8 +115,8 @@ TEST_F(test_debounce_helper, router_debounce_on_change) {
     event_ids offered_field_two{service_instance_two_, 0x8001, 0x02};
     routingmanagerd_->offer(service_instance_);
     routingmanagerd_->offer(service_instance_two_);
-    routingmanagerd_->offer_field(offered_field);
-    routingmanagerd_->offer_event(offered_field_two);
+    routingmanagerd_->offer_field(offered_field.si_, offered_field.to_event_spec());
+    routingmanagerd_->offer_event(offered_field_two.si_, offered_field_two.to_event_spec());
 
     routingmanagerd_->send_event(offered_field, {0x00});
     routingmanagerd_->send_event(offered_field_two, {0xF0});

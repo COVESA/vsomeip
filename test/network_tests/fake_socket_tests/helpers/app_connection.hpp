@@ -7,6 +7,7 @@
 
 #include "sockets/fake_tcp_socket_handle.hpp"
 #include "data_pipe.hpp"
+#include "common/timeout_scale.hpp"
 
 #include <mutex>
 #include <map>
@@ -114,9 +115,19 @@ public:
      **/
     [[nodiscard]] bool wait_for_connection(std::chrono::milliseconds _timeout = std::chrono::seconds(3)) const;
     /**
-     * waits until socket_count_ is at least 1, and the sockets become disconnected
-     **/
-    [[nodiscard]] bool wait_for_connection_drop(std::chrono::milliseconds _timeout) const;
+     * Monotonic count of drop edges on this link.
+     */
+    size_t disconnect_count() const;
+
+    /**
+     * Waits until disconnect_count() exceeds _baseline.
+     */
+    [[nodiscard]] bool wait_for_disconnect_since(size_t _baseline, std::chrono::milliseconds _timeout) const;
+
+    /**
+     * Records one drop edge and wakes waiters. Called once per drop from on_disconnect.
+     */
+    void record_disconnect();
 
     /**
      * waits for at most _timeout milliseconds for _id to be received by the receiving socket
@@ -175,6 +186,7 @@ private:
 
     std::string const name_;
     size_t socket_count_{0};
+    size_t disconnect_count_{0}; // drop-edge count, see record_disconnect()
 
     std::weak_ptr<fake_tcp_socket_handle> client_;
     std::weak_ptr<fake_tcp_socket_handle> server_;
@@ -184,5 +196,25 @@ private:
 
     std::condition_variable mutable cv_;
     std::mutex mutable mtx_;
+};
+
+/**
+ * Edge-based connection-drop detection. Create via watch_connection_drop() before the triggering
+ * action; wait() then blocks until a drop occurs, regardless of reconnect timing.
+ **/
+class connection_drop_watch {
+public:
+    connection_drop_watch(std::shared_ptr<app_connection> _connection, size_t _baseline) :
+        connection_(std::move(_connection)), baseline_(_baseline) { }
+
+    /// Waits for a drop edge recorded after the watch was created. The default timeout is scaled
+    /// by TEST_TIMEOUT_SCALE so it holds up under valgrind/slow CI.
+    [[nodiscard]] bool wait(std::chrono::milliseconds _timeout = common::scaled_timeout(std::chrono::seconds(6))) const {
+        return connection_ && connection_->wait_for_disconnect_since(baseline_, _timeout);
+    }
+
+private:
+    std::shared_ptr<app_connection> connection_;
+    size_t baseline_{0};
 };
 }

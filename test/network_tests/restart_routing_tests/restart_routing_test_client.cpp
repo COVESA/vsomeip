@@ -101,7 +101,7 @@ void restart_routing_test_client::run() {
                                         [this] { return sending_status_ == sending_status::SEND_MESSAGES; }));
     }
 
-    std::uint32_t its_sent_requests(0);
+    uint32_t its_sent_requests(0);
     bool its_availability_timeout = false;
     while (its_sent_requests < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
         {

@@ -64,8 +64,9 @@ inline uint32_t write_string(unsigned char* _mem, std::string_view _value) {
 template<is_serializable_range R>
 uint32_t write_range(unsigned char* _mem, R const& _range) {
     uint32_t written = 0;
-    for (auto const& v : _range)
+    for (auto const& v : _range) {
         written += serialize(v, _mem + written);
+    }
     return written;
 }
 

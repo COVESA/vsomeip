@@ -71,6 +71,7 @@ cc_defaults {
 cc_library_shared {
     name: "libvsomeip3",
     vendor: true,
+    host_supported: true,
 
     srcs: libvsomeip_srcs,
 
@@ -81,7 +82,7 @@ cc_library_shared {
 
     cflags: [
         "-DWITHOUT_SYSTEMD",
-        "-DVSOMEIP_VERSION=\"3.7.5\"",
+        "-DVSOMEIP_VERSION=\"3.7.6\"",
         "-DVSOMEIP_GIT_COMMIT=\"unknown\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
     ],
@@ -188,4 +189,65 @@ cc_library_shared {
     },
     // disable coverage, makes no sense anyhow for a dummy lib
     native_coverage: false
+}
+
+// A17_Migration
+// Google added their sdv/vsomeip project that we need to remove because it conflicts with ours
+// but when we do that, we get build errors becaus some blueprint lib defintions are missing and
+// removing the projects with the issue is not an option because it leads to more and more build
+// errors and eventually to Purity patches which will be rejected.
+// The solution is to create these 3 stubs below to make sure the SDV components can find these
+// during blueprint evaluation phase at build time, to allow us to build our code
+
+// Alias stubs: map the "libvsomeip3-*" names expected by some modules to the
+// real "libvsomeip_*" libraries defined above.
+cc_library_shared {
+    name: "libvsomeip3-cfg",
+    host_supported: true,
+    vendor: true,
+    nocrt: true,
+    no_libcrt: true,
+    system_shared_libs: [],
+    target: {
+        android: {
+            shared_libs: ["libvsomeip_cfg"],
+            export_shared_lib_headers: ["libvsomeip_cfg"],
+        },
+    },
+    strip: { none: true },
+    native_coverage: false,
+}
+
+cc_library_shared {
+    name: "libvsomeip3-e2e",
+    host_supported: true,
+    vendor: true,
+    nocrt: true,
+    no_libcrt: true,
+    system_shared_libs: [],
+    target: {
+        android: {
+            shared_libs: ["libvsomeip_e2e"],
+            export_shared_lib_headers: ["libvsomeip_e2e"],
+        },
+    },
+    strip: { none: true },
+    native_coverage: false,
+}
+
+cc_library_shared {
+    name: "libvsomeip3-sd",
+    host_supported: true,
+    vendor: true,
+    nocrt: true,
+    no_libcrt: true,
+    system_shared_libs: [],
+    target: {
+        android: {
+            shared_libs: ["libvsomeip_sd"],
+            export_shared_lib_headers: ["libvsomeip_sd"],
+        },
+    },
+    strip: { none: true },
+    native_coverage: false,
 }

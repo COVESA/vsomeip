@@ -63,35 +63,35 @@ static bool send_subscribe(uint16_t port) {
 
     uint32_t ip_le = ntohl(client_addr.sin_addr.s_addr);
 
-    std::uint8_t message[] = {// Service discovery / Method
-                              0xFF, 0xFF, 0x81, 0x00,
-                              // Message size
-                              0x00, 0x00, 0x00, 0x30,
-                              // Client / Session
-                              0x00, 0x00, static_cast<uint8_t>((session_id >> 8) & 0xFF), static_cast<uint8_t>(session_id & 0xFF),
-                              // Protocol / Interface / Type / Return code
-                              0x01, 0x01, 0x02, 0x00,
-                              // Flags (reboot) / Reserved
-                              0x80, 0x00, 0x00, 0x00,
-                              // Length of entries in bytes
-                              0x00, 0x00, 0x00, 0x10,
-                              // Subscribe / Index #1 / Index #2 / Nb #1 / Nb #2
-                              0x06, 0x00, 0x00, 0x10,
-                              // Service / Instance
-                              (SERVICE_ID >> 8) & 0xFF, SERVICE_ID & 0xFF, (INSTANCE_ID >> 8) & 0xFF, INSTANCE_ID & 0xFF,
-                              // Major version / TTL (255)
-                              0x00, 0x00, 0x00, 0xff,
-                              // Reserved / Counter / EventGroup ID
-                              0x00, 0x00, (EVENTGROUP_ID >> 8) & 0xFF, EVENTGROUP_ID & 0xFF,
-                              // Length of options in bytes
-                              0x00, 0x00, 0x00, 0x0C,
-                              // Option IPv4
-                              0x00, 0x09, 0x04, 0x00,
-                              // 127.0.0.2
-                              static_cast<uint8_t>((ip_le >> 24) & 0xFF), static_cast<uint8_t>((ip_le >> 16) & 0xFF),
-                              static_cast<uint8_t>((ip_le >> 8) & 0xFF), static_cast<uint8_t>(ip_le & 0xFF),
-                              // Reserved / TCP / port
-                              0x00, 0x06, static_cast<uint8_t>((port >> 8) & 0xFF), static_cast<uint8_t>(port & 0xFF)};
+    uint8_t message[] = {// Service discovery / Method
+                         0xFF, 0xFF, 0x81, 0x00,
+                         // Message size
+                         0x00, 0x00, 0x00, 0x30,
+                         // Client / Session
+                         0x00, 0x00, static_cast<uint8_t>((session_id >> 8) & 0xFF), static_cast<uint8_t>(session_id & 0xFF),
+                         // Protocol / Interface / Type / Return code
+                         0x01, 0x01, 0x02, 0x00,
+                         // Flags (reboot) / Reserved
+                         0x80, 0x00, 0x00, 0x00,
+                         // Length of entries in bytes
+                         0x00, 0x00, 0x00, 0x10,
+                         // Subscribe / Index #1 / Index #2 / Nb #1 / Nb #2
+                         0x06, 0x00, 0x00, 0x10,
+                         // Service / Instance
+                         (SERVICE_ID >> 8) & 0xFF, SERVICE_ID & 0xFF, (INSTANCE_ID >> 8) & 0xFF, INSTANCE_ID & 0xFF,
+                         // Major version / TTL (255)
+                         0x00, 0x00, 0x00, 0xff,
+                         // Reserved / Counter / EventGroup ID
+                         0x00, 0x00, (EVENTGROUP_ID >> 8) & 0xFF, EVENTGROUP_ID & 0xFF,
+                         // Length of options in bytes
+                         0x00, 0x00, 0x00, 0x0C,
+                         // Option IPv4
+                         0x00, 0x09, 0x04, 0x00,
+                         // 127.0.0.2
+                         static_cast<uint8_t>((ip_le >> 24) & 0xFF), static_cast<uint8_t>((ip_le >> 16) & 0xFF),
+                         static_cast<uint8_t>((ip_le >> 8) & 0xFF), static_cast<uint8_t>(ip_le & 0xFF),
+                         // Reserved / TCP / port
+                         0x00, 0x06, static_cast<uint8_t>((port >> 8) & 0xFF), static_cast<uint8_t>(port & 0xFF)};
 
     session_id += 1;
 
@@ -217,21 +217,21 @@ int main(int argc, char** argv) {
         size_t str_index;
 
         if (argc > 2) {
-            threads_count = std::stol(argv[2], &str_index);
+            threads_count = std::stoul(argv[2], &str_index);
             if (argv[2][str_index] != 0 || threads_count < 1 || threads_count > 1000) {
                 throw std::invalid_argument("invalid threads count");
             }
         }
 
         if (argc > 3) {
-            iterations_count = std::stol(argv[3], &str_index);
+            iterations_count = std::stoul(argv[3], &str_index);
             if (argv[3][str_index] != 0 || iterations_count < 1 || iterations_count > 10000) {
                 throw std::invalid_argument("invalid iterations count");
             }
         }
 
         if (argc > 1) {
-            initial_port = std::stol(argv[1], &str_index);
+            initial_port = std::stoul(argv[1], &str_index);
 
             if (argv[1][str_index] != 0 || initial_port < 1000 || (initial_port + threads_count * iterations_count) > 65536) {
                 throw std::invalid_argument("invalid port range");

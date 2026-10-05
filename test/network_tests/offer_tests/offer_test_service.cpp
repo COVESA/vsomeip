@@ -130,7 +130,7 @@ public:
 private:
     struct offer_test::service_info service_info_;
     std::shared_ptr<vsomeip::application> app_;
-    std::uint32_t counter_;
+    uint32_t counter_;
 
     bool wait_until_registered_;
     std::mutex mutex_;

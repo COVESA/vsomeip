@@ -23,7 +23,7 @@
 
 namespace vsomeip_v3::protocol {
 
-uint32_t deserialize(std::map<std::size_t, byte_t>& _out, unsigned char const* _mem, uint32_t _size);
+uint32_t deserialize(std::map<size_t, byte_t>& _out, unsigned char const* _mem, uint32_t _size);
 uint32_t deserialize(std::shared_ptr<debounce_filter_impl_t>& _out, unsigned char const* _mem, uint32_t _size);
 uint32_t deserialize(std::vector<std::pair<uid_t, gid_t>>& _out, unsigned char const* _mem, uint32_t _size);
 
@@ -82,14 +82,16 @@ inline uint32_t deserialize(service_data& _out, unsigned char const* _mem, uint3
 inline uint32_t deserialize(std::string& _out, unsigned char const* _mem, uint32_t _size) {
     uint32_t pos = 0;
     uint32_t len = 0;
-    if (pos + sizeof(uint32_t) > _size)
+    if (pos + sizeof(uint32_t) > _size) {
         return 0;
+    }
     std::memcpy(&len, _mem + pos, sizeof(uint32_t));
     pos += sizeof(uint32_t);
 
     // _size >= pos here, so the subtraction cannot underflow and the check cannot overflow.
-    if (len > _size - pos)
+    if (len > _size - pos) {
         return 0;
+    }
     _out.assign(reinterpret_cast<const char*>(_mem + pos), len);
     pos += len;
     return pos;
@@ -102,14 +104,16 @@ inline uint32_t deserialize(std::vector<std::pair<std::string, std::string>>& _o
     while (acc < _size) {
         std::string key;
         auto const key_read = deserialize(key, _mem + acc, _size - acc);
-        if (key_read == 0)
+        if (key_read == 0) {
             return 0;
+        }
         acc += key_read;
 
         std::string value;
         auto const value_read = deserialize(value, _mem + acc, _size - acc);
-        if (value_read == 0)
+        if (value_read == 0) {
             return 0;
+        }
         acc += value_read;
 
         _out.emplace_back(std::move(key), std::move(value));
@@ -122,27 +126,32 @@ inline uint32_t deserialize(std::vector<std::pair<std::string, std::string>>& _o
 inline uint32_t deserialize(assign_client_data& _out, unsigned char const* _mem, uint32_t _size) {
     uint32_t pos = 0;
 
-    if (pos + sizeof(uint32_t) > _size)
+    if (sizeof(uint32_t) > _size) {
         return 0;
+    }
     uint32_t name_len = 0;
     std::memcpy(&name_len, _mem + pos, sizeof(uint32_t));
     pos += sizeof(uint32_t);
 
-    if (pos + name_len > _size)
+    // _size >= pos here, so the subtraction cannot underflow and the check cannot overflow.
+    if (name_len > _size - pos) {
         return 0;
+    }
     _out.name_ = std::string_view(reinterpret_cast<const char*>(_mem + pos), name_len);
     pos += name_len;
 
-    if (pos + sizeof(uint8_t) > _size)
+    if (sizeof(uint8_t) > _size - pos) {
         return 0;
+    }
     uint8_t has_addr = 0;
     std::memcpy(&has_addr, _mem + pos, sizeof(uint8_t));
     pos += sizeof(uint8_t);
     _out.has_address_ = (has_addr != 0);
 
     if (_out.has_address_) {
-        if (pos + _out.address_bytes_.size() + sizeof(port_t) > _size)
+        if (_out.address_bytes_.size() + sizeof(port_t) > _size - pos) {
             return 0;
+        }
         std::memcpy(_out.address_bytes_.data(), _mem + pos, _out.address_bytes_.size());
         pos += static_cast<uint32_t>(_out.address_bytes_.size());
         std::memcpy(&_out.port_, _mem + pos, sizeof(port_t));
@@ -231,7 +240,7 @@ inline uint32_t deserialize(subscribe_data& _out, unsigned char const* _mem, uin
     return parse(_mem, _size, _out.service_, _out.instance_, _out.eventgroup_, _out.major_, _out.event_, _out.pending_id_);
 }
 
-inline uint32_t deserialize(std::map<std::size_t, byte_t>& _out, unsigned char const* _mem, uint32_t _size) {
+inline uint32_t deserialize(std::map<size_t, byte_t>& _out, unsigned char const* _mem, uint32_t _size) {
     uint32_t its_offset = 0;
     size_t its_key;
     byte_t its_value;

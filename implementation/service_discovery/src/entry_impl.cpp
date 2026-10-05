@@ -84,8 +84,9 @@ void entry_impl::set_ttl(ttl_t _ttl) {
 
 const std::vector<uint8_t>& entry_impl::get_options(uint8_t _run) const {
     static std::vector<uint8_t> invalid_options;
-    if (_run > 0 && _run <= VSOMEIP_MAX_OPTION_RUN)
+    if (_run > 0 && _run <= VSOMEIP_MAX_OPTION_RUN) {
         return options_[_run - 1];
+    }
 
     return invalid_options;
 }
@@ -114,13 +115,15 @@ bool entry_impl::serialize(vsomeip_v3::serializer* _to) const {
     bool is_successful = (0 != _to && _to->serialize(static_cast<uint8_t>(type_)));
 
     uint8_t index_first_option_run = 0;
-    if (options_[0].size() > 0)
+    if (options_[0].size() > 0) {
         index_first_option_run = options_[0][0];
+    }
     is_successful = is_successful && _to->serialize(index_first_option_run);
 
     uint8_t index_second_option_run = 0;
-    if (options_[1].size() > 0)
+    if (options_[1].size() > 0) {
         index_second_option_run = options_[1][0];
+    }
     is_successful = is_successful && _to->serialize(index_second_option_run);
 
     uint8_t number_of_options = uint8_t((((uint8_t)options_[0].size()) << 4) | (((uint8_t)options_[1].size()) & 0x0F));
@@ -150,11 +153,13 @@ bool entry_impl::deserialize(vsomeip_v3::deserializer* _from) {
     num_options_[0] = uint8_t(its_numbers >> 4);
     num_options_[1] = uint8_t(its_numbers & 0xF);
 
-    for (uint16_t i = index1_; i < index1_ + num_options_[0]; ++i)
+    for (uint16_t i = index1_; i < index1_ + num_options_[0]; ++i) {
         options_[0].push_back((uint8_t)(i));
+    }
 
-    for (uint16_t i = index2_; i < index2_ + num_options_[1]; ++i)
+    for (uint16_t i = index2_; i < index2_ + num_options_[1]; ++i) {
         options_[1].push_back((uint8_t)(i));
+    }
 
     uint16_t its_id(0);
     is_successful = is_successful && _from->deserialize(its_id);

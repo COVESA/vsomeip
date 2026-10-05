@@ -263,11 +263,12 @@ bool server_endpoint_impl<Protocol>::tp_segmentation_enabled(service_instance_t 
 }
 
 template<typename Protocol>
-void server_endpoint_impl<Protocol>::send_segments(const tp::tp_split_messages_t& _segments, std::uint32_t _separation_time,
+void server_endpoint_impl<Protocol>::send_segments(const tp::tp_split_messages_t& _segments, uint32_t _separation_time,
                                                    const endpoint_type& _target) {
 
-    if (_segments.size() == 0)
+    if (_segments.size() == 0) {
         return;
+    }
 
     const auto its_target_iterator = find_or_create_target_unlocked(_target);
     auto& its_data = its_target_iterator->second;
@@ -334,13 +335,13 @@ void server_endpoint_impl<Protocol>::schedule_train(endpoint_data_type& _data) {
 }
 
 template<typename Protocol>
-bool server_endpoint_impl<Protocol>::check_message_size(std::uint32_t _size) const {
+bool server_endpoint_impl<Protocol>::check_message_size(uint32_t _size) const {
     return !(_size > endpoint_impl<Protocol>::max_message_size_);
 }
 
 template<typename Protocol>
-typename endpoint_impl<Protocol>::cms_ret_e
-server_endpoint_impl<Protocol>::segment_message(const std::uint8_t* const _data, std::uint32_t _size, const endpoint_type& _target) {
+typename endpoint_impl<Protocol>::cms_ret_e server_endpoint_impl<Protocol>::segment_message(const uint8_t* const _data, uint32_t _size,
+                                                                                            const endpoint_type& _target) {
 
     if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
         const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
@@ -349,8 +350,8 @@ server_endpoint_impl<Protocol>::segment_message(const std::uint8_t* const _data,
 
         if (its_instance != ANY_INSTANCE) {
             if (tp_segmentation_enabled({its_service, its_instance}, its_method)) {
-                std::uint16_t its_max_segment_length;
-                std::uint32_t its_separation_time;
+                uint16_t its_max_segment_length;
+                uint32_t its_separation_time;
 
                 this->configuration_->get_tp_configuration(its_service, its_instance, its_method, false, its_max_segment_length,
                                                            its_separation_time);
@@ -375,25 +376,41 @@ void server_endpoint_impl<Protocol>::recalculate_queue_size(endpoint_data_type& 
 }
 
 template<typename Protocol>
-bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std::uint32_t _size,
-                                                       endpoint_data_type& _endpoint_data) const {
+size_t server_endpoint_impl<Protocol>::get_pending_train_size(const endpoint_data_type& _data) const {
+    size_t its_size = (_data.train_ && _data.train_->buffer_) ? _data.train_->buffer_->size() : 0;
+    for (const auto& its_dispatched : _data.dispatched_trains_) {
+        for (const auto& its_train : its_dispatched.second) {
+            if (its_train && its_train->buffer_) {
+                its_size += its_train->buffer_->size();
+            }
+        }
+    }
+    return its_size;
+}
+
+template<typename Protocol>
+bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, uint32_t _size, endpoint_data_type& _endpoint_data) const {
 
     // No queue limit --> Fine
     if (endpoint_impl<Protocol>::queue_limit_ == QUEUE_SIZE_UNLIMITED) {
         return true;
     }
 
-    // Current queue size is bigger than the maximum queue size
-    if (_endpoint_data.queue_size_ > endpoint_impl<Protocol>::queue_limit_) {
+    // Account for both the flushed output queue and the batching stage still
+    // waiting to be flushed.
+    const size_t its_pending_train_size = get_pending_train_size(_endpoint_data);
+    if (_endpoint_data.queue_size_ + its_pending_train_size > endpoint_impl<Protocol>::queue_limit_) {
         size_t its_error_queue_size{_endpoint_data.queue_size_};
         recalculate_queue_size(_endpoint_data);
 
-        VSOMEIP_WARNING_P << "Detected possible queue size underflow (" << its_error_queue_size << "). Recalculating it ("
-                          << _endpoint_data.queue_size_ << ")";
+        if (its_error_queue_size != _endpoint_data.queue_size_) {
+            VSOMEIP_WARNING_P << "Detected possible queue size underflow (" << its_error_queue_size << "). Recalculating it ("
+                              << _endpoint_data.queue_size_ << ")";
+        }
     }
 
-    if (_endpoint_data.queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_
-        || _endpoint_data.queue_size_ + _size < _size) { // overflow protection
+    if (const size_t its_used_size = _endpoint_data.queue_size_ + its_pending_train_size;
+        its_used_size + _size > endpoint_impl<Protocol>::queue_limit_ || its_used_size + _size < _size) { // overflow protection
         service_t its_service(0);
         method_t its_method(0);
         client_t its_client(0);
@@ -413,7 +430,8 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
         }
         VSOMEIP_ERROR_P << "Queue size limit (" << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
                         << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]"
-                        << " queue_size: " << _endpoint_data.queue_size_ << " data size: " << _size;
+                        << " queue_size: " << _endpoint_data.queue_size_ << " pending_train_size: " << its_pending_train_size
+                        << " data size: " << _size;
         return false;
     }
     return true;
@@ -499,14 +517,15 @@ void server_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
 }
 
 template<typename Protocol>
-void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::system::error_code const& _error, std::size_t _bytes) {
+void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::system::error_code const& _error, size_t _bytes) {
     (void)_bytes;
 
     std::scoped_lock its_lock(mutex_);
 
     auto it = targets_.find(_key);
-    if (it == targets_.end())
+    if (it == targets_.end()) {
         return;
+    }
 
     auto& its_data = it->second;
 
@@ -541,7 +560,7 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
     session_t its_session(0);
 
     if (!_error) {
-        const std::size_t payload_size = its_buffer->size();
+        const size_t payload_size = its_buffer->size();
         if (payload_size <= its_data.queue_size_) {
             its_data.queue_size_ -= payload_size;
             its_data.queue_.pop_front();
@@ -592,7 +611,9 @@ size_t server_endpoint_impl<Protocol>::get_queue_size() const {
     {
         std::scoped_lock its_lock(mutex_);
         for (const auto& t : targets_) {
-            its_queue_size += t.second.queue_size_;
+            // Include the batching stage (pending trains) so the reported size
+            // reflects the total committed memory.
+            its_queue_size += t.second.queue_size_ + get_pending_train_size(t.second);
         }
     }
     return its_queue_size;

@@ -13,13 +13,17 @@
 #include <boost/asio/io_context.hpp>
 
 #include <memory>
+#include "types.hpp"
 
 namespace vsomeip_v3 {
 
 class configuration;
 class message;
+class policy_manager_impl;
+class security;
 
 class routing_manager_host {
+
 public:
     virtual ~routing_manager_host() { }
 
@@ -28,6 +32,8 @@ public:
     virtual session_t get_session(bool _is_request) = 0;
 
     virtual vsomeip_sec_client_t get_sec_client() const = 0;
+    // Returns only the immutable uid of the sec-client, avoiding a copy of the concurrently-mutated port field.
+    virtual uid_t get_sec_client_uid() const = 0;
     virtual void set_sec_client_port(port_t _port) = 0;
 
     virtual const std::string& get_name() const = 0;
@@ -36,16 +42,20 @@ public:
 
     virtual void on_availability(service_t _service, instance_t _instance, availability_state_e _state,
                                  major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
+    virtual void reset_availability_state(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) = 0;
     virtual void on_state(state_type_e _state) = 0;
     virtual void on_message(std::shared_ptr<message>&& _message) = 0;
     virtual void on_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client,
                                  const vsomeip_sec_client_t* _sec_client, const std::string& _env, bool _subscribed,
                                  const std::function<void(bool)>& _accepted_cb) = 0;
     virtual void on_subscription_status(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                        uint16_t _error) = 0;
+                                        subscription_outcome_e _outcome) = 0;
     virtual void send(std::shared_ptr<message> _message) = 0;
     virtual void on_offered_services_info(std::vector<std::pair<service_t, instance_t>>& _services) = 0;
     virtual bool is_routing() const = 0;
+
+    virtual std::shared_ptr<policy_manager_impl> get_policy_manager_impl() const = 0;
+    virtual std::shared_ptr<security> get_security() const = 0;
 };
 
 } // namespace vsomeip_v3

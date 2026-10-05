@@ -25,7 +25,7 @@ TEST(someip_application_init_test, multithread_init) {
     uint32_t ready_cnt = 0;
     uint32_t stop_cnt = 0;
 
-    for (std::uint32_t t = 0; t < thread_count; ++t) {
+    for (uint32_t t = 0; t < thread_count; ++t) {
         vsomeip_applications.emplace_back([&job_cv, &seq_cv, &mutex, &ready_cnt, &stop_cnt, t] {
             {
                 std::unique_lock lk{mutex};

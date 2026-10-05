@@ -113,11 +113,11 @@ public:
         EXPECT_EQ(4u, its_payload->get_length());
         vsomeip::byte_t* d = its_payload->get_data();
         static size_t number_received_notifications(0);
-        std::uint32_t counter(0);
-        counter |= static_cast<std::uint32_t>(d[0] << 24);
-        counter |= static_cast<std::uint32_t>(d[0] << 16);
-        counter = counter | static_cast<std::uint32_t>((d[2] << 8));
-        counter = counter | static_cast<std::uint32_t>(d[3]);
+        uint32_t counter(0);
+        counter |= static_cast<uint32_t>(d[0] << 24);
+        counter |= static_cast<uint32_t>(d[0] << 16);
+        counter = counter | static_cast<uint32_t>((d[2] << 8));
+        counter = counter | static_cast<uint32_t>(d[3]);
 
         VSOMEIP_DEBUG << "Received a notification with Client/Session [" << std::hex << std::setfill('0') << std::setw(4)
                       << _message->get_client() << "/" << std::setw(4) << _message->get_session() << "] from Service/Method ["
@@ -214,9 +214,9 @@ private:
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
 
-    std::uint32_t last_received_counter_;
+    uint32_t last_received_counter_;
     std::chrono::steady_clock::time_point last_received_response_;
-    std::atomic<std::uint32_t> number_received_responses_;
+    std::atomic<uint32_t> number_received_responses_;
     std::thread stop_thread_;
     std::thread send_thread_;
 };

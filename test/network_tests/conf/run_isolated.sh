@@ -51,7 +51,7 @@ FIXED_MASTER_IP="${SANDBOX_MASTER_IP:-${SANDBOX_NET}.254}"
 SUBNET_MASK="${ISOLATED_SUBNET:-24}"
 NET_IF="${ISOLATED_NET_IF:-eth0}"
 SSH_KEY="${SSH_KEY:-/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub}"
-SSH_OPTS=(-o StrictHostKeyChecking=no -o BatchMode=yes -i "${SSH_KEY}" -o "ProxyCommand=socat - TCP4:%h:%p,bind=:22,reuseaddr")
+SSH_OPTS=(-o StrictHostKeyChecking=no -o BatchMode=yes -i "${SSH_KEY}")
 
 # Shared directory paths (tmpfs-backed volume shared between master and slave containers).
 SHARED_BASE="/home/test-shared"
@@ -193,10 +193,25 @@ for attempt in 1 2 3 4 5; do
 done
 rm -f /tmp/netns_add_err_$$
 
-# Reserve the fixed SOME/IP test ports to avoid the kernel using them for ephemeral ports
-source "${BASH_SOURCE[0]%/*}/reserved_test_ports.sh"
-ip netns exec "$NS_NAME" sysctl -wq "net.ipv4.ip_local_reserved_ports=${RESERVED_TEST_PORTS}" 2>/dev/null ||
-    echo "WARNING: Could not reserve test ports (${RESERVED_TEST_PORTS}) in netns $NS_NAME" >&2
+# Narrow the ephemeral local port range so the kernel never hands out the fixed
+# SOME/IP test ports as ephemeral source ports.
+# The sysctl will try to write to /proc/sys/net/ipv4/ip_local_port_range, but docker
+# mounts /proc/sys as read-only for non-privileged containers. As such, sysctl -w fails with
+# EROFS ("Read-only file system"). To fix this, remount /proc/sys as read-write.
+# The desired range is read from the container's current setting (configured via
+# docker-compose.yaml) so it is applied identically inside the per-test netns.
+LOCAL_PORT_RANGE="$(sysctl -n net.ipv4.ip_local_port_range | awk '{print $1, $2}')"
+if ip netns exec "$NS_NAME" sh -c \
+        'mount -o remount,rw /proc/sys 2>/dev/null
+         sysctl -wq "net.ipv4.ip_local_port_range=$1"' _ "${LOCAL_PORT_RANGE}" &&
+   [[ "$(ip netns exec "$NS_NAME" sysctl -n net.ipv4.ip_local_port_range | awk '{print $1, $2}')" \
+      == "${LOCAL_PORT_RANGE}" ]]; then
+    echo "Set local port range in netns $NS_NAME:" \
+         "range=$(ip netns exec "$NS_NAME" sysctl -n net.ipv4.ip_local_port_range)" >&2
+else
+    echo "ERROR: Could not set local port range (${LOCAL_PORT_RANGE}) in netns $NS_NAME" >&2
+    exit 1
+fi
 
 if ((NUM_SLAVES == 0)); then
     # --- No slaves: just isolated namespace with loopback ---------------------

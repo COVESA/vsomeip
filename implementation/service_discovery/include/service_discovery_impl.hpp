@@ -14,6 +14,7 @@
 #include <forward_list>
 #include <atomic>
 #include <tuple>
+#include <random>
 
 #include <boost/asio/steady_timer.hpp>
 
@@ -37,7 +38,7 @@
 //
 // Used because there is no hash implementation before Boost v1.76.
 struct address_hash {
-    std::size_t operator()(const boost::asio::ip::address& addr) const noexcept {
+    size_t operator()(const boost::asio::ip::address& addr) const noexcept {
         return addr.is_v4() ? boost::hash<boost::asio::ip::address_v4::bytes_type>()(addr.to_v4().to_bytes())
                             : boost::hash<boost::asio::ip::address_v6::bytes_type>()(addr.to_v6().to_bytes());
     }
@@ -132,6 +133,8 @@ private:
     entry_data_t create_eventgroup_entry(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                          const std::shared_ptr<subscription>& _subscription, reliability_type_e _offer_type);
 
+    bool has_unreceived_field_value(const std::shared_ptr<subscription>& _subscription) const;
+
     void insert_subscription_ack(const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
                                  const std::shared_ptr<eventgroupinfo>& _info, ttl_t _ttl,
                                  const std::shared_ptr<endpoint_definition>& _target, const std::set<client_t>& _clients);
@@ -140,7 +143,7 @@ private:
                                           const std::shared_ptr<eventgroupinfo>& _info, ttl_t _ttl,
                                           const std::shared_ptr<endpoint_definition>& _target, const std::set<client_t>& _clients);
 
-    typedef std::set<std::pair<bool, std::uint16_t>> expired_ports_t;
+    typedef std::set<std::pair<bool, uint16_t>> expired_ports_t;
     struct sd_acceptance_state_t {
         explicit sd_acceptance_state_t(expired_ports_t& _expired_ports) :
             expired_ports_(_expired_ports), sd_acceptance_required_(false), accept_entries_(false) { }
@@ -213,20 +216,20 @@ private:
 
     void update_request(service_t _service, instance_t _instance);
 
-    void start_offer_debounce_timer(bool _first_start);
+    void start_offer_debounce_timer(std::chrono::milliseconds _duration);
     void stop_offer_debounce_timer();
     void on_offer_debounce_timer_expired(const boost::system::error_code& _error);
 
-    void start_find_debounce_timer(bool _first_start);
+    void start_find_debounce_timer(std::chrono::milliseconds _duration);
     void stop_find_debounce_timer();
     void on_find_debounce_timer_expired(const boost::system::error_code& _error);
 
     void on_repetition_phase_timer_expired(const boost::system::error_code& _error,
-                                           const std::shared_ptr<boost::asio::steady_timer>& _timer, std::uint8_t _repetition,
-                                           std::uint32_t _last_delay);
+                                           const std::shared_ptr<boost::asio::steady_timer>& _timer, uint8_t _repetition,
+                                           uint32_t _last_delay);
     void on_find_repetition_phase_timer_expired(const boost::system::error_code& _error,
-                                                const std::shared_ptr<boost::asio::steady_timer>& _timer, std::uint8_t _repetition,
-                                                std::uint32_t _last_delay);
+                                                const std::shared_ptr<boost::asio::steady_timer>& _timer, uint8_t _repetition,
+                                                uint32_t _last_delay);
     void move_offers_into_main_phase(const std::shared_ptr<boost::asio::steady_timer>& _timer);
 
     bool send_stop_offer(const std::shared_ptr<serviceinfo>& _info);
@@ -267,19 +270,18 @@ private:
     reliability_type_e get_remote_offer_type(const std::shared_ptr<subscription>& _subscription) const;
 
     bool update_remote_offer_type(service_t _service, instance_t _instance, reliability_type_e _offer_type,
-                                  const boost::asio::ip::address& _reliable_address, std::uint16_t _reliable_port,
-                                  const boost::asio::ip::address& _unreliable_address, std::uint16_t _unreliable_port,
+                                  const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
+                                  const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
                                   bool _received_via_multicast);
     void remove_remote_offer_type(service_t _service, instance_t _instance, const boost::asio::ip::address& _reliable_address,
-                                  std::uint16_t _reliable_port, const boost::asio::ip::address& _unreliable_address,
-                                  std::uint16_t _unreliable_port);
+                                  uint16_t _reliable_port, const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port);
     void remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address);
-    void remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable);
+    void remove_remote_offer_type_by_ip(const boost::asio::ip::address& _address, uint16_t _port, bool _reliable);
 
     // Returns true if the state changes from unicast -> multicast, false any of the other 3 cases
     bool set_offer_multicast_state(service_t _service, instance_t _instance, reliability_type_e _offer_type,
                                    const boost::asio::ip::address& _reliable_address, port_t _reliable_port,
-                                   const boost::asio::ip::address& _unreliable_address, std::uint16_t _unreliable_port,
+                                   const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
                                    bool _received_via_multicast);
 
     std::shared_ptr<subscription> create_subscription(major_version_t _major, ttl_t _ttl,
@@ -362,10 +364,11 @@ private:
     boost::asio::steady_timer subscription_expiration_timer_;
     std::chrono::steady_clock::time_point next_subscription_expiration_;
 
-    std::chrono::milliseconds initial_delay_;
+    // RNG + SD parameters
+    std::mt19937 random_generator_; // used for initial wait phase (see PRS_SOMEIPSD_00399)
     std::chrono::milliseconds offer_debounce_time_;
     std::chrono::milliseconds repetitions_base_delay_;
-    std::uint8_t repetitions_max_;
+    uint8_t repetitions_max_;
     std::chrono::milliseconds cyclic_offer_delay_;
     std::mutex offer_debounce_timer_mutex_;
     boost::asio::steady_timer offer_debounce_timer_;
@@ -434,7 +437,7 @@ private:
         bool operator<(const remote_offer_info_t& other) const { return service_info < other.service_info; }
     };
 
-    std::map<boost::asio::ip::address, std::map<std::pair<bool, std::uint16_t>, std::set<remote_offer_info_t>>> remote_offers_by_ip_;
+    std::map<boost::asio::ip::address, std::map<std::pair<bool, uint16_t>, std::set<remote_offer_info_t>>> remote_offers_by_ip_;
 
     reboot_notification_handler_t reboot_notification_handler_;
     sd_acceptance_handler_t sd_acceptance_handler_;

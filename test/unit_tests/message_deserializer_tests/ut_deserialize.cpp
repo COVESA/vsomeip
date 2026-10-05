@@ -11,8 +11,8 @@
 #include "../../../implementation/utility/include/bithelper.hpp"
 
 namespace {
-constexpr std::uint32_t buffer_shrink_threshold = 1;
-constexpr std::uint8_t array_size = 4;
+constexpr uint32_t buffer_shrink_threshold = 1;
+constexpr uint8_t array_size = 4;
 const vsomeip_v3::byte_t byte1 = 1;
 const vsomeip_v3::byte_t byte2 = 2;
 const vsomeip_v3::byte_t byte3 = 3;
@@ -85,13 +85,13 @@ TEST(deserialize_test, deserialize_from_uint16) {
     std::array<vsomeip_v3::byte_t, 2> uint16_array_2_{byte3, byte4};
 
     // Creating two uint16_t with the data from the byte_array.
-    std::uint16_t uint16_1 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_1_.data());
-    std::uint16_t uint16_2 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_2_.data());
+    uint16_t uint16_1 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_1_.data());
+    uint16_t uint16_2 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_2_.data());
 
     auto its_deserializer = std::make_unique<vsomeip_v3::deserializer>(byte_array_.data(), byte_array_.size(), buffer_shrink_threshold);
 
     // Deserialize 2 uint16_t from the data, and compare them with their expected values.
-    std::uint16_t deserialized_uint16_;
+    uint16_t deserialized_uint16_;
     ASSERT_TRUE(its_deserializer->deserialize(deserialized_uint16_));
     ASSERT_EQ(deserialized_uint16_, uint16_1);
     ASSERT_NE(deserialized_uint16_, uint16_2);
@@ -109,13 +109,13 @@ TEST(deserialize_test, deserialize_from_uint32_omit_last_byte) {
     std::array<vsomeip_v3::byte_t, 4> uint32_full_array_{byte1, byte2, byte3, byte4};
 
     // Create two uint32_t from the data, one including 3 bytes and the other with the full 4 bytes
-    const std::uint32_t uint32_3_bytes = vsomeip_v3::bithelper::read_uint32_be(uint32_3_bytes_array_.data());
-    const std::uint32_t uint32_full = vsomeip_v3::bithelper::read_uint32_be(uint32_full_array_.data());
+    const uint32_t uint32_3_bytes = vsomeip_v3::bithelper::read_uint32_be(uint32_3_bytes_array_.data());
+    const uint32_t uint32_full = vsomeip_v3::bithelper::read_uint32_be(uint32_full_array_.data());
 
     auto its_deserializer = std::make_unique<vsomeip_v3::deserializer>(byte_array_.data(), byte_array_.size(), buffer_shrink_threshold);
 
     // Deserialize a uint32_t omitting the last byte
-    std::uint32_t deserialized_uint32_;
+    uint32_t deserialized_uint32_;
     ASSERT_TRUE(its_deserializer->deserialize(deserialized_uint32_, omit_last_byte));
     ASSERT_EQ(deserialized_uint32_, uint32_3_bytes);
     ASSERT_NE(deserialized_uint32_, uint32_full);
@@ -129,13 +129,13 @@ TEST(deserialize_test, deserialize_from_uint32_dont_omit_last_byte) {
     std::array<vsomeip_v3::byte_t, 4> uint32_full_array_{byte1, byte2, byte3, byte4};
 
     // Create two uint32_t from the data, one including 3 bytes and the other with the full 4 bytes
-    const std::uint32_t uint32_3_bytes = vsomeip_v3::bithelper::read_uint32_be(uint32_3_bytes_array_.data());
-    const std::uint32_t uint32_full = vsomeip_v3::bithelper::read_uint32_be(uint32_full_array_.data());
+    const uint32_t uint32_3_bytes = vsomeip_v3::bithelper::read_uint32_be(uint32_3_bytes_array_.data());
+    const uint32_t uint32_full = vsomeip_v3::bithelper::read_uint32_be(uint32_full_array_.data());
 
     auto its_deserializer = std::make_unique<vsomeip_v3::deserializer>(byte_array_.data(), byte_array_.size(), buffer_shrink_threshold);
 
     // Deserialize a full uint32_t not omitting the last byte.
-    std::uint32_t deserialized_uint32_;
+    uint32_t deserialized_uint32_;
     ASSERT_TRUE(its_deserializer->deserialize(deserialized_uint32_, dont_omit_last_byte));
     ASSERT_EQ(deserialized_uint32_, uint32_full);
     ASSERT_NE(deserialized_uint32_, uint32_3_bytes);
@@ -223,7 +223,7 @@ TEST(deserialize_test, deserialize_from_uint8_t_vector) {
     auto its_deserializer = std::make_unique<vsomeip_v3::deserializer>(byte_array_.data(), byte_array_.size(), buffer_shrink_threshold);
 
     // One shot deserialization of the full data. Creating a vector with size 4
-    std::vector<std::uint8_t> deserialized_vector_(4);
+    std::vector<uint8_t> deserialized_vector_(4);
 
     ASSERT_TRUE(its_deserializer->deserialize(deserialized_vector_));
 
@@ -241,7 +241,7 @@ TEST(deserialize_test, deserialize_from_uint8_t_vector) {
     auto its_deserializer2 = std::make_unique<vsomeip_v3::deserializer>(byte_array_.data(), byte_array_.size(), buffer_shrink_threshold);
 
     // Creating a size 2 vector
-    std::vector<std::uint8_t> deserialized_vector2_(2);
+    std::vector<uint8_t> deserialized_vector2_(2);
 
     ASSERT_TRUE(its_deserializer2->deserialize(deserialized_vector2_));
 
@@ -295,14 +295,14 @@ TEST(deserialize_test, look_ahead_for_uint16) {
     std::array<vsomeip_v3::byte_t, 2> uint16_array_3_{byte3, byte4};
 
     // Creating two uint16_t with the data from the byte_array.
-    std::uint16_t uint16_1 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_1_.data());
-    std::uint16_t uint16_2 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_2_.data());
-    std::uint16_t uint16_3 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_3_.data());
+    uint16_t uint16_1 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_1_.data());
+    uint16_t uint16_2 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_2_.data());
+    uint16_t uint16_3 = vsomeip_v3::bithelper::read_uint16_be(uint16_array_3_.data());
 
     auto its_deserializer = std::make_unique<vsomeip_v3::deserializer>(byte_array_.data(), byte_array_.size(), buffer_shrink_threshold);
 
     // Look_ahead uint16_t from incrementing indices and compare them with their expected values.
-    std::uint16_t look_ahead_uint16_;
+    uint16_t look_ahead_uint16_;
     ASSERT_TRUE(its_deserializer->look_ahead(0, look_ahead_uint16_));
     ASSERT_EQ(look_ahead_uint16_, uint16_1);
     ASSERT_NE(look_ahead_uint16_, uint16_2);
@@ -325,13 +325,13 @@ TEST(deserialize_test, look_ahead_for_uint32) {
     std::array<vsomeip_v3::byte_t, 4> uint32_2_bytes_array_{byte2, byte3, byte4, byte1};
 
     // Creating the uint32_t with the data from the byte_array
-    const std::uint32_t uint32_1 = vsomeip_v3::bithelper::read_uint32_be(uint32_1_bytes_array_.data());
-    const std::uint32_t uint32_2 = vsomeip_v3::bithelper::read_uint32_be(uint32_2_bytes_array_.data());
+    const uint32_t uint32_1 = vsomeip_v3::bithelper::read_uint32_be(uint32_1_bytes_array_.data());
+    const uint32_t uint32_2 = vsomeip_v3::bithelper::read_uint32_be(uint32_2_bytes_array_.data());
 
     auto its_deserializer = std::make_unique<vsomeip_v3::deserializer>(byte_array_.data(), byte_array_.size(), buffer_shrink_threshold);
 
     // Look_ahead uint32_t from incrementing indices and compare them with their expected values.
-    std::uint32_t look_ahead_uint32_;
+    uint32_t look_ahead_uint32_;
     ASSERT_TRUE(its_deserializer->look_ahead(0, look_ahead_uint32_));
     ASSERT_EQ(look_ahead_uint32_, uint32_1);
     ASSERT_NE(look_ahead_uint32_, uint32_2);
@@ -402,7 +402,7 @@ TEST(deserialize_test, set_data_from_uint8_vector) {
     auto its_deserializer = std::make_unique<vsomeip_v3::deserializer>(byte_array_.data(), byte_array_.size(), buffer_shrink_threshold);
 
     // One shot deserialization of the full data. Creating a vector with size 4
-    std::vector<std::uint8_t> uint8_vector_{byte4, byte3, byte2, byte1, byte4};
+    std::vector<uint8_t> uint8_vector_{byte4, byte3, byte2, byte1, byte4};
 
     // Test Method
     its_deserializer->set_data(uint8_vector_);

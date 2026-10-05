@@ -38,7 +38,7 @@ TEST(OfferTestExternal, OfferTestExternalLocalService) {
 
     // Register subscription handler
     application->register_subscription_handler(service.service_id, service.instance_id, service.eventgroup_id,
-                                               [&](vsomeip::client_t, std::uint32_t, std::uint32_t, const std::string&, bool) {
+                                               [&](vsomeip::client_t, uint32_t, uint32_t, const std::string&, bool) {
                                                    std::filesystem::path local_service_subscribed_filename =
                                                            utility::get_test_shared_dir() / "local_service_subscribed.flag";
                                                    std::ofstream file(local_service_subscribed_filename);

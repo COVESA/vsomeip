@@ -343,7 +343,7 @@ void udp_server_endpoint_impl::receive_unicast_unlocked(std::shared_ptr<message_
         unicast_socket_->async_receive_from(
                 boost::asio::buffer(_unicast_recv_buffer->data(), _unicast_recv_buffer->size()), unicast_remote_,
                 [self = shared_ptr(), _unicast_recv_buffer, lifecycle_idx = lifecycle_idx_.load()](const boost::system::error_code& _error,
-                                                                                                   std::size_t _bytes) {
+                                                                                                   size_t _bytes) {
                     bool repeat = false;
 
                     if (lifecycle_idx == self->lifecycle_idx_.load() && _error != boost::asio::error::eof
@@ -386,7 +386,7 @@ void udp_server_endpoint_impl::receive_multicast_unlocked(std::shared_ptr<messag
         multicast_socket_->async_receive_from(
                 boost::asio::buffer(_multicast_recv_buffer->data(), _multicast_recv_buffer->size()), *_multicast_sender,
                 [self = shared_ptr(), _multicast_recv_buffer, _multicast_sender,
-                 lifecycle_idx = multicast_lifecycle_idx_.load()](const boost::system::error_code& _error, std::size_t _bytes) {
+                 lifecycle_idx = multicast_lifecycle_idx_.load()](const boost::system::error_code& _error, size_t _bytes) {
                     bool repeat = false;
 
                     if (lifecycle_idx == self->multicast_lifecycle_idx_.load() && _error != boost::asio::error::eof
@@ -490,7 +490,7 @@ bool udp_server_endpoint_impl::send_queued_unlocked(const target_data_iterator_t
 
         _it->second.is_sending_ = true;
         unicast_socket_->async_send_to(boost::asio::buffer(its_buffer->data(), its_buffer->size()), its_target,
-                                       [its_me, its_buffer, its_target](const boost::system::error_code& _error, std::size_t _bytes) {
+                                       [its_me, its_buffer, its_target](const boost::system::error_code& _error, size_t _bytes) {
                                            if (!_error && its_me->on_unicast_sent_ && !its_target.address().is_multicast()) {
                                                its_me->on_unicast_sent_(its_buffer->data(), static_cast<uint32_t>(_bytes),
                                                                         its_target.address());
@@ -621,7 +621,7 @@ uint16_t udp_server_endpoint_impl::get_local_port() const {
     return local_.port();
 }
 
-void udp_server_endpoint_impl::on_unicast_received(const boost::system::error_code& _error, std::size_t _bytes,
+void udp_server_endpoint_impl::on_unicast_received(const boost::system::error_code& _error, size_t _bytes,
                                                    const message_buffer_t& _unicast_recv_buffer) {
     // The caller shall not hold the lock
 
@@ -632,7 +632,7 @@ void udp_server_endpoint_impl::on_unicast_received(const boost::system::error_co
     }
 }
 
-void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_code& _error, std::size_t _bytes,
+void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_code& _error, size_t _bytes,
                                                      const message_buffer_t& _multicast_recv_buffer,
                                                      const endpoint_type& _multicast_sender) {
     // The caller shall not hold the lock
@@ -663,7 +663,7 @@ void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_
     }
 }
 
-void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system::error_code& _error, std::size_t _bytes, bool _is_multicast,
+void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system::error_code& _error, size_t _bytes, bool _is_multicast,
                                                             const endpoint_type& _remote, const message_buffer_t& _buffer) {
     // The caller shall not hold the lock
     // reject UDP packets larger than 1416 (16 bytes full header + 1400 payload); see Section 4.1.2.9 "Payload" in AUTOSAR FO R22-11
@@ -686,8 +686,8 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
 
     if (its_host) {
         if (!_error && 0 < _bytes) {
-            std::size_t remaining_bytes = _bytes;
-            std::size_t i = 0;
+            size_t remaining_bytes = _bytes;
+            size_t i = 0;
             const boost::asio::ip::address its_remote_address(_remote.address());
             const uint16_t its_remote_port(_remote.port());
             do {
@@ -758,15 +758,16 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                         const method_t its_method = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_METHOD_POS_MIN]);
                         instance_t its_instance = this->get_instance(its_service);
 
-                        if (its_instance != ANY_INSTANCE) {
-                            if (!tp_segmentation_enabled({its_service, its_instance}, its_method)) {
-                                VSOMEIP_WARNING_P << instance_name_ << "SomeIP/TP message for service: 0x" << hex4(its_service)
-                                                  << " method: 0x" << hex4(its_method) << " which is not configured for TP:"
-                                                  << " local: " << get_address_port_local_unlocked(_is_multicast)
-                                                  << " remote: " << its_remote_address << ":" << its_remote_port;
-                                return;
-                            }
+                        // NOTE: ANY_INSTANCE => we do not know/want this service
+                        // `on_message` would also drop it, we do it already to avoid (somewhat expensive) TP logic
+                        if (its_instance == ANY_INSTANCE || !tp_segmentation_enabled({its_service, its_instance}, its_method)) {
+                            VSOMEIP_WARNING_P << instance_name_ << "SomeIP/TP message for service: 0x" << hex4(its_service) << " method: 0x"
+                                              << hex4(its_method) << " which is not configured for TP:" << " local: "
+                                              << get_address_port_local_unlocked(_is_multicast) << " remote: " << its_remote_address << ":"
+                                              << its_remote_port;
+                            return;
                         }
+
                         const auto res =
                                 tp_reassembler_->process_tp_message(&_buffer[i], current_message_size, its_remote_address, its_remote_port);
                         if (res.first) {
@@ -826,8 +827,8 @@ void udp_server_endpoint_impl::print_status() {
     VSOMEIP_ERROR_P << instance_name_ << local_.port() << " number targets: " << targets_.size();
 
     for (const auto& c : targets_) {
-        std::size_t its_data_size(0);
-        std::size_t its_queue_size(0);
+        size_t its_data_size(0);
+        size_t its_queue_size(0);
         its_queue_size = c.second.queue_.size();
         its_data_size = c.second.queue_size_;
 

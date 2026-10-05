@@ -35,16 +35,16 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
-    std::uint32_t number_of_received_messages_;
+    uint32_t number_of_received_messages_;
     std::thread offer_thread_;
 
-    const std::uint16_t SERVICE_TO_BE_REFUSED = 0x111;
-    const std::uint16_t TEST_INSTANCE_LAZY = 0x02;
+    const uint16_t SERVICE_TO_BE_REFUSED = 0x111;
+    const uint16_t TEST_INSTANCE_LAZY = 0x02;
 
-    const std::uint16_t EVENT_GROUP = 0x01;
-    const std::uint16_t EVENT_TO_ACCEPT_LAZY = 0x8002;
-    const std::uint16_t EVENT_TO_ACCEPT_DEFAULT = 0x8001;
+    const uint16_t EVENT_GROUP = 0x01;
+    const uint16_t EVENT_TO_ACCEPT_LAZY = 0x8002;
+    const uint16_t EVENT_TO_ACCEPT_DEFAULT = 0x8001;
 
     // Twice as big as messages to send, account for all messages from both clients
-    const std::uint16_t NUMBER_OF_MESSAGES_TO_RECEIVE = 20;
+    const uint16_t NUMBER_OF_MESSAGES_TO_RECEIVE = 20;
 };

@@ -33,7 +33,7 @@ public:
         ASSERT_TRUE(condition_.wait_for(its_lock, common::scaled_timeout(std::chrono::seconds(10)), [&] { return to_stop; }))
                 << "Did not received the Shutdown message in time";
 
-        for (std::uint32_t i = 0; i < shutdown_test::SHUTDOWN_NUMBER_MESSAGES; ++i) {
+        for (uint32_t i = 0; i < shutdown_test::SHUTDOWN_NUMBER_MESSAGES; ++i) {
             reply_->set_reliable(shutdown_test_service::is_tcp_);
             reply_->set_session(static_cast<vsomeip::session_t>(i + 1));
             std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();
@@ -99,7 +99,7 @@ public:
         }
     }
 
-    static std::uint32_t size_buffer_;
+    static uint32_t size_buffer_;
     static bool is_tcp_;
 
 private:
@@ -124,7 +124,7 @@ TEST(someip_shutdown_test, receive_messages_send_shutdown_reply_and_immediately_
     }
 }
 
-std::uint32_t shutdown_test_service::size_buffer_ = 0;
+uint32_t shutdown_test_service::size_buffer_ = 0;
 bool shutdown_test_service::is_tcp_ = false;
 
 #if defined(__linux__) || defined(__QNX__)
