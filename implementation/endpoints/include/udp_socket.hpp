@@ -41,6 +41,8 @@ public:
 
 #if defined(__linux__) || defined(__QNX__)
     virtual void set_option(udp_bind_to_device _opt, boost::system::error_code& _ec) = 0;
+#endif
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     virtual void set_option(udp_packet_info_ip4 _opt, boost::system::error_code& _ec) = 0;
     virtual void set_option(udp_packet_info_ip6 _opt, boost::system::error_code& _ec) = 0;
     virtual void set_option(udp_send_timeout _opt, boost::system::error_code& _ec) = 0;

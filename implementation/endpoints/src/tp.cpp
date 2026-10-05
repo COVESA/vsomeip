@@ -11,7 +11,7 @@
 
 #include "internal.hpp"
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #include <arpa/inet.h>
 #else
 #include <Winsock2.h>

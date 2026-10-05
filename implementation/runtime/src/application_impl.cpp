@@ -54,7 +54,7 @@ configuration::~configuration() { }
 application_impl::application_impl(const std::string& _name, const std::string& _path) :
     runtime_{runtime::get()}, plugin_manager_{plugin_manager_impl::get()}, client_{VSOMEIP_CLIENT_UNSET}, session_{0},
     is_initialized_{false}, name_{_name}, path_{_path},
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     start_thread_{0},
 #endif
     work_(io_.get_executor()), routing_{nullptr}, state_{state_type_e::ST_DEREGISTERED}, security_mode_{security_mode_e::SM_ON},
@@ -298,7 +298,7 @@ void application_impl::start() {
         start_thread_ = pthread_self();
         std::stringstream s;
         s << hex4(client_) << "_io" << std::setw(2) << 0;
-        pthread_setname_np(start_thread_, s.str().c_str());
+        utility::set_thread_name(start_thread_, s.str().c_str());
     }
 #endif
     {
@@ -327,7 +327,7 @@ void application_impl::start() {
         }
 
         VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" (" << hex4(client_) << ") using " << io_thread_count << " threads"
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
                      << " I/O nice " << io_thread_nice_level
 #endif
                 ;
@@ -354,7 +354,7 @@ void application_impl::start() {
                 {
                     std::stringstream s;
                     s << hex4(client_) << "_io" << std::setw(2) << i + 1;
-                    pthread_setname_np(pthread_self(), s.str().c_str());
+                    utility::set_thread_name(s.str().c_str());
                 }
                 utility::set_thread_niceness(io_thread_nice_level);
 #endif
@@ -1093,12 +1093,12 @@ void application_impl::set_client(const client_t& _client) {
     // therefore re-assign all of the thread names. It also helps in case of a client-id
     // re-assignment
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     // start thread
     if (start_thread_ != 0) {
         std::stringstream s;
         s << hex4(client_) << "_io" << std::setw(2) << 0;
-        pthread_setname_np(start_thread_, s.str().c_str());
+        utility::set_thread_name(start_thread_, s.str().c_str());
     }
     // io thread(s)
     {
@@ -1107,7 +1107,7 @@ void application_impl::set_client(const client_t& _client) {
             std::stringstream s;
             s << hex4(client_) << "_io" << std::setw(2) << i + 1;
 
-            pthread_setname_np(io_threads_[i]->native_handle(), s.str().c_str());
+            utility::set_thread_name(io_threads_[i]->native_handle(), s.str().c_str());
         }
     }
     // dispatch thread(s)
@@ -1121,7 +1121,7 @@ void application_impl::set_client(const client_t& _client) {
         s << hex4(client_) << "_m_dispatch";
 
         for (const auto& [id, thread] : dispatchers_) {
-            pthread_setname_np(thread->native_handle(), s.str().c_str());
+            utility::set_thread_name(thread->native_handle(), s.str().c_str());
         }
     }
 #endif
@@ -1426,11 +1426,11 @@ void application_impl::on_message(std::shared_ptr<message>&& _message) {
 // Interface "service_discovery_host"
 void application_impl::main_dispatch() {
     utility::set_thread_niceness(configuration_->get_io_thread_nice_level(name_));
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     {
         std::stringstream s;
         s << hex4(client_) << "_m_dispatch";
-        pthread_setname_np(pthread_self(), s.str().c_str());
+        utility::set_thread_name(s.str().c_str());
     }
 #endif
     const std::thread::id its_id = std::this_thread::get_id();
@@ -1479,7 +1479,7 @@ void application_impl::dispatch() {
     {
         std::stringstream s;
         s << hex4(client_) << "_dispatch";
-        pthread_setname_np(pthread_self(), s.str().c_str());
+        utility::set_thread_name(s.str().c_str());
     }
 #endif
     const std::thread::id its_id = std::this_thread::get_id();

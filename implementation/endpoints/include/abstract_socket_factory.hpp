@@ -10,14 +10,14 @@
 #include "abstract_timer.hpp"
 #include "tcp_socket.hpp"
 #include "udp_socket.hpp"
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #include "uds_acceptor.hpp"
 #include "uds_socket.hpp"
 #endif
 
 #include <boost/asio/io_context.hpp>
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #include <boost/asio/local/stream_protocol.hpp>
 #endif
 #include <functional>
@@ -42,7 +42,7 @@ public:
     virtual std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context& _io) = 0;
     virtual std::unique_ptr<udp_socket> create_udp_socket(boost::asio::io_context& _io) = 0;
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     virtual std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context& _io) = 0;
     virtual std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context& _io) = 0;
 #endif

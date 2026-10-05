@@ -22,6 +22,8 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#elif defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
+#include <pthread.h>
 #endif
 
 #include <vsomeip/enumeration_types.hpp>
@@ -34,6 +36,27 @@ class configuration;
 
 class utility {
 public:
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
+    static inline void set_thread_name(const std::string& _name) {
+#if defined(__linux__) || defined(__QNX__)
+        pthread_setname_np(pthread_self(), _name.c_str());
+#elif defined(__APPLE__)
+        pthread_setname_np(_name.c_str());
+#endif
+    }
+
+    static inline void set_thread_name(pthread_t _thread, const std::string& _name) {
+#if defined(__linux__) || defined(__QNX__)
+        pthread_setname_np(_thread, _name.c_str());
+#elif defined(__APPLE__)
+        // Darwin can only name the calling thread.
+        if (pthread_equal(_thread, pthread_self())) {
+            pthread_setname_np(_name.c_str());
+        }
+#endif
+    }
+#endif
+
     static inline bool is_request(std::shared_ptr<message> _message) { return _message ? is_request(_message->get_message_type()) : false; }
 
     static inline bool is_request(byte_t _type) { return is_request(static_cast<message_type_e>(_type)); }

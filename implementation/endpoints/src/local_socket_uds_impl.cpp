@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #include "../include/local_socket_uds_impl.hpp"
 #include "../include/abstract_socket_factory.hpp"
 #include "logger_ext.hpp"
@@ -110,7 +110,7 @@ bool local_socket_uds_impl::update(vsomeip_sec_client_t& _client, [[maybe_unused
                                    [[maybe_unused]] security const* _security) {
     std::scoped_lock const lock{socket_mtx_};
     if (!socket_->get_peer_credentials(_client)) {
-        VSOMEIP_ERROR_P << "Could not getsockopt(SO_PEERCRED), errno " << errno;
+        VSOMEIP_ERROR_P << "Could not query peer credentials, errno " << errno;
         return false;
     }
     return true;

@@ -644,7 +644,7 @@ void server_endpoint_impl<Protocol>::start_dispatch_timer(target_data_iterator_t
         its_offset = std::chrono::nanoseconds::zero();
     }
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     its_data.dispatch_timer_->expires_after(its_offset);
 #else
     its_data.dispatch_timer_->expires_after(std::chrono::duration_cast<std::chrono::steady_clock::duration>(its_offset));
@@ -665,7 +665,7 @@ void server_endpoint_impl<Protocol>::update_last_departure(endpoint_data_type& _
 }
 
 // Instantiate template
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 template class server_endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 

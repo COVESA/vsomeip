@@ -204,7 +204,12 @@ bool utility::is_routing_manager(const std::string& _network) {
     std::string its_lockfile(its_base_path + ".lck");
     int its_lock_ctrl(-1);
 
-    struct flock its_lock_data = {F_WRLCK, SEEK_SET, 0, 0, 0};
+    // POSIX flock field order differs between Linux and Darwin.
+    struct flock its_lock_data{};
+    its_lock_data.l_type = F_WRLCK;
+    its_lock_data.l_whence = SEEK_SET;
+    its_lock_data.l_start = 0;
+    its_lock_data.l_len = 0;
 
     r.first->second.lock_fd_ = open(its_lockfile.c_str(), O_WRONLY | O_CREAT, S_IWUSR | S_IWGRP);
     if (-1 != r.first->second.lock_fd_) {

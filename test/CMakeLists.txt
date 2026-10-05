@@ -51,7 +51,7 @@ set_target_properties(${VSOMEIP_NAME}-test PROPERTIES BUILD_RPATH "${CMAKE_CURRE
 set_target_properties(${VSOMEIP_NAME}-test PROPERTIES OUTPUT_NAME ${VSOMEIP_NAME} VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 target_link_libraries(${VSOMEIP_NAME}-test PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
-if (NOT MSVC)
+if (NOT MSVC AND NOT APPLE)
     if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         # add syscall wrappers to deal with CLOEXEC
         set_target_properties(${VSOMEIP_NAME}-test PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")

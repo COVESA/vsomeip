@@ -7,7 +7,7 @@
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
 #include <unistd.h>
 #endif
 
@@ -1964,6 +1964,22 @@ void routing_manager_client::on_update_security_credentials(std::vector<std::pai
 }
 #endif
 
+void routing_manager_client::register_application(client_t _client, std::unique_lock<std::mutex>& receiver_lock_) {
+    auto its_configuration = get_configuration();
+    auto const its_routing_host_address = its_configuration->get_routing_host_address();
+    // UDS is used only when local routing is configured, or when uds-preferred is on and the routing manager has the same IP.
+    // Otherwise TCP is used.
+    bool const via_uds = (routing_mode_ == routing_mode_e::UDS_ONLY)
+            || (routing_mode_ == routing_mode_e::UDS_AND_TCP && its_routing_host_address == its_configuration->get_routing_guest_address());
+    if (via_uds) {
+        VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " Registering to routing manager @ " << its_configuration->get_network()
+                       << "-0";
+    } else {
+        VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " Registering to routing manager @ " << its_routing_host_address.to_string()
+                       << ":" << its_configuration->get_routing_host_port();
+    }
+}  
+
 void routing_manager_client::on_client_assign_ack(const client_t& _client, bool _is_tcp) {
 
     if (_client == VSOMEIP_CLIENT_UNSET) {
@@ -1978,7 +1994,7 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client, bool 
         std::scoped_lock its_lock{mutex_};
 
         if (state_machine_->state() == routing_client_state_e::ST_REGISTERING) {
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
             const auto sec_client = get_sec_client();
             if (!get_policy_manager()->check_credentials(get_client(), &sec_client)) {
                 VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())

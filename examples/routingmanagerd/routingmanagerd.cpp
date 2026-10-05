@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <thread>
 #include <condition_variable>
 #include <mutex>
@@ -50,6 +51,8 @@ int routingmanagerd_process(bool _is_quiet) {
     auto signal_worker_fn = []() {
 #if defined(__linux__) || defined(__QNX__)
         pthread_setname_np(pthread_self(), "signal_w");
+#elif defined(__APPLE__)
+        pthread_setname_np("signal_w");
 #endif
 
         // Unblock signals for this thread only

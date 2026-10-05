@@ -46,24 +46,32 @@
 
 #ifdef _WIN32
 #define VSOMEIP_CFG_LIBRARY                      "vsomeip3-cfg.dll"
+#elif defined(__APPLE__)
+#define VSOMEIP_CFG_LIBRARY                      "libvsomeip3-cfg.@VSOMEIP_MAJOR_VERSION@.dylib"
 #else
 #define VSOMEIP_CFG_LIBRARY                      "libvsomeip3-cfg.so.@VSOMEIP_MAJOR_VERSION@"
 #endif
 
 #ifdef _WIN32
 #define VSOMEIP_SD_LIBRARY                      "vsomeip3-sd.dll"
+#elif defined(__APPLE__)
+#define VSOMEIP_SD_LIBRARY                      "libvsomeip3-sd.@VSOMEIP_MAJOR_VERSION@.dylib"
 #else
 #define VSOMEIP_SD_LIBRARY                      "libvsomeip3-sd.so.@VSOMEIP_MAJOR_VERSION@"
 #endif
 
 #ifdef _WIN32
 #define VSOMEIP_E2E_LIBRARY                      "vsomeip3-e2e.dll"
+#elif defined(__APPLE__)
+#define VSOMEIP_E2E_LIBRARY                      "libvsomeip3-e2e.@VSOMEIP_MAJOR_VERSION@.dylib"
 #else
 #define VSOMEIP_E2E_LIBRARY                      "libvsomeip3-e2e.so.@VSOMEIP_MAJOR_VERSION@"
 #endif
 
 #ifdef _WIN32
 #define VSOMEIP_SEC_LIBRARY                      "vsomeip_sec.dll"
+#elif defined(__APPLE__)
+#define VSOMEIP_SEC_LIBRARY                      "libvsomeip-sec.1.dylib"
 #else
 #define VSOMEIP_SEC_LIBRARY                      "libvsomeip-sec.so.1"
 #endif
@@ -72,7 +80,7 @@
 
 #define VSOMEIP_CLIENT_UNSET                    0xFFFF
 
-#ifdef _WIN32
+#if !defined(__linux__) && !defined(__QNX__)
 #define VSOMEIP_INTERNAL_BASE_PORT              51234
 #endif
 

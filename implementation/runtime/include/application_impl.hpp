@@ -17,6 +17,10 @@
 #include <unordered_map>
 #include <vector>
 
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
+#include <pthread.h>
+#endif
+
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/signal_set.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -350,7 +354,7 @@ private:
 
     const std::string path_;
 
-#if defined(__linux__) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__) || defined(__APPLE__)
     pthread_t start_thread_;
 #endif
 

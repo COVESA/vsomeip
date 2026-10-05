@@ -3,8 +3,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <cstring>
 #include <iomanip>
 #include <thread>
+
+#ifndef _WIN32
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#endif
 
 #include <boost/asio/ip/multicast.hpp>
 #include <boost/asio/ip/network_v4.hpp>
@@ -29,6 +36,56 @@ namespace ip = boost::asio::ip;
 #define VSOMEIP_LOG_PREFIX "usei"
 
 namespace vsomeip_v3 {
+
+static unsigned int ipv6_multicast_ifindex(const boost::asio::ip::address& _local, const std::string& _device);
+
+static udp_server_endpoint_impl::endpoint_type with_mcast_scope(const boost::asio::ip::address& _address, uint16_t _port,
+                                                                const boost::asio::ip::address& _local, const std::string& _device) {
+    if (!_address.is_v6()) {
+        return udp_server_endpoint_impl::endpoint_type(_address, _port);
+    }
+    auto v6 = _address.to_v6();
+    if (v6.is_multicast() && v6.scope_id() == 0) {
+        unsigned int ifindex = ipv6_multicast_ifindex(_local, _device);
+        if (ifindex != 0) {
+            v6.scope_id(ifindex);
+        }
+    }
+    return udp_server_endpoint_impl::endpoint_type(v6, _port);
+}
+
+// join_group / IPV6_MULTICAST_IF take an interface index, not a unicast scope_id.
+static unsigned int ipv6_multicast_ifindex(const boost::asio::ip::address& _local, const std::string& _device) {
+    unsigned int ifindex = 0;
+    if (_local.is_v6()) {
+        ifindex = static_cast<unsigned int>(_local.to_v6().scope_id());
+    }
+#ifndef _WIN32
+    if (ifindex == 0 && !_device.empty()) {
+        ifindex = if_nametoindex(_device.c_str());
+    }
+    if (ifindex == 0 && _local.is_v6()) {
+        struct ifaddrs* ifa = nullptr;
+        if (getifaddrs(&ifa) == 0) {
+            const auto bytes = _local.to_v6().to_bytes();
+            for (struct ifaddrs* p = ifa; p != nullptr; p = p->ifa_next) {
+                if (p->ifa_addr == nullptr || p->ifa_addr->sa_family != AF_INET6) {
+                    continue;
+                }
+                auto* sin6 = reinterpret_cast<struct sockaddr_in6*>(p->ifa_addr);
+                if (std::memcmp(&sin6->sin6_addr, bytes.data(), 16) == 0) {
+                    ifindex = if_nametoindex(p->ifa_name);
+                    break;
+                }
+            }
+            freeifaddrs(ifa);
+        }
+    }
+#else
+    (void)_device;
+#endif
+    return ifindex;
+}
 
 udp_server_endpoint_impl::udp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                                                    const std::shared_ptr<boardnet_routing_host>& _routing_host,
@@ -134,8 +191,8 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
         }
     } else {
         is_v4_ = false;
-        // TODO(): an interface index is expected not a scope_id
-        boost::asio::ip::multicast::outbound_interface option(static_cast<unsigned int>(_local.address().to_v6().scope_id()));
+        unsigned int ifindex = ipv6_multicast_ifindex(_local.address(), configuration_->get_device());
+        boost::asio::ip::multicast::outbound_interface option(ifindex);
         unicast_socket_->set_option(option, _error);
         if (_error) {
             VSOMEIP_ERROR_P << instance_name_ << "Failed to configure IPv6 outbound interface, " << _error.message();
@@ -363,7 +420,8 @@ bool udp_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition
     std::scoped_lock its_lock(mutex_);
     bool result = false;
     if (_target) {
-        endpoint_type its_target(_target->get_address(), _target->get_port());
+        endpoint_type its_target =
+                with_mcast_scope(_target->get_address(), _target->get_port(), local_.address(), configuration_->get_device());
         result = send_intern(its_target, _data, _size);
     }
     return result;
@@ -374,7 +432,8 @@ bool udp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
     // any field inside this list (`_target` points to this list).
     std::scoped_lock its_lock(mutex_, sync_);
 
-    const endpoint_type its_target(_target->get_address(), _target->get_port());
+    const endpoint_type its_target =
+            with_mcast_scope(_target->get_address(), _target->get_port(), local_.address(), configuration_->get_device());
     const auto its_target_iterator(find_or_create_target_unlocked(its_target));
     auto& its_data = its_target_iterator->second;
     bool can_be_send = check_queue_limit(_data, _size, its_data) && check_message_size(_size);
@@ -536,7 +595,8 @@ void udp_server_endpoint_impl::leave_unlocked(const std::string& _address) {
 
 void udp_server_endpoint_impl::add_default_target(service_t _service, const std::string& _address, uint16_t _port) {
     std::scoped_lock its_lock(sync_);
-    endpoint_type its_endpoint(boost::asio::ip::make_address(_address), _port);
+    auto addr = boost::asio::ip::make_address(_address);
+    endpoint_type its_endpoint = with_mcast_scope(addr, _port, local_.address(), configuration_->get_device());
     default_targets_[_service] = its_endpoint;
 }
 
@@ -966,9 +1026,8 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         if (is_v4_) {
             its_join_option = boost::asio::ip::multicast::join_group(_address.to_v4(), local_.address().to_v4());
         } else {
-            // TODO(): an interface index is expected not a scope_id
-            its_join_option = boost::asio::ip::multicast::join_group(_address.to_v6(),
-                                                                     static_cast<unsigned int>(local_.address().to_v6().scope_id()));
+            unsigned int ifindex = ipv6_multicast_ifindex(local_.address(), configuration_->get_device());
+            its_join_option = boost::asio::ip::multicast::join_group(_address.to_v6(), ifindex);
         }
 
         // "Both ADD_MEMBERSHIP and DROP_MEMBERSHIP are nonblocking operations. They
@@ -991,7 +1050,10 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         join_status_.erase(_address.to_string());
 
         if (multicast_socket_ && multicast_socket_->is_open()) {
-            boost::asio::ip::multicast::leave_group its_leave_option(_address);
+            boost::asio::ip::multicast::leave_group its_leave_option = is_v4_
+                    ? boost::asio::ip::multicast::leave_group(_address)
+                    : boost::asio::ip::multicast::leave_group(_address.to_v6(),
+                                                              ipv6_multicast_ifindex(local_.address(), configuration_->get_device()));
             multicast_socket_->set_option(its_leave_option, _error);
 
             if (_error) {
