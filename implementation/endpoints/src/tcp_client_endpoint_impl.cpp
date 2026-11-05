@@ -172,7 +172,7 @@ void tcp_client_endpoint_impl::connect() {
 #if defined(__linux__) || defined(__QNX__)
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
-        if (its_device != "" && socket_->bind_to_device(its_device)) {
+        if (its_device != "" && !socket_->bind_to_device(its_device)) {
             VSOMEIP_WARNING_P << "Could not bind to device \"" << its_device << "\"";
         }
 #endif
